@@ -1,6 +1,7 @@
 #include <corundum/core/context.hpp>
 #include <corundum/util/logger.hpp>
 
+#include <string_view>
 #include <optional>
 #include <vector>
 #include <string>
@@ -14,7 +15,7 @@ namespace crd::core {
         Context context = {};
         { // Creates a VkInstance.
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Requesting Vulkan Version 1.2");
-            VkApplicationInfo application_info{};
+            VkApplicationInfo application_info;
             application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
             application_info.pNext = nullptr;
             application_info.pApplicationName = "Corundum Engine";
@@ -28,17 +29,19 @@ namespace crd::core {
             vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
             std::vector<VkExtensionProperties> extensions_props(extension_count);
             vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions_props.data());
-            constexpr std::array extension_names = {
-                VK_KHR_SURFACE_EXTENSION_NAME,
+            std::vector<const char*> extension_names;
+            extension_names.reserve(extension_count);
 #if crd_debug == 1
-                VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+            extension_names.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
-            };
             for (const auto& [name, _] : extensions_props) {
-                util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - %s", name);
+                if (std::string_view(name).find("debug") == std::string::npos) {
+                    util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - %s", name);
+                    extension_names.emplace_back(name);
+                }
             }
 
-            VkInstanceCreateInfo instance_info{};
+            VkInstanceCreateInfo instance_info;
             instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
             instance_info.pNext = nullptr;
             instance_info.flags = {};
@@ -90,9 +93,7 @@ namespace crd::core {
 
                 util::log("Vulkan", severity_string, type_string, data->pMessage);
                 const auto fatal_bits = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-                if (severity & fatal_bits) {
-                    std::abort();
-                }
+                crd_assert((severity & fatal_bits), "Fatal Vulkan Error has occurred");
                 return 0;
             };
             validation_info.pUserData = nullptr;
@@ -133,7 +134,7 @@ namespace crd::core {
             std::vector<VkQueueFamilyProperties> queue_families(families_count);
             vkGetPhysicalDeviceQueueFamilyProperties(context.gpu, &families_count, queue_families.data());
 
-            std::vector<std::uint32_t> queue_offsets(families_count);
+            std::vector<std::uint32_t> queue_sizes(families_count);
             std::vector<std::vector<float>> queue_priorities(families_count);
             const auto fetch_family = [&](VkQueueFlags required, VkQueueFlags ignore, float priority) -> std::optional<QueueFamily> {
                 for (std::uint32_t family = 0; family < families_count; family++) {
@@ -141,11 +142,11 @@ namespace crd::core {
                         continue;
                     }
 
-                    if (queue_families[family].queueCount && (queue_families[family].queueFlags & required) == required) {
-                        queue_families[family].queueCount--;
+                    const auto remaining = queue_families[family].queueCount - queue_sizes[family];
+                    if (remaining > 0 && (queue_families[family].queueFlags & required) == required) {
                         queue_priorities[family].emplace_back(priority);
                         return QueueFamily{
-                            family, queue_offsets[family]++
+                            family, queue_sizes[family]++
                         };
                     }
                 }
@@ -162,11 +163,11 @@ namespace crd::core {
             if (const auto&& queue = fetch_family(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0, 1.0f)) {
                 // Prefer another graphics queue since we can do async graphics that way.
                 families.compute = queue.value();
-            } else if (const auto&& fallback = fetch_family(VK_QUEUE_COMPUTE_BIT, 0, 1.0f)) {
+            } else if (const auto&& fallback = fetch_family(VK_QUEUE_COMPUTE_BIT, VK_QUEUE_GRAPHICS_BIT, 1.0f)) {
                 // Fallback to a dedicated compute queue which doesn't support graphics.
                 families.compute = fallback.value();
             } else {
-                // Finally, fallback to
+                // Finally, fallback to graphics queue
                 families.compute = families.graphics;
             }
 
@@ -186,7 +187,7 @@ namespace crd::core {
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Chosen families: %d, %d, %d", families.graphics.family, families.transfer.family, families.compute.family);
             std::vector<VkDeviceQueueCreateInfo> queue_infos;
             for (std::uint32_t family = 0; family < families_count; family++) {
-                if (queue_offsets[family] == 0) {
+                if (queue_sizes[family] == 0) {
                     continue;
                 }
 
@@ -195,9 +196,9 @@ namespace crd::core {
                 queue_info.pNext = nullptr;
                 queue_info.flags = {};
                 queue_info.queueFamilyIndex = family;
-                queue_info.queueCount = queue_offsets[family];
+                queue_info.queueCount = queue_sizes[family];
                 queue_info.pQueuePriorities = queue_priorities[family].data();
-                queue_infos.push_back(queue_info);
+                queue_infos.emplace_back(queue_info);
             }
 
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Fetching device features");
@@ -222,7 +223,7 @@ namespace crd::core {
             device_info.pNext = nullptr;
             device_info.flags = {};
             device_info.pQueueCreateInfos = queue_infos.data();
-            device_info.queueCreateInfoCount = uint32_t(queue_infos.size());
+            device_info.queueCreateInfoCount = queue_infos.size();
             device_info.enabledLayerCount = 0;
             device_info.ppEnabledLayerNames = nullptr;
             device_info.enabledExtensionCount = extension_names.size();
@@ -232,8 +233,8 @@ namespace crd::core {
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Ownership acquired successfully, locked");
 
             vkGetDeviceQueue(context.device, families.graphics.family, families.graphics.index, &context.graphics);
-            vkGetDeviceQueue(context.device, families.transfer.family, families.transfer.index, &context.graphics);
-            vkGetDeviceQueue(context.device, families.compute.family, families.compute.index, &context.graphics);
+            vkGetDeviceQueue(context.device, families.transfer.family, families.transfer.index, &context.transfer);
+            vkGetDeviceQueue(context.device, families.compute.family, families.compute.index, &context.compute);
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Device queues initialized");
         }
         util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Vulkan initialization completed");
