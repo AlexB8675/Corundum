@@ -10,7 +10,7 @@
 #define load_instance_function(instance, fn) const auto fn = reinterpret_cast<PFN_##fn>(vkGetInstanceProcAddr(instance, #fn))
 
 namespace crd::core {
-    crd_nodiscard Context make_context() noexcept {
+    crd_nodiscard   Context make_context() noexcept {
         util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Vulkan initialization started");
         Context context = {};
         { // Creates a VkInstance.
@@ -93,7 +93,7 @@ namespace crd::core {
 
                 util::log("Vulkan", severity_string, type_string, data->pMessage);
                 const auto fatal_bits = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-                crd_assert((severity & fatal_bits), "Fatal Vulkan Error has occurred");
+                crd_assert(severity & fatal_bits, "Fatal Vulkan Error has occurred");
                 return 0;
             };
             validation_info.pUserData = nullptr;

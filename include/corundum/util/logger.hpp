@@ -23,7 +23,7 @@ namespace crd::util {
 
     template <typename... Args>
     void log(const char* sender, const char* severity, const char* type, const char* message, Args&&... args) noexcept {
-#if defined(crd_debug_logging)
+#if crd_debug_logging == 1
         const auto clock     = std::chrono::system_clock::now();
         const auto time      = std::chrono::system_clock::to_time_t(clock);
         const auto timestamp = std::stringstream() << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
@@ -36,7 +36,7 @@ namespace crd::util {
 
     template <typename... Args>
     void log(const char* sender, Severity severity, Type type, const char* message, Args&&... args) noexcept {
-#if defined(crd_debug_logging)
+#if crd_debug_logging == 1
         const char* severity_string;
         switch (severity) {
             case Severity::eInfo:    severity_string = "Info";    break;

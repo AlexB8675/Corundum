@@ -31,5 +31,5 @@ namespace crd::core {
         VkQueue compute;
     };
 
-    crd_nodiscard Context make_context() noexcept;
+    crd_nodiscard crd_module Context make_context() noexcept;
 } // namespace crd::core
