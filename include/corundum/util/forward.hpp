@@ -6,6 +6,8 @@ namespace crd {
     namespace core {
         struct Context;
         struct Swapchain;
+        struct Image;
+        struct RenderPass;
     } // namespace crd::core
 
     namespace wm {

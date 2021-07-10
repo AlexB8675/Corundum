@@ -87,7 +87,7 @@ namespace crd::core {
         image_view_info.subresourceRange.layerCount = 1;
 
         swapchain.views.reserve(image_count);
-        for (const auto& image : swapchain.images) {
+        for (const auto image : swapchain.images) {
             image_view_info.image = image;
             crd_vulkan_check(vkCreateImageView(context.device, &image_view_info, nullptr, &swapchain.views.emplace_back()));
         }

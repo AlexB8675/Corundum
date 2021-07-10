@@ -10,7 +10,7 @@
 #define load_instance_function(instance, fn) const auto fn = reinterpret_cast<PFN_##fn>(vkGetInstanceProcAddr(instance, #fn))
 
 namespace crd::core {
-    crd_nodiscard   Context make_context() noexcept {
+    crd_nodiscard Context make_context() noexcept {
         util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Vulkan initialization started");
         Context context = {};
         { // Creates a VkInstance.
@@ -236,6 +236,25 @@ namespace crd::core {
             vkGetDeviceQueue(context.device, families.transfer.family, families.transfer.index, &context.transfer);
             vkGetDeviceQueue(context.device, families.compute.family, families.compute.index, &context.compute);
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Device queues initialized");
+        }
+        { // Creates a VmaAllocator.
+            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Creating allocator");
+            VmaAllocatorCreateInfo allocator_info;
+            allocator_info.flags = {};
+            allocator_info.physicalDevice = context.gpu;
+            allocator_info.device = context.device;
+            allocator_info.preferredLargeHeapBlockSize = 0;
+            allocator_info.pAllocationCallbacks = nullptr;
+            allocator_info.pDeviceMemoryCallbacks = nullptr;
+            allocator_info.frameInUseCount = 1;
+            allocator_info.pHeapSizeLimit = nullptr;
+            allocator_info.pVulkanFunctions = nullptr;
+            allocator_info.pRecordSettings = nullptr;
+            allocator_info.instance = context.instance;
+            allocator_info.vulkanApiVersion = VK_API_VERSION_1_2;
+            allocator_info.pTypeExternalMemoryHandleTypes = nullptr;
+            crd_vulkan_check(vmaCreateAllocator(&allocator_info, &context.allocator));
+            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Allocator created successfully");
         }
         util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Vulkan initialization completed");
         return context;

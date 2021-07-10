@@ -3,6 +3,7 @@
 #include <corundum/util/macros.hpp>
 
 #include <vulkan/vulkan.h>
+#include <vk_mem_alloc.h>
 
 #include <cstdint>
 
@@ -26,6 +27,7 @@ namespace crd::core {
         VkPhysicalDevice gpu;
         QueueFamilies families;
         VkDevice device;
+        VmaAllocator allocator;
         VkQueue graphics;
         VkQueue transfer;
         VkQueue compute;

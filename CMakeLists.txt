@@ -13,17 +13,23 @@ add_subdirectory(ext/glfw)
 
 add_executable(Corundum
     include/corundum/core/context.hpp
+    include/corundum/core/image.hpp
+    include/corundum/core/render_pass.hpp
+    include/corundum/core/swapchain.hpp
 
+    include/corundum/util/forward.hpp
     include/corundum/util/logger.hpp
     include/corundum/util/macros.hpp
 
     include/corundum/wm/window.hpp
 
     src/core/context.cpp
+    src/core/swapchain.cpp
+    src/core/vma.cpp
 
     src/wm/window.cpp
 
-    src/main.cpp include/corundum/util/forward.hpp include/corundum/core/swapchain.hpp src/core/swapchain.cpp)
+    src/main.cpp src/core/image.cpp)
 
 target_compile_definitions(Corundum PUBLIC
     $<$<BOOL:${WIN32}>:
@@ -39,6 +45,7 @@ target_compile_options(Corundum PUBLIC $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-march=n
 
 target_include_directories(Corundum PRIVATE
     include
+    ext/vma/include
     ext/glfw/include)
 
 target_link_libraries(Corundum PRIVATE
