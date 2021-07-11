@@ -1,5 +1,7 @@
 #pragma once
 
+#include <corundum/core/clear.hpp>
+
 #include <corundum/util/forward.hpp>
 #include <corundum/util/macros.hpp>
 

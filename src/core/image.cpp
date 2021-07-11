@@ -1,6 +1,8 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/image.hpp>
 
+#include <corundum/util/logger.hpp>
+
 namespace crd::core {
     crd_nodiscard static inline VkImageAspectFlags aspect_from_format(VkFormat format) noexcept {
         switch (format) {
@@ -37,7 +39,7 @@ namespace crd::core {
         image_info.extent = { image.width, image.height, 1 };
         image_info.mipLevels = image.mips;
         image_info.arrayLayers = 1;
-        image_info.samples = image.samples;
+        image_info.samples = info.samples;
         image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
         image_info.usage = info.usage;
         image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -65,12 +67,13 @@ namespace crd::core {
         image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         image_view_info.pNext = nullptr;
         image_view_info.flags = {};
+        image_view_info.image = image.handle;
+        image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
         image_view_info.format = image.format;
         image_view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
         image_view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
         image_view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
         image_view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
         image_view_info.subresourceRange.aspectMask = image.aspect;
         image_view_info.subresourceRange.baseMipLevel = 0;
         image_view_info.subresourceRange.levelCount = image.mips;

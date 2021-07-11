@@ -29,7 +29,7 @@ add_executable(Corundum
 
     src/wm/window.cpp
 
-    src/main.cpp src/core/image.cpp)
+    src/main.cpp src/core/image.cpp include/corundum/core/clear.hpp src/core/clear.cpp src/core/clear.cpp src/core/render_pass.cpp include/corundum/core/constants.hpp)
 
 target_compile_definitions(Corundum PUBLIC
     $<$<BOOL:${WIN32}>:

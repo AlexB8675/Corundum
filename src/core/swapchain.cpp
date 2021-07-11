@@ -74,12 +74,12 @@ namespace crd::core {
         image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         image_view_info.pNext = nullptr;
         image_view_info.flags = {};
+        image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
         image_view_info.format = swapchain.format;
         image_view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
         image_view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
         image_view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
         image_view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
         image_view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         image_view_info.subresourceRange.baseMipLevel = 0;
         image_view_info.subresourceRange.levelCount = 1;
