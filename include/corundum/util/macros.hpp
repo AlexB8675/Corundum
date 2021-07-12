@@ -22,18 +22,16 @@
     #define crd_nodiscard
 #endif
 
-#if !defined(NDEBUG)
+#if defined(crd_debug)
     #include <cassert>
-    #define crd_debug 1
     #define crd_assert(expr, msg) assert((expr) && msg)
     #define crd_vulkan_check(expr) crd_assert((expr) == VK_SUCCESS, "VkResult was not VK_SUCCESS")
     #define crd_debug_logging 1
 #else
-    #define crd_debug 0
     #define crd_assert(expr, msg) \
         do {                      \
-            (void)expr;           \
-            (void)msg;            \
+            (void)(expr);         \
+            (void)(msg);          \
         } while (false)
     #define crd_vulkan_check(expr) crd_assert(expr, 0)
     #define crd_debug_logging 0

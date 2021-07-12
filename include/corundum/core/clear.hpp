@@ -30,6 +30,6 @@ namespace crd::core {
     };
 
     crd_nodiscard crd_module constexpr VkClearValue as_vulkan(ClearValue clear) noexcept;
-    crd_nodiscard crd_module           ClearValue   make_clear(ClearColor) noexcept;
-    crd_nodiscard crd_module           ClearValue   make_clear(ClearDepth) noexcept;
+    crd_nodiscard crd_module           ClearValue   make_clear_color(ClearColor) noexcept;
+    crd_nodiscard crd_module           ClearValue   make_clear_depth(ClearDepth) noexcept;
 } // namespace crd::core

@@ -23,12 +23,26 @@ int main() {
             }),
             .initial = VK_IMAGE_LAYOUT_UNDEFINED,
             .final = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            .clear = crd::core::make_clear({{ 1, 1, 1, 1 }}),
+            .clear = crd::core::make_clear_color({ 1, 1, 1, 1 }),
             .owning = true,
             .discard = false
+        }, {
+            .image = crd::core::make_image(context, {
+                .width   = 1280,
+                .height  = 720,
+                .mips    = 1,
+                .format  = VK_FORMAT_D32_SFLOAT_S8_UINT,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+            }),
+            .initial = VK_IMAGE_LAYOUT_UNDEFINED,
+            .final = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            .clear = crd::core::make_clear_depth({ 1.0f, 0u }),
+            .owning = true,
+            .discard = true
         } },
         .subpasses = { {
-            .attachments = { 0 },
+            .attachments = { 0, 1 },
             .preserve = {},
             .input = {}
         } },
@@ -41,7 +55,7 @@ int main() {
             .dest_access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
         } },
         .framebuffers = {
-            { { 0 } }
+            { { 0, 1 } }
         }
     });
 

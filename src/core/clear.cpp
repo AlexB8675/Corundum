@@ -24,13 +24,13 @@ namespace crd::core {
         return value;
     }
 
-    crd_nodiscard crd_module ClearValue make_clear(ClearColor color) noexcept {
+    crd_nodiscard crd_module ClearValue make_clear_color(ClearColor color) noexcept {
         ClearValue value;
         value.tag = ClearValue::eColor;
         new (&value.color) ClearColor(color);
         return value;
     }
-    crd_nodiscard crd_module ClearValue make_clear(ClearDepth depth) noexcept {
+    crd_nodiscard crd_module ClearValue make_clear_depth(ClearDepth depth) noexcept {
         ClearValue value;
         value.tag = ClearValue::eDepth;
         new (&value.depth) ClearDepth(depth);

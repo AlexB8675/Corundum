@@ -31,7 +31,7 @@ namespace crd::core {
             vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions_props.data());
             std::vector<const char*> extension_names;
             extension_names.reserve(extension_count);
-#if crd_debug == 1
+#if defined(crd_debug)
             extension_names.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
             for (const auto& [name, _] : extensions_props) {
@@ -46,7 +46,7 @@ namespace crd::core {
             instance_info.pNext = nullptr;
             instance_info.flags = {};
             instance_info.pApplicationInfo = &application_info;
-#if crd_debug == 1
+#if defined(crd_debug)
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Debug mode active, requesting validation layers");
             const char* validation_layer = "VK_LAYER_KHRONOS_validation";
             instance_info.enabledLayerCount = 1;
@@ -58,7 +58,7 @@ namespace crd::core {
             crd_vulkan_check(vkCreateInstance(&instance_info, nullptr, &context.instance));
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Extensions enabled successfully");
         }
-#if crd_debug == 1
+#if defined(crd_debug)
         { // Installs validation layers only if debug mode is active.
             VkDebugUtilsMessengerCreateInfoEXT validation_info;
             validation_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;

@@ -50,6 +50,7 @@ namespace crd::core {
         VmaAllocationCreateInfo allocation_info;
         allocation_info.flags = {};
         allocation_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        allocation_info.requiredFlags = {};
         allocation_info.preferredFlags = {};
         allocation_info.memoryTypeBits = {};
         allocation_info.pool = nullptr;
@@ -85,5 +86,6 @@ namespace crd::core {
 
     crd_module void destroy_image(const Context& context, Image& image) noexcept {
         vmaDestroyImage(context.allocator, image.handle, image.allocation);
+        image = {};
     }
 } // namespace crd::core

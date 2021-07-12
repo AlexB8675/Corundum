@@ -11,7 +11,14 @@ set(GLFW_VULKAN_STATIC ON CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(ext/glfw)
 
+set(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS ON CACHE BOOL "" FORCE)
+set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+set(SPIRV_CROSS_STATIC ON CACHE BOOL "" FORCE)
+add_subdirectory(ext/SPIRV-Cross)
+
 add_executable(Corundum
+    include/corundum/core/clear.hpp
+    include/corundum/core/constants.hpp
     include/corundum/core/context.hpp
     include/corundum/core/image.hpp
     include/corundum/core/render_pass.hpp
@@ -23,15 +30,20 @@ add_executable(Corundum
 
     include/corundum/wm/window.hpp
 
+    src/core/clear.cpp
     src/core/context.cpp
+    src/core/image.cpp
+    src/core/render_pass.cpp
     src/core/swapchain.cpp
     src/core/vma.cpp
 
     src/wm/window.cpp
 
-    src/main.cpp src/core/image.cpp include/corundum/core/clear.hpp src/core/clear.cpp src/core/clear.cpp src/core/render_pass.cpp include/corundum/core/constants.hpp)
+    src/main.cpp)
 
 target_compile_definitions(Corundum PUBLIC
+    $<$<CONFIG:Debug>:crd_debug>
+
     $<$<BOOL:${WIN32}>:
         _CRT_SECURE_NO_WARNINGS
         WIN32_LEAN_AND_MEAN
@@ -50,4 +62,5 @@ target_include_directories(Corundum PRIVATE
 
 target_link_libraries(Corundum PRIVATE
     glfw
-    Vulkan::Vulkan)
+    Vulkan::Vulkan
+    spirv-cross-glsl)
