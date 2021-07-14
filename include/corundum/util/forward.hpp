@@ -8,6 +8,9 @@ namespace crd {
         struct Swapchain;
         struct Image;
         struct RenderPass;
+        struct Pipeline;
+        struct Queue;
+        struct CommandBuffer;
     } // namespace crd::core
 
     namespace wm {

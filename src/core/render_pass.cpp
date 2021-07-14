@@ -51,8 +51,8 @@ namespace crd::core {
             description.storeOp = store_op;
             description.stencilLoadOp = stencil_load;
             description.stencilStoreOp = stencil_store;
-            description.initialLayout = attachment.initial;
-            description.finalLayout = attachment.final;
+            description.initialLayout = attachment.layout.initial;
+            description.finalLayout = attachment.layout.final;
             attachments.emplace_back(description);
             render_pass.clears.emplace_back(as_vulkan(attachment.clear));
         }
@@ -126,13 +126,13 @@ namespace crd::core {
         render_pass_info.pDependencies = dependencies.data();
         crd_vulkan_check(vkCreateRenderPass(context.device, &render_pass_info, nullptr, &render_pass.handle));
 
+        VkFramebufferCreateInfo framebuffer_info;
+        framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebuffer_info.pNext = nullptr;
+        framebuffer_info.flags = {};
+        framebuffer_info.renderPass = render_pass.handle;
+        framebuffer_info.layers = 1; // TODO: Don't hardcode.
         for (const auto& each : info.framebuffers) {
-            VkFramebufferCreateInfo framebuffer_info;
-            framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebuffer_info.pNext = nullptr;
-            framebuffer_info.flags = {};
-            framebuffer_info.renderPass = render_pass.handle;
-            framebuffer_info.layers = 1; // TODO: Don't hardcode.
             std::vector<VkImageView> image_references;
             for (const auto& index : each.attachments) {
                 const auto& attachment = render_pass.attachments[index];

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <corundum/core/queue.hpp>
+
 #include <corundum/util/macros.hpp>
 
 #include <vulkan/vulkan.h>
@@ -8,17 +10,6 @@
 #include <cstdint>
 
 namespace crd::core {
-    struct QueueFamily {
-        std::uint32_t family;
-        std::uint32_t index;
-    };
-
-    struct QueueFamilies {
-        QueueFamily graphics;
-        QueueFamily transfer;
-        QueueFamily compute;
-    };
-
     struct Context {
         VkInstance instance;
 #if crd_debug == 1
@@ -28,9 +19,9 @@ namespace crd::core {
         QueueFamilies families;
         VkDevice device;
         VmaAllocator allocator;
-        VkQueue graphics;
-        VkQueue transfer;
-        VkQueue compute;
+        Queue* graphics;
+        Queue* transfer;
+        Queue* compute;
     };
 
     crd_nodiscard crd_module Context make_context() noexcept;

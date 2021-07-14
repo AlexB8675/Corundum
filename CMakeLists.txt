@@ -11,7 +11,7 @@ set(GLFW_VULKAN_STATIC ON CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(ext/glfw)
 
-set(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS ON CACHE BOOL "" FORCE)
+set(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS OFF CACHE BOOL "" FORCE)
 set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
 set(SPIRV_CROSS_STATIC ON CACHE BOOL "" FORCE)
 add_subdirectory(ext/SPIRV-Cross)
@@ -21,9 +21,11 @@ add_executable(Corundum
     include/corundum/core/constants.hpp
     include/corundum/core/context.hpp
     include/corundum/core/image.hpp
+    include/corundum/core/pipeline.hpp
     include/corundum/core/render_pass.hpp
     include/corundum/core/swapchain.hpp
 
+    include/corundum/util/file_view.hpp
     include/corundum/util/forward.hpp
     include/corundum/util/logger.hpp
     include/corundum/util/macros.hpp
@@ -33,13 +35,16 @@ add_executable(Corundum
     src/core/clear.cpp
     src/core/context.cpp
     src/core/image.cpp
+    src/core/pipeline.cpp
     src/core/render_pass.cpp
     src/core/swapchain.cpp
     src/core/vma.cpp
 
+    src/util/file_view.cpp
+
     src/wm/window.cpp
 
-    src/main.cpp)
+    src/main.cpp include/corundum/core/command_buffer.hpp src/core/command_buffer.cpp include/corundum/core/queue.hpp include/corundum/core/queue.hpp src/core/queue.cpp)
 
 target_compile_definitions(Corundum PUBLIC
     $<$<CONFIG:Debug>:crd_debug>
@@ -53,7 +58,9 @@ target_compile_definitions(Corundum PUBLIC
     GLM_FORCE_DEPTH_ZERO_TO_ONE
     GLM_FORCE_RADIANS)
 
-target_compile_options(Corundum PUBLIC $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-march=native>)
+target_compile_options(Corundum PUBLIC
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-march=native>
+    $<$<CXX_COMPILER_ID:MSVC>:/EHsc>)
 
 target_include_directories(Corundum PRIVATE
     include

@@ -232,9 +232,9 @@ namespace crd::core {
             crd_vulkan_check(vkCreateDevice(context.gpu, &device_info, nullptr, &context.device));
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Ownership acquired successfully, locked");
 
-            vkGetDeviceQueue(context.device, families.graphics.family, families.graphics.index, &context.graphics);
-            vkGetDeviceQueue(context.device, families.transfer.family, families.transfer.index, &context.transfer);
-            vkGetDeviceQueue(context.device, families.compute.family, families.compute.index, &context.compute);
+            context.graphics = make_queue(context, families.graphics);
+            context.transfer = make_queue(context, families.transfer);
+            context.compute = make_queue(context, families.compute);
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Device queues initialized");
         }
         { // Creates a VmaAllocator.

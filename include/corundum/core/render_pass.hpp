@@ -12,9 +12,12 @@
 
 namespace crd::core {
     struct AttachmentInfo {
+        struct Layout {
+            VkImageLayout initial;
+            VkImageLayout final;
+        };
         Image image;
-        VkImageLayout initial;
-        VkImageLayout final;
+        Layout layout;
         ClearValue clear;
         bool owning;
         bool discard;
