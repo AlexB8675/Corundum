@@ -1,17 +1,16 @@
 #include <corundum/core/clear.hpp>
 
+#include <type_traits>
 #include <algorithm>
+#include <cstring>
 
 namespace crd::core {
-    crd_nodiscard crd_module constexpr VkClearValue as_vulkan(ClearValue clear) noexcept {
+    crd_nodiscard crd_module VkClearValue as_vulkan(ClearValue clear) noexcept {
         VkClearValue value = {};
         switch (clear.tag) {
             case ClearValue::eColor: {
                 new (&value.color) VkClearColorValue();
-                const auto* first = clear.color.color;
-                const auto* last  = clear.color.color + 4;
-                      auto* dest  = new (&value.color.float32) float[4];
-                std::copy(first, last, dest);
+                std::memcpy(value.color.float32, clear.color.color, sizeof value.color.float32);
             } break;
 
             case ClearValue::eDepth: {

@@ -29,7 +29,7 @@ namespace crd::core {
         } tag;
     };
 
-    crd_nodiscard crd_module constexpr VkClearValue as_vulkan(ClearValue clear) noexcept;
-    crd_nodiscard crd_module           ClearValue   make_clear_color(ClearColor) noexcept;
-    crd_nodiscard crd_module           ClearValue   make_clear_depth(ClearDepth) noexcept;
+    crd_nodiscard crd_module VkClearValue as_vulkan(ClearValue clear) noexcept;
+    crd_nodiscard crd_module ClearValue   make_clear_color(ClearColor) noexcept;
+    crd_nodiscard crd_module ClearValue   make_clear_depth(ClearDepth) noexcept;
 } // namespace crd::core

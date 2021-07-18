@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <cstdint>
 #include <array>
+#include <span>
 
 namespace crd::core {
     struct ImageBlit {
@@ -35,7 +36,9 @@ namespace crd::core {
         crd_module CommandBuffer& begin() noexcept;
         crd_module CommandBuffer& begin_render_pass(const RenderPass&, std::size_t) noexcept;
         crd_module CommandBuffer& set_viewport(VkViewport) noexcept;
+        crd_module CommandBuffer& set_viewport(std::size_t) noexcept;
         crd_module CommandBuffer& set_scissor(VkRect2D) noexcept;
+        crd_module CommandBuffer& set_scissor(std::size_t) noexcept;
         crd_module CommandBuffer& bind_pipeline(const Pipeline&) noexcept;
         crd_module CommandBuffer& push_constants(VkPipelineStageFlags, std::size_t, const void*) noexcept;
         crd_module CommandBuffer& draw(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) noexcept;
@@ -43,10 +46,13 @@ namespace crd::core {
         crd_module CommandBuffer& end_render_pass() noexcept;
         crd_module CommandBuffer& copy_image(const Image&, const Image&) noexcept;
         crd_module CommandBuffer& blit_image(const ImageBlit&) noexcept;
+        crd_module CommandBuffer& transfer_ownership(const ImageMemoryBarrier&, const Queue&, const Queue&) noexcept;
         crd_module CommandBuffer& insert_layout_transition(const ImageMemoryBarrier&) noexcept;
-        crd_module void end() noexcept;
+        crd_module void           end() const noexcept;
     };
 
     crd_nodiscard crd_module std::vector<CommandBuffer> make_command_buffers(const Context&, CommandBuffer::CreateInfo&&) noexcept;
     crd_nodiscard crd_module CommandBuffer              make_command_buffer(const Context&, CommandBuffer::CreateInfo&&) noexcept;
+                  crd_module void                       destroy_command_buffers(const Context&, std::span<CommandBuffer>) noexcept;
+                  crd_module void                       destroy_command_buffer(const Context&, CommandBuffer) noexcept;
 } // namespace crd::core

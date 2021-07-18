@@ -3,6 +3,8 @@
 
 #include <corundum/util/logger.hpp>
 
+#include <vulkan/vulkan.hpp>
+
 namespace crd::core {
     crd_nodiscard static inline VkImageAspectFlags aspect_from_format(VkFormat format) noexcept {
         switch (format) {
@@ -64,6 +66,11 @@ namespace crd::core {
             &image.allocation,
             nullptr));
 
+        VkMemoryRequirements memory_requirements;
+        vkGetImageMemoryRequirements(context.device, image.handle, &memory_requirements);
+        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral,
+                  "Image Allocated Successfully: Size: %llu, Alignment: %llu",
+                  memory_requirements.size, memory_requirements.alignment);
         VkImageViewCreateInfo image_view_info;
         image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         image_view_info.pNext = nullptr;
@@ -85,6 +92,7 @@ namespace crd::core {
     }
 
     crd_module void destroy_image(const Context& context, Image& image) noexcept {
+        vkDestroyImageView(context.device, image.view, nullptr);
         vmaDestroyImage(context.allocator, image.handle, image.allocation);
         image = {};
     }

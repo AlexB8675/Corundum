@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include <vector>
 #include <mutex>
 
 namespace crd::core {
@@ -42,11 +43,16 @@ namespace crd::core {
 
     struct Queue {
         VkQueue handle;
-        VkCommandPool main_pool;
-        std::vector<VkCommandPool> threaded_pools;
+        VkCommandPool pool;
+        std::vector<VkCommandPool> transient;
         std::uint32_t family;
         std::mutex lock;
+
+        crd_module void submit(const CommandBuffer&, VkPipelineStageFlags, VkSemaphore, VkSemaphore, VkFence) noexcept;
+        crd_module void present(const Swapchain&, std::uint32_t, VkSemaphore) noexcept;
+        crd_module void wait_idle() const noexcept;
     };
 
     crd_nodiscard crd_module Queue* make_queue(const Context&, QueueFamily) noexcept;
+                  crd_module void   destroy_queue(const Context&, Queue*&) noexcept;
 } // namespace crd::core

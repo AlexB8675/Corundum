@@ -18,4 +18,5 @@ namespace crd::wm {
     crd_nodiscard crd_module bool         is_closed(const Window&) noexcept;
                   crd_module void         poll_events() noexcept;
     crd_nodiscard crd_module VkSurfaceKHR make_vulkan_surface(const core::Context&, const Window&) noexcept;
+                  crd_module void         destroy_window(Window&) noexcept;
 } // namespace crd::wm

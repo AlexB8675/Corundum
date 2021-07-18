@@ -5,7 +5,7 @@
 #include <utility>
 
 namespace crd::core {
-    crd_nodiscard static VkImageLayout deduce_reference_layout(const AttachmentInfo& attachment) noexcept {
+    crd_nodiscard static inline VkImageLayout deduce_reference_layout(const AttachmentInfo& attachment) noexcept {
         switch (attachment.image.aspect) {
             case VK_IMAGE_ASPECT_STENCIL_BIT | VK_IMAGE_ASPECT_DEPTH_BIT:
                 return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -94,7 +94,7 @@ namespace crd::core {
             description.colorAttachmentCount = storage.color.size();
             description.pColorAttachments = storage.color.data();
             description.pResolveAttachments = nullptr; // TODO: Don't hardcode.
-            description.pDepthStencilAttachment = storage.depth ? &storage.depth.value() : nullptr;
+            description.pDepthStencilAttachment = storage.depth ? &*storage.depth : nullptr;
             description.preserveAttachmentCount = subpass.preserve.size();
             description.pPreserveAttachments = subpass.preserve.data();
             subpasses.emplace_back(description);
@@ -133,6 +133,7 @@ namespace crd::core {
         framebuffer_info.renderPass = render_pass.handle;
         framebuffer_info.layers = 1; // TODO: Don't hardcode.
         for (const auto& each : info.framebuffers) {
+            auto& framebuffer = render_pass.framebuffers.emplace_back();
             std::vector<VkImageView> image_references;
             for (const auto& index : each.attachments) {
                 const auto& attachment = render_pass.attachments[index];
@@ -142,8 +143,31 @@ namespace crd::core {
             }
             framebuffer_info.attachmentCount = image_references.size();
             framebuffer_info.pAttachments = image_references.data();
-            crd_vulkan_check(vkCreateFramebuffer(context.device, &framebuffer_info, nullptr, &render_pass.framebuffers.emplace_back()));
+            framebuffer.extent = {
+                framebuffer_info.width,
+                framebuffer_info.height
+            };
+            crd_vulkan_check(vkCreateFramebuffer(context.device, &framebuffer_info, nullptr, &framebuffer.handle));
         }
         return render_pass;
+    }
+
+    crd_module void destroy_render_pass(const Context& context, RenderPass& render_pass) noexcept {
+        for (auto& each : render_pass.attachments) {
+            if (each.owning) {
+                destroy_image(context, each.image);
+            }
+        }
+        for (const auto framebuffer : render_pass.framebuffers) {
+            vkDestroyFramebuffer(context.device, framebuffer.handle, nullptr);
+        }
+        if (render_pass.handle) {
+            vkDestroyRenderPass(context.device, render_pass.handle, nullptr);
+        }
+        render_pass = {};
+    }
+
+    crd_nodiscard crd_module const Image& RenderPass::image(std::size_t index) const noexcept {
+        return attachments[index].image;
     }
 } // namespace crd::core

@@ -15,9 +15,9 @@ namespace crd::core {
         std::uint32_t width;
         std::uint32_t height;
         VkFormat format;
-        std::vector<VkImage> images;
-        std::vector<VkImageView> views;
+        std::vector<Image> images;
     };
 
     crd_nodiscard crd_module Swapchain make_swapchain(const Context&, const wm::Window&) noexcept;
+                  crd_module void      destroy_swapchain(const Context&, Swapchain&) noexcept;
 } // namespace crd::core

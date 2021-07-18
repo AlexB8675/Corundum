@@ -33,4 +33,5 @@ namespace crd::core {
     };
 
     crd_nodiscard crd_module Pipeline make_pipeline(const Context&, Pipeline::CreateInfo&&) noexcept;
+                  crd_module void     destroy_pipeline(const Context&, Pipeline&) noexcept;
 } // namespace crd::core

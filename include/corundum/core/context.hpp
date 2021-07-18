@@ -25,4 +25,5 @@ namespace crd::core {
     };
 
     crd_nodiscard crd_module Context make_context() noexcept;
+                  crd_module void    destroy_context(Context& context) noexcept;
 } // namespace crd::core

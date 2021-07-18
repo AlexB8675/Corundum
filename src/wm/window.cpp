@@ -33,4 +33,9 @@ namespace crd::wm {
         crd_vulkan_check(glfwCreateWindowSurface(context.instance, window.handle, nullptr, &surface));
         return surface;
     }
+
+    crd_module void destroy_window(Window& window) noexcept {
+        glfwDestroyWindow(window.handle);
+        window = {};
+    }
 } // namespace crd::wm

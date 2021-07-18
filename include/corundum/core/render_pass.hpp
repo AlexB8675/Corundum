@@ -42,6 +42,11 @@ namespace crd::core {
         std::vector<std::uint32_t> attachments;
     };
 
+    struct Framebuffer {
+        VkFramebuffer handle;
+        VkExtent2D extent;
+    };
+
     struct RenderPass {
         struct CreateInfo {
             std::vector<AttachmentInfo> attachments;
@@ -51,9 +56,12 @@ namespace crd::core {
         };
         VkRenderPass handle;
         std::vector<VkClearValue> clears;
-        std::vector<VkFramebuffer> framebuffers;
+        std::vector<Framebuffer> framebuffers;
         std::vector<AttachmentInfo> attachments;
+
+        crd_nodiscard crd_module const Image& image(std::size_t) const noexcept;
     };
 
     crd_nodiscard crd_module RenderPass make_render_pass(const Context&, RenderPass::CreateInfo&&) noexcept;
+                  crd_module void       destroy_render_pass(const Context&, RenderPass&) noexcept;
 } // namespace crd::core

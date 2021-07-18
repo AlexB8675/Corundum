@@ -1,7 +1,7 @@
-#include <corundum/core/command_buffer.hpp>
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/swapchain.hpp>
 #include <corundum/core/constants.hpp>
+#include <corundum/core/renderer.hpp>
 #include <corundum/core/pipeline.hpp>
 #include <corundum/core/context.hpp>
 #include <corundum/core/clear.hpp>
@@ -11,6 +11,7 @@
 int main() {
     auto window      = crd::wm::make_window(1280, 720, "Sorting Algos");
     auto context     = crd::core::make_context();
+    auto renderer    = crd::core::make_renderer(context);
     auto swapchain   = crd::core::make_swapchain(context, window);
     auto render_pass = crd::core::make_render_pass(context, {
         .attachments = { {
@@ -27,7 +28,12 @@ int main() {
                 .initial = VK_IMAGE_LAYOUT_UNDEFINED,
                 .final   = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
             },
-            .clear   = crd::core::make_clear_color({ 1, 1, 1, 1 }),
+            .clear   = crd::core::make_clear_color({
+                24  / 255.0f,
+                154 / 255.0f,
+                207 / 255.0f,
+                1
+            }),
             .owning  = true,
             .discard = false
         }, {
@@ -65,8 +71,8 @@ int main() {
         }
     });
     auto pipeline = crd::core::make_pipeline(context, {
-        .vertex = "../data/shaders/main.vert.spv",
-        .fragment = "../data/shaders/main.frag.spv",
+        .vertex = "data/shaders/main.vert.spv",
+        .fragment = "data/shaders/main.frag.spv",
         .render_pass = &render_pass,
         .attributes = {
             crd::core::vertex_attribute_vec3,
@@ -79,14 +85,49 @@ int main() {
         .subpass = 0,
         .depth = true
     });
-    auto command_buffers = crd::core::make_command_buffers(context, {
-        .count = crd::core::in_flight,
-        .pool = context.graphics->main_pool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
-    });
 
     while (!crd::wm::is_closed(window)) {
+        const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
+        commands
+            .begin()
+            .begin_render_pass(render_pass, 0)
+            .set_viewport(0)
+            .set_scissor(0)
+            .bind_pipeline(pipeline)
+            .end_render_pass()
+            .insert_layout_transition({
+                .image = &image,
+                .mip = 0,
+                .levels = 0,
+                .source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                .dest_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                .source_access = {},
+                .dest_access = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .old_layout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            })
+            .copy_image(render_pass.image(0), image)
+            .insert_layout_transition({
+                .image = &image,
+                .mip = 0,
+                .levels = 0,
+                .source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                .dest_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                .source_access = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .dest_access = {},
+                .old_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+            })
+            .end();
+        renderer.present_frame(context, swapchain, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
         crd::wm::poll_events();
     }
+    context.graphics->wait_idle();
+    crd::core::destroy_pipeline(context, pipeline);
+    crd::core::destroy_render_pass(context, render_pass);
+    crd::core::destroy_swapchain(context, swapchain);
+    crd::core::destroy_renderer(context, renderer);
+    crd::core::destroy_context(context);
+    crd::wm::destroy_window(window);
     return 0;
 }

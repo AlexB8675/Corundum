@@ -8,9 +8,10 @@
 #include <spirv.hpp>
 
 #include <numeric>
+#include <cstring>
 
 namespace crd::core {
-    crd_nodiscard static std::vector<std::uint32_t> import_spirv(const char* path) noexcept {
+    crd_nodiscard static inline std::vector<std::uint32_t> import_spirv(const char* path) noexcept {
         auto file = util::make_file_view(path);
         std::vector<std::uint32_t> code(file.size / sizeof(std::uint32_t));
         std::memcpy(code.data(), file.data, file.size);
@@ -69,23 +70,20 @@ namespace crd::core {
             module_create_info.pCode = binary.data();
             crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &pipeline_stages[1].module));
 
-            attachment_outputs.reserve(resources.stage_outputs.size());
-            for (const auto& output : resources.stage_outputs) {
-                attachment_outputs.push_back({
-                    .blendEnable = true,
-                    .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-                    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                    .colorBlendOp = VK_BLEND_OP_ADD,
-                    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
-                    .alphaBlendOp = VK_BLEND_OP_ADD,
-                    .colorWriteMask =
-                        VK_COLOR_COMPONENT_R_BIT |
-                        VK_COLOR_COMPONENT_G_BIT |
-                        VK_COLOR_COMPONENT_B_BIT |
-                        VK_COLOR_COMPONENT_A_BIT
-                });
-            }
+            VkPipelineColorBlendAttachmentState attachment;
+            attachment.blendEnable = true;
+            attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+            attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            attachment.colorBlendOp = VK_BLEND_OP_ADD;
+            attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+            attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+            attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+            attachment.colorWriteMask =
+                VK_COLOR_COMPONENT_R_BIT |
+                VK_COLOR_COMPONENT_G_BIT |
+                VK_COLOR_COMPONENT_B_BIT |
+                VK_COLOR_COMPONENT_A_BIT;
+            attachment_outputs.resize(resources.stage_outputs.size(), attachment);
         }
 
         VkVertexInputBindingDescription vertex_binding_description;
@@ -248,5 +246,11 @@ namespace crd::core {
         vkDestroyShaderModule(context.device, pipeline_stages[0].module, nullptr);
         vkDestroyShaderModule(context.device, pipeline_stages[1].module, nullptr);
         return pipeline;
+    }
+
+    crd_module void destroy_pipeline(const Context& context, Pipeline& pipeline) noexcept {
+        vkDestroyPipelineLayout(context.device, pipeline.layout, nullptr);
+        vkDestroyPipeline(context.device, pipeline.handle, nullptr);
+        pipeline = {};
     }
 } // namespace crd::core

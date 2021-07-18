@@ -1,5 +1,8 @@
 #include <corundum/core/swapchain.hpp>
 #include <corundum/core/context.hpp>
+#include <corundum/core/image.hpp>
+
+#include <corundum/util/logger.hpp>
 
 #include <corundum/wm/window.hpp>
 
@@ -11,6 +14,7 @@ namespace crd::core {
         Swapchain swapchain;
         swapchain.surface = crd::wm::make_vulkan_surface(context, window);
 
+        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Vulkan Surface requested");
         VkBool32 present_support;
         const auto family = context.families.graphics.family;
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceSupportKHR(context.gpu, family, swapchain.surface, &present_support));
@@ -19,10 +23,12 @@ namespace crd::core {
         VkSurfaceCapabilitiesKHR capabilities;
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.gpu, swapchain.surface, &capabilities));
 
+        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "vkQueuePresentKHR: supported");
         auto image_count = capabilities.minImageCount + 1;
         if (capabilities.maxImageCount > 0 && image_count > capabilities.maxImageCount) {
             image_count = capabilities.maxImageCount;
         }
+        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Image Count: %d", image_count);
 
         if (capabilities.currentExtent.width != -1) {
             swapchain.width  = capabilities.currentExtent.width;
@@ -31,6 +37,7 @@ namespace crd::core {
             swapchain.width  = std::clamp(window.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
             swapchain.height = std::clamp(window.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         }
+        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Swapchain Extent: { %d, %d }", swapchain.width, swapchain.height);
 
         std::uint32_t format_count;
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(context.gpu, swapchain.surface, &format_count, nullptr));
@@ -66,9 +73,10 @@ namespace crd::core {
         swapchain_info.oldSwapchain = nullptr;
         crd_vulkan_check(vkCreateSwapchainKHR(context.device, &swapchain_info, nullptr, &swapchain.handle));
 
+        std::vector<VkImage> images;
         crd_vulkan_check(vkGetSwapchainImagesKHR(context.device, swapchain.handle, &image_count, nullptr));
-        swapchain.images.resize(image_count);
-        crd_vulkan_check(vkGetSwapchainImagesKHR(context.device, swapchain.handle, &image_count, swapchain.images.data()));
+        images.resize(image_count);
+        crd_vulkan_check(vkGetSwapchainImagesKHR(context.device, swapchain.handle, &image_count, images.data()));
 
         VkImageViewCreateInfo image_view_info;
         image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -86,11 +94,30 @@ namespace crd::core {
         image_view_info.subresourceRange.baseArrayLayer = 0;
         image_view_info.subresourceRange.layerCount = 1;
 
-        swapchain.views.reserve(image_count);
-        for (const auto image : swapchain.images) {
-            image_view_info.image = image;
-            crd_vulkan_check(vkCreateImageView(context.device, &image_view_info, nullptr, &swapchain.views.emplace_back()));
+        for (const auto handle : images) {
+            Image image;
+            image.handle = handle;
+            image.allocation = nullptr;
+            image.samples = VK_SAMPLE_COUNT_1_BIT;
+            image.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+            image.format = swapchain.format;
+            image.mips = 1;
+            image.width = swapchain.width;
+            image.height = swapchain.height;
+            image_view_info.image = handle;
+            crd_vulkan_check(vkCreateImageView(context.device, &image_view_info, nullptr, &image.view));
+            swapchain.images.emplace_back(image);
         }
+        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Swapchain created successfully");
         return swapchain;
+    }
+
+    crd_module void destroy_swapchain(const Context& context, Swapchain& swapchain) noexcept {
+        for (const auto& image : swapchain.images) {
+            vkDestroyImageView(context.device, image.view, nullptr);
+        }
+        vkDestroySwapchainKHR(context.device, swapchain.handle, nullptr);
+        vkDestroySurfaceKHR(context.instance, swapchain.surface, nullptr);
+        swapchain = {};
     }
 } // namespace crd::core
