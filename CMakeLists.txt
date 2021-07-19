@@ -26,6 +26,8 @@ add_executable(Corundum
     include/corundum/core/queue.hpp
     include/corundum/core/render_pass.hpp
     include/corundum/core/renderer.hpp
+    include/corundum/core/static_buffer.hpp
+    include/corundum/core/static_mesh.hpp
     include/corundum/core/swapchain.hpp
 
     include/corundum/util/file_view.hpp
@@ -43,6 +45,8 @@ add_executable(Corundum
     src/core/queue.cpp
     src/core/render_pass.cpp
     src/core/renderer.cpp
+    src/core/static_buffer.cpp
+    src/core/static_mesh.cpp
     src/core/swapchain.cpp
     src/core/vma.cpp
 
@@ -50,7 +54,7 @@ add_executable(Corundum
 
     src/wm/window.cpp
 
-    src/main.cpp include/corundum/core/static_buffer.hpp src/core/static_buffer.cpp include/corundum/core/static_mesh.hpp src/core/static_mesh.cpp)
+    src/main.cpp)
 
 target_compile_definitions(Corundum PUBLIC
     $<$<CONFIG:Debug>:crd_debug>

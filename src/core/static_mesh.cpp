@@ -8,27 +8,22 @@
 #include <cstring>
 
 namespace crd::core {
-    crd_nodiscard crd_module bool Task<StaticMesh>::is_ready() noexcept {
+    crd_nodiscard crd_module bool Async<StaticMesh>::is_ready() noexcept {
         using namespace std::literals;
-        if (storage.index() == 1) {
+        if (result) {
             return true;
         }
-        auto& future = std::get<0>(storage);
-        if (future.wait_for(0ms) == std::future_status::ready) {
-            storage = future.get();
-            return true;
-        }
-        return false;
+        return task.wait_for(0ms) == std::future_status::ready;
     }
 
-    crd_nodiscard crd_module StaticMesh& Task<StaticMesh>::get() noexcept {
-        if (storage.index() == 0) {
-            storage = std::get<0>(storage).get();
+    crd_nodiscard crd_module StaticMesh& Async<StaticMesh>::get() noexcept {
+        if (!result) {
+            result = task.get();
         }
-        return std::get<1>(storage);
+        return *result;
     }
 
-    crd_nodiscard crd_module Task<StaticMesh> request_static_mesh(const Context& context, StaticMesh::CreateInfo&& info) noexcept {
+    crd_nodiscard crd_module Async<StaticMesh> request_static_mesh(const Context& context, StaticMesh::CreateInfo&& info) noexcept {
         auto future = std::async(std::launch::async, [&context, info = std::move(info)]() noexcept -> StaticMesh {
             VkCommandPoolCreateInfo command_pool_info;
             command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -36,40 +31,39 @@ namespace crd::core {
             command_pool_info.flags =
                 VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT |
                 VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-            command_pool_info.queueFamilyIndex = context.graphics->family;
             VkCommandPool graphics_pool;
+            command_pool_info.queueFamilyIndex = context.graphics->family;
+            crd_vulkan_check(vkCreateCommandPool(context.device, &command_pool_info, nullptr, &graphics_pool));
             VkCommandPool transfer_pool;
-            crd_vulkan_check(vkCreateCommandPool(context.device,&command_pool_info, nullptr, &graphics_pool));
             command_pool_info.queueFamilyIndex = context.transfer->family;
-            crd_vulkan_check(vkCreateCommandPool(context.device,&command_pool_info, nullptr, &transfer_pool));
+            crd_vulkan_check(vkCreateCommandPool(context.device, &command_pool_info, nullptr, &transfer_pool));
             const auto total_bytes = info.geometry.size() * sizeof(float) + info.indices.size() * sizeof(std::uint32_t);
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral,
-                      "new Task<StaticMesh> was spawned, expected bytes to transfer: %zu", total_bytes);
+                      "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", total_bytes);
             auto vertex_staging = make_static_buffer(context, {
                 .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 .usage = VMA_MEMORY_USAGE_CPU_ONLY,
                 .capacity = info.geometry.size() * sizeof(float)
             });
             std::memcpy(vertex_staging.mapped, info.geometry.data(), vertex_staging.capacity);
-
             auto index_staging = make_static_buffer(context, {
                 .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 .usage = VMA_MEMORY_USAGE_CPU_ONLY,
                 .capacity = info.indices.size() * sizeof(std::uint32_t)
             });
             std::memcpy(index_staging.mapped, info.indices.data(), index_staging.capacity);
-
             auto geometry = make_static_buffer(context, {
-                .flags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                .flags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                 .usage = VMA_MEMORY_USAGE_GPU_ONLY,
                 .capacity = vertex_staging.capacity
             });
             auto indices = make_static_buffer(context, {
-                .flags = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                .flags = VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                 .usage = VMA_MEMORY_USAGE_GPU_ONLY,
                 .capacity = index_staging.capacity
             });
-
             auto transfer_cmd = make_command_buffer(context, {
                 .pool = transfer_pool,
                 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
@@ -143,9 +137,9 @@ namespace crd::core {
                 indices
             };
         });
-        Task<StaticMesh> task_result;
-        task_result.storage = std::move(future);
-        return task_result;
+        Async<StaticMesh> resource;
+        resource.task = std::move(future);
+        return resource;
     }
 
     crd_module void destroy_static_mesh(const Context& context, StaticMesh& mesh) noexcept {

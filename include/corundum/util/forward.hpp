@@ -13,7 +13,7 @@ namespace crd {
         struct CommandBuffer;
         struct StaticBuffer;
         template <typename T>
-        struct Task;
+        struct Async;
     } // namespace crd::core
 
     namespace wm {

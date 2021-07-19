@@ -28,7 +28,7 @@ namespace crd::core {
 
         crd_module void submit(const CommandBuffer&, VkPipelineStageFlags, VkSemaphore, VkSemaphore, VkFence) noexcept;
         crd_module void present(const Swapchain&, std::uint32_t, VkSemaphore) noexcept;
-        crd_module void wait_idle() const noexcept;
+        crd_module void wait_idle() noexcept;
     };
 
     crd_nodiscard crd_module Queue* make_queue(const Context&, QueueFamily) noexcept;

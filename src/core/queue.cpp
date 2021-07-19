@@ -66,7 +66,8 @@ namespace crd::core {
         crd_vulkan_check(present_result);
     }
 
-    crd_module void Queue::wait_idle() const noexcept {
+    crd_module void Queue::wait_idle() noexcept {
+        std::lock_guard<std::mutex> guard(lock);
         crd_vulkan_check(vkQueueWaitIdle(handle));
     }
 } // namespace crd::core

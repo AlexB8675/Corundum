@@ -29,7 +29,12 @@ int main() {
                 .initial = VK_IMAGE_LAYOUT_UNDEFINED,
                 .final   = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
             },
-            .clear   = crd::core::make_clear_color({}),
+            .clear   = crd::core::make_clear_color({
+                24  / 255.0f,
+                154 / 255.0f,
+                207 / 255.0f,
+                1.0f
+            }),
             .owning  = true,
             .discard = false
         }, {
@@ -81,21 +86,16 @@ int main() {
         .subpass = 0,
         .depth = true
     });
-    std::vector<crd::core::Task<crd::core::StaticMesh>> meshes;
-    meshes.reserve(1024);
-    for (int i = 0; i < 1024; ++i) {
-        meshes.emplace_back(crd::core::request_static_mesh(context, {
-            .geometry = {
-                -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-                 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
-                 0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
-            },
-            .indices = {
-                0, 1, 2
-            }
-        }));
-    }
-
+    auto triangle = crd::core::request_static_mesh(context, {
+        .geometry = {
+            -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
+             0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
+             0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
+        },
+        .indices = {
+            0, 1, 2
+        }
+    });
 
     while (!crd::wm::is_closed(window)) {
         const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
@@ -105,15 +105,14 @@ int main() {
             .set_viewport(0)
             .set_scissor(0)
             .bind_pipeline(pipeline);
-        for (auto& each : meshes) {
-            if (each.is_ready()) {
-                const auto& mesh = each.get();
-                commands
-                    .bind_vertex_buffer(mesh.geometry)
-                    .bind_index_buffer(mesh.indices)
-                    .draw_indexed(3, 1, 0, 0, 0);
-            }
+        if (triangle.is_ready()) {
+            const auto& mesh = triangle.get();
+            commands
+                .bind_vertex_buffer(mesh.geometry)
+                .bind_index_buffer(mesh.indices)
+                .draw_indexed(3, 1, 0, 0, 0);
         }
+
         commands
             .end_render_pass()
             .insert_layout_transition({
@@ -142,9 +141,7 @@ int main() {
         crd::wm::poll_events();
     }
     context.graphics->wait_idle();
-    for (auto& mesh : meshes) {
-        crd::core::destroy_static_mesh(context, mesh.get());
-    }
+    crd::core::destroy_static_mesh(context, triangle.get());
     crd::core::destroy_pipeline(context, pipeline);
     crd::core::destroy_render_pass(context, render_pass);
     crd::core::destroy_swapchain(context, swapchain);
