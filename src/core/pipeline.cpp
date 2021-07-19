@@ -54,6 +54,11 @@ namespace crd::core {
             for (const auto& vertex_input : resources.stage_inputs) {
                 vertex_input_locations.emplace_back(compiler.get_decoration(vertex_input.id, spv::DecorationLocation));
             }
+            for (const auto& uniform_buffer : resources.uniform_buffers) {
+                const auto set     = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
+                const auto binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
+
+            }
         }
 
         std::vector<VkPipelineColorBlendAttachmentState> attachment_outputs;

@@ -254,6 +254,11 @@ namespace crd::core {
             context.compute = make_queue(context, families.compute);
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Device queues initialized");
         }
+        { // Creates the Task Scheduler.
+            (context.scheduler = new ftl::TaskScheduler())->Init({
+                .Behavior = ftl::EmptyQueueBehavior::Sleep
+            });
+        }
         { // Creates a VmaAllocator.
             VkAllocationCallbacks allocation_callbacks;
             allocation_callbacks.pUserData = nullptr;
@@ -330,6 +335,7 @@ namespace crd::core {
 
     crd_module void destroy_context(Context& context) noexcept {
         util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Terminating Core Context");
+        delete context.scheduler;
         destroy_queue(context, context.graphics);
         destroy_queue(context, context.transfer);
         destroy_queue(context, context.compute);

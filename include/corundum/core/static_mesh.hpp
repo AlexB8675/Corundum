@@ -22,7 +22,7 @@ namespace crd::core {
 
     template <>
     struct Async<StaticMesh> {
-        std::future<StaticMesh> task;
+        std::future<StaticMesh> future;
         std::optional<StaticMesh> result;
 
         crd_nodiscard crd_module StaticMesh& get() noexcept;

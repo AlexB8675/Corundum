@@ -16,6 +16,11 @@ set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
 set(SPIRV_CROSS_STATIC ON CACHE BOOL "" FORCE)
 add_subdirectory(ext/SPIRV-Cross)
 
+set(FTL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(FTL_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+set(FTL_CPP_17 ON CACHE BOOL "" FORCE)
+add_subdirectory(ext/FiberTaskingLib)
+
 add_executable(Corundum
     include/corundum/core/clear.hpp
     include/corundum/core/command_buffer.hpp
@@ -78,6 +83,7 @@ target_include_directories(Corundum PRIVATE
     ext/glfw/include)
 
 target_link_libraries(Corundum PRIVATE
+    ftl
     glfw
     Vulkan::Vulkan
     spirv-cross-glsl)

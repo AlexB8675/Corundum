@@ -4,6 +4,8 @@
 
 #include <corundum/util/macros.hpp>
 
+#include <ftl/task_scheduler.h>
+
 #include <vulkan/vulkan.h>
 #include <vk_mem_alloc.h>
 
@@ -21,9 +23,11 @@ namespace crd::core {
         QueueFamilies families;
         VkDevice device;
         VmaAllocator allocator;
+        ftl::TaskScheduler* scheduler;
         Queue* graphics;
         Queue* transfer;
         Queue* compute;
+
     };
 
     crd_nodiscard crd_module Context make_context() noexcept;

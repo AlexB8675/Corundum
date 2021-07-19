@@ -23,6 +23,7 @@ namespace crd::core {
     struct Queue {
         VkQueue handle;
         VkCommandPool pool;
+        std::vector<VkCommandPool> transient;
         std::uint32_t family;
         std::mutex lock;
 
