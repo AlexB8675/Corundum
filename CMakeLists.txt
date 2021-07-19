@@ -50,7 +50,7 @@ add_executable(Corundum
 
     src/wm/window.cpp
 
-    src/main.cpp)
+    src/main.cpp include/corundum/core/static_buffer.hpp src/core/static_buffer.cpp include/corundum/core/static_mesh.hpp src/core/static_mesh.cpp)
 
 target_compile_definitions(Corundum PUBLIC
     $<$<CONFIG:Debug>:crd_debug>

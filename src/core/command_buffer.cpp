@@ -5,6 +5,7 @@
 #include <corundum/core/context.hpp>
 
 #include <vector>
+#include <corundum/core/static_buffer.hpp>
 
 namespace crd::core {
     crd_nodiscard crd_module std::vector<CommandBuffer> make_command_buffers(const Context& context, CommandBuffer::CreateInfo&& info) noexcept {
@@ -122,6 +123,17 @@ namespace crd::core {
         return *this;
     }
 
+    crd_module CommandBuffer& CommandBuffer::bind_vertex_buffer(const StaticBuffer& vertex) noexcept {
+        VkDeviceSize offset = 0;
+        vkCmdBindVertexBuffers(handle, 0, 1, &vertex.handle, &offset);
+        return *this;
+    }
+
+    crd_module CommandBuffer& CommandBuffer::bind_index_buffer(const StaticBuffer& index) noexcept {
+        vkCmdBindIndexBuffer(handle, index.handle, 0, VK_INDEX_TYPE_UINT32);
+        return *this;
+    }
+
     crd_module CommandBuffer& CommandBuffer::push_constants(VkPipelineStageFlags flags, std::size_t size, const void* data) noexcept {
         vkCmdPushConstants(handle, active_pipeline->layout, flags, 0, size, data);
         return *this;
@@ -138,8 +150,9 @@ namespace crd::core {
     crd_module CommandBuffer& CommandBuffer::draw_indexed(std::uint32_t indices,
                                                           std::uint32_t instances,
                                                           std::uint32_t first_index,
+                                                          std::int32_t vertex_offset,
                                                           std::uint32_t first_instance) noexcept {
-        vkCmdDrawIndexed(handle, indices, instances, first_index, 0, first_instance);
+        vkCmdDrawIndexed(handle, indices, instances, first_index, vertex_offset, first_instance);
         return *this;
     }
 
@@ -195,9 +208,56 @@ namespace crd::core {
         return *this;
     }
 
+    crd_module CommandBuffer& CommandBuffer::copy_buffer(const StaticBuffer& source, const StaticBuffer& dest) noexcept {
+        VkBufferCopy region;
+        region.srcOffset = 0;
+        region.dstOffset = 0;
+        region.size = source.capacity;
+        vkCmdCopyBuffer(handle, source.handle, dest.handle, 1, &region);
+        return *this;
+    }
+
+    crd_module CommandBuffer& CommandBuffer::copy_buffer_to_image(const StaticBuffer& source, const Image& dest) noexcept {
+        VkBufferImageCopy region;
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = dest.aspect;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = { 0, 0, 0 };
+        region.imageExtent = { dest.width, dest.height, 1 };
+        vkCmdCopyBufferToImage(handle, source.handle, dest.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        return *this;
+    }
+
+    crd_module CommandBuffer& CommandBuffer::transfer_ownership(const BufferMemoryBarrier& info, const Queue& source, const Queue& dest) noexcept {
+        VkBufferMemoryBarrier barrier;
+        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barrier.pNext = nullptr;
+        barrier.srcAccessMask = info.source_access;
+        barrier.dstAccessMask = info.dest_access;
+        barrier.srcQueueFamilyIndex = source.family;
+        barrier.dstQueueFamilyIndex = dest.family;
+        barrier.buffer = info.buffer->handle;
+        barrier.offset = 0;
+        barrier.size = info.buffer->capacity;
+        vkCmdPipelineBarrier(
+            handle,
+            info.source_stage,
+            info.dest_stage,
+            VK_DEPENDENCY_BY_REGION_BIT,
+            0, nullptr,
+            1, &barrier,
+            0, nullptr);
+        return *this;
+    }
+
     crd_module CommandBuffer& CommandBuffer::transfer_ownership(const ImageMemoryBarrier& info, const Queue& source, const Queue& dest) noexcept {
-        VkImageMemoryBarrier barrier{};
+        VkImageMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.pNext = nullptr;
         barrier.srcAccessMask = info.source_access;
         barrier.dstAccessMask = info.dest_access;
         barrier.oldLayout = info.old_layout;
@@ -222,7 +282,7 @@ namespace crd::core {
     }
 
     crd_module CommandBuffer& CommandBuffer::insert_layout_transition(const ImageMemoryBarrier& info) noexcept {
-        VkImageMemoryBarrier barrier{};
+        VkImageMemoryBarrier barrier = {};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barrier.srcAccessMask = info.source_access;
         barrier.dstAccessMask = info.dest_access;
@@ -231,13 +291,11 @@ namespace crd::core {
         barrier.srcQueueFamilyIndex = family_ignored;
         barrier.dstQueueFamilyIndex = family_ignored;
         barrier.image = info.image->handle;
-        barrier.subresourceRange = {
-            .aspectMask = info.image->aspect,
-            .baseMipLevel = info.mip,
-            .levelCount = info.levels == 0 ? info.image->mips : info.levels,
-            .baseArrayLayer = 0,
-            .layerCount = 1
-        };
+        barrier.subresourceRange.aspectMask = info.image->aspect;
+        barrier.subresourceRange.baseMipLevel = info.mip;
+        barrier.subresourceRange.levelCount = info.image->mips;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
         vkCmdPipelineBarrier(
             handle,
             info.source_stage,

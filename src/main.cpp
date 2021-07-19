@@ -1,3 +1,4 @@
+#include <corundum/core/static_mesh.hpp>
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/swapchain.hpp>
 #include <corundum/core/constants.hpp>
@@ -28,12 +29,7 @@ int main() {
                 .initial = VK_IMAGE_LAYOUT_UNDEFINED,
                 .final   = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
             },
-            .clear   = crd::core::make_clear_color({
-                24  / 255.0f,
-                154 / 255.0f,
-                207 / 255.0f,
-                1
-            }),
+            .clear   = crd::core::make_clear_color({}),
             .owning  = true,
             .discard = false
         }, {
@@ -85,6 +81,16 @@ int main() {
         .subpass = 0,
         .depth = true
     });
+    auto triangle = crd::core::request_static_mesh(context, {
+        .geometry = {
+            -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
+             0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
+             0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
+        },
+        .indices = {
+            0, 1, 2
+        }
+    });
 
     while (!crd::wm::is_closed(window)) {
         const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
@@ -93,12 +99,19 @@ int main() {
             .begin_render_pass(render_pass, 0)
             .set_viewport(0)
             .set_scissor(0)
-            .bind_pipeline(pipeline)
+            .bind_pipeline(pipeline);
+        if (triangle.is_ready()) {
+            const auto& mesh = triangle.get();
+            commands
+                .bind_vertex_buffer(mesh.geometry)
+                .bind_index_buffer(mesh.indices)
+                .draw_indexed(3, 1, 0, 0, 0);
+        }
+        commands
             .end_render_pass()
             .insert_layout_transition({
                 .image = &image,
                 .mip = 0,
-                .levels = 0,
                 .source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 .dest_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                 .source_access = {},
@@ -110,7 +123,6 @@ int main() {
             .insert_layout_transition({
                 .image = &image,
                 .mip = 0,
-                .levels = 0,
                 .source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                 .dest_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 .source_access = VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -123,6 +135,7 @@ int main() {
         crd::wm::poll_events();
     }
     context.graphics->wait_idle();
+    crd::core::destroy_static_mesh(context, triangle.get());
     crd::core::destroy_pipeline(context, pipeline);
     crd::core::destroy_render_pass(context, render_pass);
     crd::core::destroy_swapchain(context, swapchain);

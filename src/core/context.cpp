@@ -294,13 +294,13 @@ namespace crd::core {
             device_memory_callbacks.pfnAllocate =
                 [](VmaAllocator allocator, std::uint32_t type, VkDeviceMemory memory, VkDeviceSize size, void*) noexcept {
                     util::log("Vulkan", util::Severity::eInfo, util::Type::eValidation,
-                              "Device Allocation Requested, Allocator: %p, Size: %zu bytes, Type: %d, Address: %p",
+                              "GPU Allocation Requested, Allocator: %p, Size: %zu bytes, Type: %d, Address: %p",
                               allocator, size, type, memory);
                 };
             device_memory_callbacks.pfnFree =
                 [](VmaAllocator allocator, std::uint32_t type, VkDeviceMemory memory, VkDeviceSize size, void*) noexcept {
                     util::log("Vulkan", util::Severity::eInfo, util::Type::eValidation,
-                              "Device Free Requested, Allocator: %p, Size: %zu bytes, Type: %d, Address: %p",
+                              "GPU Free Requested, Allocator: %p, Size: %zu bytes, Type: %d, Address: %p",
                               allocator, size, type, memory);
                 };
             device_memory_callbacks.pUserData = nullptr;

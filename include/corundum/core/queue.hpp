@@ -20,31 +20,9 @@ namespace crd::core {
         QueueFamily compute;
     };
 
-    // TODO
-    /*struct BufferMemoryBarrier {
-        const StaticBuffer* buffer;
-        VkPipelineStageFlags source_stage;
-        VkPipelineStageFlags dest_stage;
-        VkAccessFlags source_access;
-        VkAccessFlags dest_access;
-    };*/
-
-    struct ImageMemoryBarrier {
-        const Image* image;
-        std::uint32_t mip;
-        std::uint32_t levels;
-        VkPipelineStageFlags source_stage;
-        VkPipelineStageFlags dest_stage;
-        VkAccessFlags source_access;
-        VkAccessFlags dest_access;
-        VkImageLayout old_layout;
-        VkImageLayout new_layout;
-    };
-
     struct Queue {
         VkQueue handle;
         VkCommandPool pool;
-        std::vector<VkCommandPool> transient;
         std::uint32_t family;
         std::mutex lock;
 

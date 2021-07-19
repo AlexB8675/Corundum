@@ -131,16 +131,8 @@ namespace crd::core {
         input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         input_assembly_state.primitiveRestartEnable = false;
 
-        VkViewport viewport;
-        viewport.x = 0;
-        viewport.y = 0;
-        viewport.width = 1;
-        viewport.height = 1;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        VkRect2D scissor;
-        scissor.offset = {};
-        scissor.extent = { 1, 1 };
+        VkViewport viewport = {};
+        VkRect2D scissor = {};
 
         VkPipelineViewportStateCreateInfo viewport_state;
         viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -158,7 +150,7 @@ namespace crd::core {
         rasterizer_state.depthClampEnable = true;
         rasterizer_state.rasterizerDiscardEnable = false;
         rasterizer_state.polygonMode = VK_POLYGON_MODE_FILL;
-        rasterizer_state.cullMode = VK_CULL_MODE_FRONT_BIT;
+        rasterizer_state.cullMode = VK_CULL_MODE_NONE;
         rasterizer_state.frontFace = VK_FRONT_FACE_CLOCKWISE;
         rasterizer_state.depthBiasEnable = true;
         rasterizer_state.depthBiasConstantFactor = 0.0f;
@@ -185,7 +177,7 @@ namespace crd::core {
         depth_stencil_state.depthWriteEnable = info.depth;
         depth_stencil_state.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
         depth_stencil_state.depthBoundsTestEnable = true;
-        depth_stencil_state.stencilTestEnable = true;
+        depth_stencil_state.stencilTestEnable = false;
         depth_stencil_state.front = {};
         depth_stencil_state.back = {};
         depth_stencil_state.minDepthBounds = 0.0f;

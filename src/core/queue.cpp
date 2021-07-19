@@ -15,22 +15,12 @@ namespace crd::core {
         command_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         command_pool_info.queueFamilyIndex = family.family;
         crd_vulkan_check(vkCreateCommandPool(context.device, &command_pool_info, nullptr, &queue->pool));
-
-        const auto threads = std::thread::hardware_concurrency();
-        command_pool_info.flags |= VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-        queue->transient.reserve(threads);
-        for (std::uint32_t i = 0; i < threads; ++i) {
-            crd_vulkan_check(vkCreateCommandPool(context.device, &command_pool_info, nullptr, &queue->transient.emplace_back()));
-        }
         vkGetDeviceQueue(context.device, queue->family, family.index, &queue->handle);
         return queue;
     }
 
     crd_module void destroy_queue(const Context& context, Queue*& queue) noexcept {
         vkDestroyCommandPool(context.device, queue->pool, nullptr);
-        for (const auto pool : queue->transient) {
-            vkDestroyCommandPool(context.device, pool, nullptr);
-        }
         delete queue;
         queue = nullptr;
     }

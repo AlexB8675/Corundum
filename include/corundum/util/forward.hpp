@@ -11,6 +11,9 @@ namespace crd {
         struct Pipeline;
         struct Queue;
         struct CommandBuffer;
+        struct StaticBuffer;
+        template <typename T>
+        struct Task;
     } // namespace crd::core
 
     namespace wm {

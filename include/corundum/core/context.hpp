@@ -8,6 +8,8 @@
 #include <vk_mem_alloc.h>
 
 #include <cstdint>
+#include <future>
+#include <chrono>
 
 namespace crd::core {
     struct Context {

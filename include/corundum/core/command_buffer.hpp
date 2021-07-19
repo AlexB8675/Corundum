@@ -13,6 +13,25 @@
 #include <span>
 
 namespace crd::core {
+    struct BufferMemoryBarrier {
+        const StaticBuffer* buffer;
+        VkPipelineStageFlags source_stage;
+        VkPipelineStageFlags dest_stage;
+        VkAccessFlags source_access;
+        VkAccessFlags dest_access;
+    };
+
+    struct ImageMemoryBarrier {
+        const Image* image;
+        std::uint32_t mip;
+        VkPipelineStageFlags source_stage;
+        VkPipelineStageFlags dest_stage;
+        VkAccessFlags source_access;
+        VkAccessFlags dest_access;
+        VkImageLayout old_layout;
+        VkImageLayout new_layout;
+    };
+
     struct ImageBlit {
         const Image* source_image;
         const Image* dest_image;
@@ -40,12 +59,17 @@ namespace crd::core {
         crd_module CommandBuffer& set_scissor(VkRect2D) noexcept;
         crd_module CommandBuffer& set_scissor(std::size_t) noexcept;
         crd_module CommandBuffer& bind_pipeline(const Pipeline&) noexcept;
+        crd_module CommandBuffer& bind_vertex_buffer(const StaticBuffer&) noexcept;
+        crd_module CommandBuffer& bind_index_buffer(const StaticBuffer&) noexcept;
         crd_module CommandBuffer& push_constants(VkPipelineStageFlags, std::size_t, const void*) noexcept;
         crd_module CommandBuffer& draw(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) noexcept;
-        crd_module CommandBuffer& draw_indexed(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) noexcept;
+        crd_module CommandBuffer& draw_indexed(std::uint32_t, std::uint32_t, std::uint32_t, std::int32_t, std::uint32_t) noexcept;
         crd_module CommandBuffer& end_render_pass() noexcept;
         crd_module CommandBuffer& copy_image(const Image&, const Image&) noexcept;
         crd_module CommandBuffer& blit_image(const ImageBlit&) noexcept;
+        crd_module CommandBuffer& copy_buffer(const StaticBuffer&, const StaticBuffer&) noexcept;
+        crd_module CommandBuffer& copy_buffer_to_image(const StaticBuffer&, const Image&) noexcept;
+        crd_module CommandBuffer& transfer_ownership(const BufferMemoryBarrier&, const Queue&, const Queue&) noexcept;
         crd_module CommandBuffer& transfer_ownership(const ImageMemoryBarrier&, const Queue&, const Queue&) noexcept;
         crd_module CommandBuffer& insert_layout_transition(const ImageMemoryBarrier&) noexcept;
         crd_module void           end() const noexcept;
