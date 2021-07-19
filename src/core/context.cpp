@@ -98,7 +98,9 @@ namespace crd::core {
 
                 util::log("Vulkan", severity_string, type_string, data->pMessage);
                 const auto fatal_bits = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-                crd_assert(severity & fatal_bits, "Fatal Vulkan Error has occurred");
+                if (severity & fatal_bits) {
+                    crd_force_assert("Fatal Vulkan Error has occurred");
+                }
                 return 0;
             };
             validation_info.pUserData = nullptr;

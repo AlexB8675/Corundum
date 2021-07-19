@@ -1,16 +1,13 @@
 #include <corundum/core/command_buffer.hpp>
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/context.hpp>
+#include <corundum/core/queue.hpp>
 
 #include <corundum/util/logger.hpp>
 
-namespace crd::core {
-    struct ThreadedPool {
-        VkCommandPool graphics;
-        VkCommandPool transfer;
-    };
-    std::unordered_map<std::thread::id, ThreadedPool> command_pools;
+#include <cstring>
 
+namespace crd::core {
     crd_nodiscard crd_module bool Task<StaticMesh>::is_ready() noexcept {
         using namespace std::literals;
         if (storage.index() == 1) {
@@ -33,22 +30,21 @@ namespace crd::core {
 
     crd_nodiscard crd_module Task<StaticMesh> request_static_mesh(const Context& context, StaticMesh::CreateInfo&& info) noexcept {
         auto future = std::async(std::launch::async, [&context, info = std::move(info)]() noexcept -> StaticMesh {
-            const auto thread = std::this_thread::get_id();
-            auto& command_pool = command_pools[thread];
-            if (!command_pool.graphics) {
-                VkCommandPoolCreateInfo command_pool_info;
-                command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-                command_pool_info.pNext = nullptr;
-                command_pool_info.flags =
-                    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT |
-                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-                command_pool_info.queueFamilyIndex = context.graphics->family;
-                crd_vulkan_check(vkCreateCommandPool(context.device, &command_pool_info, nullptr, &command_pool.graphics));
-                command_pool_info.queueFamilyIndex = context.transfer->family;
-                crd_vulkan_check(vkCreateCommandPool(context.device, &command_pool_info, nullptr, &command_pool.transfer));
-                util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Spanwned new thread, creating new Command Pool at: %p", command_pool);
-            }
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Async Loading Started", command_pool);
+            VkCommandPoolCreateInfo command_pool_info;
+            command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+            command_pool_info.pNext = nullptr;
+            command_pool_info.flags =
+                VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT |
+                VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+            command_pool_info.queueFamilyIndex = context.graphics->family;
+            VkCommandPool graphics_pool;
+            VkCommandPool transfer_pool;
+            crd_vulkan_check(vkCreateCommandPool(context.device,&command_pool_info, nullptr, &graphics_pool));
+            command_pool_info.queueFamilyIndex = context.transfer->family;
+            crd_vulkan_check(vkCreateCommandPool(context.device,&command_pool_info, nullptr, &transfer_pool));
+            const auto total_bytes = info.geometry.size() * sizeof(float) + info.indices.size() * sizeof(std::uint32_t);
+            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral,
+                      "new Task<StaticMesh> was spawned, expected bytes to transfer: %zu", total_bytes);
             auto vertex_staging = make_static_buffer(context, {
                 .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 .usage = VMA_MEMORY_USAGE_CPU_ONLY,
@@ -75,7 +71,7 @@ namespace crd::core {
             });
 
             auto transfer_cmd = make_command_buffer(context, {
-                .pool = command_pool.transfer,
+                .pool = transfer_pool,
                 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             });
             transfer_cmd
@@ -106,7 +102,7 @@ namespace crd::core {
             context.transfer->submit(transfer_cmd, {}, nullptr, transfer_done, nullptr);
 
             auto ownership_cmd = make_command_buffer(context, {
-                .pool = command_pool.graphics,
+                .pool = graphics_pool,
                 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             });
             ownership_cmd
@@ -140,6 +136,8 @@ namespace crd::core {
             destroy_static_buffer(context, index_staging);
             destroy_command_buffer(context, ownership_cmd);
             destroy_command_buffer(context, transfer_cmd);
+            vkDestroyCommandPool(context.device, transfer_pool, nullptr);
+            vkDestroyCommandPool(context.device, graphics_pool, nullptr);
             return {
                 geometry,
                 indices
