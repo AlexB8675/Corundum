@@ -38,13 +38,15 @@ namespace crd::core {
             vkDestroySemaphore(context.device, renderer.gfx_done[i], nullptr);
             vkDestroyFence(context.device, renderer.cmd_wait[i], nullptr);
         }
+        for (const auto [_, layout] : renderer.set_layout_cache) {
+            vkDestroyDescriptorSetLayout(context.device, layout, nullptr);
+        }
         destroy_command_buffers(context, renderer.gfx_cmds);
     }
 
     crd_nodiscard crd_module FrameInfo Renderer::acquire_frame(const Context& context, const Swapchain& swapchain) noexcept {
         crd_vulkan_check(vkAcquireNextImageKHR(context.device, swapchain.handle, -1, img_ready[frame_idx], nullptr, &image_idx));
         crd_vulkan_check(vkWaitForFences(context.device, 1, &cmd_wait[frame_idx], true, -1));
-
         return {
             .commands = gfx_cmds[frame_idx],
             .image = swapchain.images[image_idx],

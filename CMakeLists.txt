@@ -59,7 +59,7 @@ add_executable(Corundum
 
     src/wm/window.cpp
 
-    src/main.cpp)
+    src/main.cpp include/corundum/util/hash.hpp include/corundum/core/async.hpp src/core/async.cpp)
 
 target_compile_definitions(Corundum PUBLIC
     $<$<CONFIG:Debug>:crd_debug>

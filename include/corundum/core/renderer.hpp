@@ -8,6 +8,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include <unordered_map>
 #include <cstdint>
 #include <array>
 
@@ -26,6 +27,8 @@ namespace crd::core {
         std::array<VkSemaphore, in_flight> img_ready;
         std::array<VkSemaphore, in_flight> gfx_done;
         std::array<VkFence, in_flight> cmd_wait;
+
+        std::unordered_map<std::size_t, VkDescriptorSetLayout> set_layout_cache;
 
         crd_nodiscard crd_module FrameInfo acquire_frame(const Context&, const Swapchain&) noexcept;
                       crd_module void      present_frame(const Context&, const Swapchain&, VkPipelineStageFlags stage) noexcept;

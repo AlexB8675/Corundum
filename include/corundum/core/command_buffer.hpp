@@ -1,15 +1,12 @@
 #pragma once
 
-#include <corundum/core/context.hpp>
-
 #include <corundum/util/forward.hpp>
 #include <corundum/util/macros.hpp>
 
 #include <vulkan/vulkan.h>
 
-#include <type_traits>
 #include <cstdint>
-#include <array>
+#include <vector>
 #include <span>
 
 namespace crd::core {
@@ -61,6 +58,7 @@ namespace crd::core {
         crd_module CommandBuffer& bind_pipeline(const Pipeline&) noexcept;
         crd_module CommandBuffer& bind_vertex_buffer(const StaticBuffer&) noexcept;
         crd_module CommandBuffer& bind_index_buffer(const StaticBuffer&) noexcept;
+        crd_module CommandBuffer& bind_static_mesh(const StaticMesh&) noexcept;
         crd_module CommandBuffer& push_constants(VkPipelineStageFlags, std::size_t, const void*) noexcept;
         crd_module CommandBuffer& draw(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) noexcept;
         crd_module CommandBuffer& draw_indexed(std::uint32_t, std::uint32_t, std::uint32_t, std::int32_t, std::uint32_t) noexcept;

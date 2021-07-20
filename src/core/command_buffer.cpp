@@ -1,4 +1,5 @@
 #include <corundum/core/command_buffer.hpp>
+#include <corundum/core/static_mesh.hpp>
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/constants.hpp>
 #include <corundum/core/pipeline.hpp>
@@ -131,6 +132,12 @@ namespace crd::core {
 
     crd_module CommandBuffer& CommandBuffer::bind_index_buffer(const StaticBuffer& index) noexcept {
         vkCmdBindIndexBuffer(handle, index.handle, 0, VK_INDEX_TYPE_UINT32);
+        return *this;
+    }
+
+    crd_module CommandBuffer& CommandBuffer::bind_static_mesh(const StaticMesh& mesh) noexcept {
+        bind_vertex_buffer(mesh.geometry);
+        bind_index_buffer(mesh.indices);
         return *this;
     }
 

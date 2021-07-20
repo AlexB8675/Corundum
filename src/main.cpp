@@ -6,8 +6,11 @@
 #include <corundum/core/pipeline.hpp>
 #include <corundum/core/context.hpp>
 #include <corundum/core/clear.hpp>
+#include <corundum/core/async.hpp>
 
 #include <corundum/wm/window.hpp>
+
+#include <algorithm>
 
 int main() {
     auto window      = crd::wm::make_window(1280, 720, "Sorting Algos");
@@ -71,7 +74,7 @@ int main() {
             { { 0, 1 } }
         }
     });
-    auto pipeline = crd::core::make_pipeline(context, {
+    auto pipeline = crd::core::make_pipeline(context, renderer, {
         .vertex = "data/shaders/main.vert.spv",
         .fragment = "data/shaders/main.frag.spv",
         .render_pass = &render_pass,
@@ -106,13 +109,10 @@ int main() {
             .set_scissor(0)
             .bind_pipeline(pipeline);
         if (triangle.is_ready()) {
-            const auto& mesh = triangle.get();
             commands
-                .bind_vertex_buffer(mesh.geometry)
-                .bind_index_buffer(mesh.indices)
+                .bind_static_mesh(triangle.get())
                 .draw_indexed(3, 1, 0, 0, 0);
         }
-
         commands
             .end_render_pass()
             .insert_layout_transition({

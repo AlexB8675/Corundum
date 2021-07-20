@@ -20,15 +20,6 @@ namespace crd::core {
         StaticBuffer indices;
     };
 
-    template <>
-    struct Async<StaticMesh> {
-        std::future<StaticMesh> future;
-        std::optional<StaticMesh> result;
-
-        crd_nodiscard crd_module StaticMesh& get() noexcept;
-        crd_nodiscard crd_module bool        is_ready() noexcept;
-    };
-
     crd_nodiscard crd_module Async<StaticMesh> request_static_mesh(const Context&, StaticMesh::CreateInfo&&) noexcept;
                   crd_module void              destroy_static_mesh(const Context&, StaticMesh&) noexcept;
 } // namespace crd::core

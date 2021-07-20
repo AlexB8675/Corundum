@@ -1,0 +1,32 @@
+#pragma once
+
+#include <corundum/core/pipeline.hpp>
+
+#include <corundum/util/forward.hpp>
+#include <corundum/util/macros.hpp>
+
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+namespace crd::util {
+    template <typename... Args>
+    crd_nodiscard std::size_t hash(std::size_t seed, Args&&... args) noexcept {
+        return ((seed ^= std::hash<std::remove_cvref_t<Args>>()(args) + 0x9e3779b9 + (seed << 6) + (seed >> 2)), ...);
+    }
+} // namespace crd::util
+
+namespace std {
+    crd_make_hashable(crd::core::DescriptorBinding, value, value.dynamic, value.index, value.count, value.type, value.stage);
+
+    template <typename T>
+    struct hash<vector<T>> {
+        crd_nodiscard size_t operator ()(const vector<T>& value) const noexcept {
+            size_t seed = 0;
+            for (const auto& each : value) {
+                seed = crd::util::hash(seed, each);
+            }
+            return seed;
+        }
+    };
+} // namespace std

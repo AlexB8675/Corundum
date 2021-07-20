@@ -1,8 +1,10 @@
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/pipeline.hpp>
+#include <corundum/core/renderer.hpp>
 #include <corundum/core/context.hpp>
 
 #include <corundum/util/file_view.hpp>
+#include <corundum/util/hash.hpp>
 
 #include <spirv_glsl.hpp>
 #include <spirv.hpp>
@@ -19,7 +21,7 @@ namespace crd::core {
         return code;
     }
 
-    crd_nodiscard crd_module Pipeline make_pipeline(const Context& context, Pipeline::CreateInfo&& info) noexcept {
+    crd_nodiscard crd_module Pipeline make_pipeline(const Context& context, Renderer& renderer, Pipeline::CreateInfo&& info) noexcept {
         Pipeline pipeline;
         VkPipelineShaderStageCreateInfo pipeline_stages[2];
         pipeline_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -37,6 +39,8 @@ namespace crd::core {
         pipeline_stages[1].pSpecializationInfo = nullptr;
 
         std::vector<std::uint32_t> vertex_input_locations;
+        DescriptorLayoutBindings descriptor_layout_bindings;
+        std::unordered_map<std::size_t, std::vector<DescriptorBinding>> pipeline_descriptor_layout;
         { // Vertex shader.
             const auto binary    = import_spirv(info.vertex);
             const auto compiler  = spirv_cross::CompilerGLSL(binary.data(), binary.size());
@@ -54,10 +58,19 @@ namespace crd::core {
             for (const auto& vertex_input : resources.stage_inputs) {
                 vertex_input_locations.emplace_back(compiler.get_decoration(vertex_input.id, spv::DecorationLocation));
             }
+            pipeline_descriptor_layout.reserve(resources.uniform_buffers.size());
             for (const auto& uniform_buffer : resources.uniform_buffers) {
                 const auto set     = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
-
+                descriptor_layout_bindings[uniform_buffer.name] = {
+                    pipeline_descriptor_layout[set].emplace_back(DescriptorBinding{
+                        .dynamic = false,
+                        .index = binding,
+                        .count = 1,
+                        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                        .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                    })
+                };
             }
         }
 
@@ -208,12 +221,53 @@ namespace crd::core {
         pipeline_dynamic_states.dynamicStateCount = info.states.size();
         pipeline_dynamic_states.pDynamicStates = info.states.data();
 
+        DescriptorSetLayouts set_layouts;
+        set_layouts.reserve(pipeline_descriptor_layout.size());
+        for (const auto& [index, descriptors] : pipeline_descriptor_layout) {
+            const auto layout_hash = crd::util::hash(0, set_layouts);
+            if (!renderer.set_layout_cache.contains(layout_hash)) {
+                std::vector<VkDescriptorBindingFlags> flags;
+                flags.reserve(descriptors.size());
+                std::vector<VkDescriptorSetLayoutBinding> bindings;
+                bindings.reserve(descriptors.size());
+                for (const auto& binding : descriptors) {
+                    flags.emplace_back();
+                    if (binding.dynamic) {
+                        flags.back() =
+                            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+                            VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
+                    }
+                    bindings.push_back({
+                        .binding = binding.index,
+                        .descriptorType = binding.type,
+                        .descriptorCount = binding.count,
+                        .stageFlags = binding.stage,
+                        .pImmutableSamplers = nullptr
+                    });
+                }
+
+                VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags;
+                binding_flags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+                binding_flags.pNext = nullptr;
+                binding_flags.bindingCount = flags.size();
+                binding_flags.pBindingFlags = flags.data();
+
+                VkDescriptorSetLayoutCreateInfo layout_info;
+                layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+                layout_info.pNext = &binding_flags;
+                layout_info.flags = {};
+                layout_info.bindingCount = bindings.size();
+                layout_info.pBindings = bindings.data();
+                crd_vulkan_check(vkCreateDescriptorSetLayout(context.device, &layout_info, nullptr, &renderer.set_layout_cache[layout_hash]));
+            }
+            set_layouts.emplace_back(renderer.set_layout_cache[layout_hash]);
+        }
         VkPipelineLayoutCreateInfo layout_create_info;
         layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         layout_create_info.pNext = nullptr;
         layout_create_info.flags = {};
-        layout_create_info.setLayoutCount = 0;
-        layout_create_info.pSetLayouts = nullptr;
+        layout_create_info.setLayoutCount = set_layouts.size();
+        layout_create_info.pSetLayouts = set_layouts.data();
         layout_create_info.pushConstantRangeCount = 0;
         layout_create_info.pPushConstantRanges = nullptr;
         crd_vulkan_check(vkCreatePipelineLayout(context.device, &layout_create_info, nullptr, &pipeline.layout));

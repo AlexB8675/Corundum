@@ -41,3 +41,11 @@
         crd_assert(false, msg); \
         crd_unreachable();      \
     } while (false)
+
+#define crd_make_hashable(T, name, ...)                                  \
+    template <>                                                          \
+    struct hash<T> {                                                     \
+        crd_nodiscard size_t operator ()(const T& name) const noexcept { \
+            return crd::util::hash(0, __VA_ARGS__);                      \
+        }                                                                \
+    }                                                                    \

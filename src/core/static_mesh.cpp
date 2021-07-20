@@ -1,6 +1,7 @@
 #include <corundum/core/command_buffer.hpp>
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/context.hpp>
+#include <corundum/core/async.hpp>
 #include <corundum/core/queue.hpp>
 
 #include <corundum/util/logger.hpp>
@@ -8,55 +9,39 @@
 #include <cstring>
 
 namespace crd::core {
-    crd_nodiscard crd_module bool Async<StaticMesh>::is_ready() noexcept {
-        using namespace std::literals;
-        if (result) {
-            return true;
-        }
-        return future.wait_for(0ms) == std::future_status::ready;
-    }
-
-    crd_nodiscard crd_module StaticMesh& Async<StaticMesh>::get() noexcept {
-        if (!result) {
-            result = future.get();
-        }
-        return *result;
-    }
-
     crd_nodiscard crd_module Async<StaticMesh> request_static_mesh(const Context& context, StaticMesh::CreateInfo&& info) noexcept {
         const auto task = new std::packaged_task<StaticMesh(ftl::TaskScheduler*)>(
             [&context, info = std::move(info)](ftl::TaskScheduler* scheduler) noexcept -> StaticMesh {
                 const auto thread_index  = scheduler->GetCurrentThreadIndex();
                 const auto graphics_pool = context.graphics->transient[thread_index];
                 const auto transfer_pool = context.transfer->transient[thread_index];
-                const auto total_bytes =
-                    info.geometry.size() * sizeof(float) +
-                    info.indices.size() * sizeof(std::uint32_t);
+                const auto vertex_bytes = info.geometry.size() * sizeof(float);
+                const auto index_bytes = info.indices.size() * sizeof(std::uint32_t);
                 util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral,
-                          "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", total_bytes);
+                          "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", vertex_bytes * index_bytes);
                 auto vertex_staging = make_static_buffer(context, {
                     .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                     .usage = VMA_MEMORY_USAGE_CPU_ONLY,
-                    .capacity = info.geometry.size() * sizeof(float)
+                    .capacity = vertex_bytes
                 });
                 std::memcpy(vertex_staging.mapped, info.geometry.data(), vertex_staging.capacity);
                 auto index_staging = make_static_buffer(context, {
                     .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                     .usage = VMA_MEMORY_USAGE_CPU_ONLY,
-                    .capacity = info.indices.size() * sizeof(std::uint32_t)
+                    .capacity = index_bytes
                 });
                 std::memcpy(index_staging.mapped, info.indices.data(), index_staging.capacity);
                 auto geometry = make_static_buffer(context, {
                     .flags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                              VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-                    .capacity = vertex_staging.capacity
+                    .capacity = vertex_bytes
                 });
                 auto indices = make_static_buffer(context, {
                     .flags = VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
                              VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-                    .capacity = index_staging.capacity
+                    .capacity = index_bytes
                 });
                 auto transfer_cmd = make_command_buffer(context, {
                     .pool = transfer_pool,
@@ -133,7 +118,7 @@ namespace crd::core {
         resource.future = task->get_future();
         context.scheduler->AddTask({
             .Function = [](ftl::TaskScheduler* scheduler, void* data) {
-                const auto task = static_cast<std::packaged_task<StaticMesh(ftl::TaskScheduler*)>*>(data);
+                auto* task = static_cast<std::packaged_task<StaticMesh(ftl::TaskScheduler*)>*>(data);
                 (*task)(scheduler);
                 delete task;
             },
