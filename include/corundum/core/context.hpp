@@ -24,6 +24,7 @@ namespace crd::core {
         VkDevice device;
         VmaAllocator allocator;
         ftl::TaskScheduler* scheduler;
+        VkDescriptorPool descriptor_pool;
         Queue* graphics;
         Queue* transfer;
         Queue* compute;

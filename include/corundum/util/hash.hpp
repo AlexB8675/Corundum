@@ -5,6 +5,8 @@
 #include <corundum/util/forward.hpp>
 #include <corundum/util/macros.hpp>
 
+#include <vulkan/vulkan.h>
+
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -18,6 +20,8 @@ namespace crd::util {
 
 namespace std {
     crd_make_hashable(crd::core::DescriptorBinding, value, value.dynamic, value.index, value.count, value.type, value.stage);
+    crd_make_hashable(crd::core::DescriptorSetLayout, value, value.handle, value.dynamic);
+    crd_make_hashable(VkDescriptorBufferInfo, value, value.buffer, value.offset, value.range);
 
     template <typename T>
     struct hash<vector<T>> {

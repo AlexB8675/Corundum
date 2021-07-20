@@ -1,4 +1,5 @@
 #include <corundum/core/command_buffer.hpp>
+#include <corundum/core/descriptor_set.hpp>
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/constants.hpp>
@@ -121,6 +122,11 @@ namespace crd::core {
     crd_module CommandBuffer& CommandBuffer::bind_pipeline(const Pipeline& pipeline) noexcept {
         vkCmdBindPipeline(handle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
         active_pipeline = &pipeline;
+        return *this;
+    }
+
+    crd_module CommandBuffer& CommandBuffer::bind_descriptor_set(const DescriptorSet<1>& set) noexcept {
+        vkCmdBindDescriptorSets(handle, VK_PIPELINE_BIND_POINT_GRAPHICS, active_pipeline->layout, 0, 1, &set.handle, 0, nullptr);
         return *this;
     }
 

@@ -25,12 +25,12 @@ namespace crd::core {
 
         util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "vkQueuePresentKHR: supported");
         auto image_count = capabilities.minImageCount + 1;
-        if (capabilities.maxImageCount > 0 && image_count > capabilities.maxImageCount) {
+        crd_unlikely_if(capabilities.maxImageCount > 0 && image_count > capabilities.maxImageCount) {
             image_count = capabilities.maxImageCount;
         }
         util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Image Count: %d", image_count);
 
-        if (capabilities.currentExtent.width != -1) {
+        crd_unlikely_if(capabilities.currentExtent.width != -1) {
             swapchain.width  = capabilities.currentExtent.width;
             swapchain.height = capabilities.currentExtent.height;
         } else {
@@ -45,7 +45,7 @@ namespace crd::core {
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(context.gpu, swapchain.surface, &format_count, surface_formats.data()));
         auto format = surface_formats[0];
         for (const auto& each : surface_formats) {
-            if (each.format == VK_FORMAT_B8G8R8A8_SRGB && each.colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) {
+            crd_likely_if(each.format == VK_FORMAT_B8G8R8A8_SRGB && each.colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) {
                 format = each;
                 break;
             }

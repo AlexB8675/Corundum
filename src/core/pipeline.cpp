@@ -223,9 +223,13 @@ namespace crd::core {
 
         DescriptorSetLayouts set_layouts;
         set_layouts.reserve(pipeline_descriptor_layout.size());
+        std::vector<VkDescriptorSetLayout> set_layout_handles;
+        set_layout_handles.reserve(pipeline_descriptor_layout.size());
         for (const auto& [index, descriptors] : pipeline_descriptor_layout) {
+            bool dynamic = false;
             const auto layout_hash = crd::util::hash(0, set_layouts);
-            if (!renderer.set_layout_cache.contains(layout_hash)) {
+            auto& layout = renderer.set_layout_cache[layout_hash];
+            crd_likely_if(!layout) {
                 std::vector<VkDescriptorBindingFlags> flags;
                 flags.reserve(descriptors.size());
                 std::vector<VkDescriptorSetLayoutBinding> bindings;
@@ -233,6 +237,7 @@ namespace crd::core {
                 for (const auto& binding : descriptors) {
                     flags.emplace_back();
                     if (binding.dynamic) {
+                        dynamic = true;
                         flags.back() =
                             VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
                             VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
@@ -258,16 +263,19 @@ namespace crd::core {
                 layout_info.flags = {};
                 layout_info.bindingCount = bindings.size();
                 layout_info.pBindings = bindings.data();
-                crd_vulkan_check(vkCreateDescriptorSetLayout(context.device, &layout_info, nullptr, &renderer.set_layout_cache[layout_hash]));
+                crd_vulkan_check(vkCreateDescriptorSetLayout(context.device, &layout_info, nullptr, &layout));
             }
-            set_layouts.emplace_back(renderer.set_layout_cache[layout_hash]);
+            set_layouts.push_back({ layout, dynamic });
+            set_layout_handles.emplace_back(layout);
         }
+        pipeline.descriptors = std::move(set_layouts);
+        pipeline.bindings = std::move(descriptor_layout_bindings);
         VkPipelineLayoutCreateInfo layout_create_info;
         layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         layout_create_info.pNext = nullptr;
         layout_create_info.flags = {};
-        layout_create_info.setLayoutCount = set_layouts.size();
-        layout_create_info.pSetLayouts = set_layouts.data();
+        layout_create_info.setLayoutCount = set_layout_handles.size();
+        layout_create_info.pSetLayouts = set_layout_handles.data();
         layout_create_info.pushConstantRangeCount = 0;
         layout_create_info.pPushConstantRanges = nullptr;
         crd_vulkan_check(vkCreatePipelineLayout(context.device, &layout_create_info, nullptr, &pipeline.layout));
@@ -303,5 +311,9 @@ namespace crd::core {
         vkDestroyPipelineLayout(context.device, pipeline.layout, nullptr);
         vkDestroyPipeline(context.device, pipeline.handle, nullptr);
         pipeline = {};
+    }
+
+    crd_nodiscard crd_module DescriptorSetLayout Pipeline::set(std::size_t index) const noexcept {
+        return descriptors.at(index);
     }
 } // namespace crd::core

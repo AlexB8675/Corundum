@@ -1,5 +1,9 @@
 #pragma once
 
+#include <corundum/core/constants.hpp>
+
+#include <cstddef>
+
 struct GLFWwindow;
 
 namespace ftl {
@@ -18,6 +22,12 @@ namespace crd {
         struct Renderer;
         struct StaticBuffer;
         struct StaticMesh;
+        struct DescriptorBinding;
+        struct DescriptorSetLayout;
+        template <std::size_t = in_flight>
+        struct Buffer;
+        template <std::size_t = in_flight>
+        struct DescriptorSet;
         template <typename T>
         struct Async;
     } // namespace crd::core

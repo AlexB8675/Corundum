@@ -37,7 +37,7 @@ namespace crd::core {
             extension_names.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
             for (const auto& [name, _] : extensions_props) {
-                if (std::string_view(name).find("debug") == std::string::npos) {
+                crd_likely_if(std::string_view(name).find("debug") == std::string::npos) {
                     util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - %s", name);
                     extension_names.emplace_back(name);
                 }
@@ -98,7 +98,7 @@ namespace crd::core {
 
                 util::log("Vulkan", severity_string, type_string, data->pMessage);
                 const auto fatal_bits = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-                if (severity & fatal_bits) {
+                crd_unlikely_if(severity & fatal_bits) {
                     crd_force_assert("Fatal Vulkan Error has occurred");
                 }
                 return 0;
@@ -127,7 +127,7 @@ namespace crd::core {
                     VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU |
                     VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU   |
                     VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU;
-                if (properties.deviceType & device_criteria) {
+                crd_likely_if(properties.deviceType & device_criteria) {
                     util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - Chosen device: %s", properties.deviceName);
                     const auto driver_major = VK_VERSION_MAJOR(properties.driverVersion);
                     const auto driver_minor = VK_VERSION_MINOR(properties.driverVersion);
@@ -155,12 +155,12 @@ namespace crd::core {
             std::vector<std::vector<float>> queue_priorities(families_count);
             const auto fetch_family = [&](VkQueueFlags required, VkQueueFlags ignore, float priority) -> std::optional<QueueFamily> {
                 for (std::uint32_t family = 0; family < families_count; family++) {
-                    if ((queue_families[family].queueFlags & ignore) != 0) {
+                    crd_unlikely_if((queue_families[family].queueFlags & ignore) != 0) {
                         continue;
                     }
 
                     const auto remaining = queue_families[family].queueCount - queue_sizes[family];
-                    if (remaining > 0 && (queue_families[family].queueFlags & required) == required) {
+                    crd_likely_if(remaining > 0 && (queue_families[family].queueFlags & required) == required) {
                         queue_priorities[family].emplace_back(priority);
                         return QueueFamily{
                             family, queue_sizes[family]++
@@ -204,7 +204,7 @@ namespace crd::core {
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Chosen families: %d, %d, %d", families.graphics.family, families.transfer.family, families.compute.family);
             std::vector<VkDeviceQueueCreateInfo> queue_infos;
             for (std::uint32_t family = 0; family < families_count; family++) {
-                if (queue_sizes[family] == 0) {
+                crd_unlikely_if(queue_sizes[family] == 0) {
                     continue;
                 }
 
@@ -258,6 +258,22 @@ namespace crd::core {
             (context.scheduler = new ftl::TaskScheduler())->Init({
                 .Behavior = ftl::EmptyQueueBehavior::Sleep
             });
+        }
+        { // Creates a Descriptor Pool.
+            constexpr auto descriptor_sizes = std::to_array<VkDescriptorPoolSize>({
+                { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         2048 },
+                { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         2048 },
+                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4096 },
+            });
+
+            VkDescriptorPoolCreateInfo descriptor_pool_info;
+            descriptor_pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            descriptor_pool_info.pNext = nullptr;
+            descriptor_pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+            descriptor_pool_info.maxSets = 8192;
+            descriptor_pool_info.poolSizeCount = descriptor_sizes.size();
+            descriptor_pool_info.pPoolSizes = descriptor_sizes.data();
+            crd_vulkan_check(vkCreateDescriptorPool(context.device, &descriptor_pool_info, nullptr, &context.descriptor_pool));
         }
         { // Creates a VmaAllocator.
             VkAllocationCallbacks allocation_callbacks;
@@ -339,6 +355,7 @@ namespace crd::core {
         destroy_queue(context, context.graphics);
         destroy_queue(context, context.transfer);
         destroy_queue(context, context.compute);
+        vkDestroyDescriptorPool(context.device, context.descriptor_pool, nullptr);
         vmaDestroyAllocator(context.allocator);
         vkDestroyDevice(context.device, nullptr);
 #if defined(crd_debug)

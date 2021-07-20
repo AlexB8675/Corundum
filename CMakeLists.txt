@@ -21,11 +21,16 @@ set(FTL_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 set(FTL_CPP_17 ON CACHE BOOL "" FORCE)
 add_subdirectory(ext/FiberTaskingLib)
 
+add_subdirectory(ext/glm)
+
 add_executable(Corundum
+    include/corundum/core/async.hpp
+    include/corundum/core/buffer.hpp
     include/corundum/core/clear.hpp
     include/corundum/core/command_buffer.hpp
     include/corundum/core/constants.hpp
     include/corundum/core/context.hpp
+    include/corundum/core/descriptor_set.hpp
     include/corundum/core/image.hpp
     include/corundum/core/pipeline.hpp
     include/corundum/core/queue.hpp
@@ -37,14 +42,18 @@ add_executable(Corundum
 
     include/corundum/util/file_view.hpp
     include/corundum/util/forward.hpp
+    include/corundum/util/hash.hpp
     include/corundum/util/logger.hpp
     include/corundum/util/macros.hpp
 
     include/corundum/wm/window.hpp
 
+    src/core/async.cpp
+    src/core/buffer.cpp
     src/core/clear.cpp
     src/core/command_buffer.cpp
     src/core/context.cpp
+    src/core/descriptor_set.cpp
     src/core/image.cpp
     src/core/pipeline.cpp
     src/core/queue.cpp
@@ -59,7 +68,7 @@ add_executable(Corundum
 
     src/wm/window.cpp
 
-    src/main.cpp include/corundum/util/hash.hpp include/corundum/core/async.hpp src/core/async.cpp)
+    src/main.cpp)
 
 target_compile_definitions(Corundum PUBLIC
     $<$<CONFIG:Debug>:crd_debug>
@@ -83,6 +92,7 @@ target_include_directories(Corundum PRIVATE
     ext/glfw/include)
 
 target_link_libraries(Corundum PRIVATE
+    glm
     ftl
     glfw
     Vulkan::Vulkan

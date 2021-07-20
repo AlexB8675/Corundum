@@ -23,6 +23,25 @@
     #define crd_nodiscard
 #endif
 
+#if crd_cpp_version >= 202002l
+    #define crd_likely [[likely]]
+    #define crd_unlikely [[unlikely]]
+#else
+    #define crd_likely
+    #define crd_unlikely
+#endif
+
+#if defined(__clang__) || defined(__GNUC__)
+    #define crd_likely_if(cnd) if (__builtin_expect(cnd, true))
+    #define crd_unlikely_if(cnd) if (__builtin_expect(cnd, false))
+#elif defined(_MSC_VER) && crd_cpp_version >= 202002l
+    #define crd_likely_if(cnd) if (cnd) crd_likely
+    #define crd_unlikely_if(cnd) if (cnd) crd_unlikely
+#else
+    #define crd_likely_if(cnd) if (cnd)
+    #define crd_unlikely_if(cnd) if (cnd)
+#endif
+
 #if defined(crd_debug)
     #include <cassert>
     #define crd_assert(expr, msg) assert((expr) && msg)

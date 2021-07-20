@@ -1,3 +1,4 @@
+#include <corundum/core/descriptor_set.hpp>
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/swapchain.hpp>
@@ -5,12 +6,15 @@
 #include <corundum/core/renderer.hpp>
 #include <corundum/core/pipeline.hpp>
 #include <corundum/core/context.hpp>
+#include <corundum/core/buffer.hpp>
 #include <corundum/core/clear.hpp>
 #include <corundum/core/async.hpp>
 
 #include <corundum/wm/window.hpp>
 
-#include <algorithm>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/mat4x4.hpp>
 
 int main() {
     auto window      = crd::wm::make_window(1280, 720, "Sorting Algos");
@@ -99,17 +103,26 @@ int main() {
             0, 1, 2
         }
     });
-
+    const auto camera =
+        glm::perspective(glm::radians(90.0f), window.width / (float)window.height, 0.1f, 100.0f) *
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f),
+                    glm::vec3(0.0f, 0.0f, 0.0f),
+                    glm::vec3(0.0f, 1.0f, 0.0f));
+    auto buffer = crd::core::make_buffer<>(context, sizeof(glm::mat4), crd::core::uniform_buffer);
+    auto set = crd::core::make_descriptor_set<>(context, pipeline.set(0));
     while (!crd::wm::is_closed(window)) {
         const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
+        buffer[index].write(glm::value_ptr(camera), 0);
+        set[index].bind(context, pipeline.bindings["Camera"], buffer[index].info());
         commands
             .begin()
             .begin_render_pass(render_pass, 0)
             .set_viewport(0)
             .set_scissor(0)
             .bind_pipeline(pipeline);
-        if (triangle.is_ready()) {
+        crd_likely_if(triangle.is_ready()) {
             commands
+                .bind_descriptor_set(set[index])
                 .bind_static_mesh(triangle.get())
                 .draw_indexed(3, 1, 0, 0, 0);
         }
@@ -141,6 +154,8 @@ int main() {
         crd::wm::poll_events();
     }
     context.graphics->wait_idle();
+    crd::core::destroy_descriptor_set(context, set);
+    crd::core::destroy_buffer(context, buffer);
     crd::core::destroy_static_mesh(context, triangle.get());
     crd::core::destroy_pipeline(context, pipeline);
     crd::core::destroy_render_pass(context, render_pass);
