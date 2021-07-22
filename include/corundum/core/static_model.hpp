@@ -1,0 +1,8 @@
+//
+// Created by Alex on 22/07/2021.
+//
+
+#ifndef CORUNDUM_STATIC_MODEL_HPP
+#define CORUNDUM_STATIC_MODEL_HPP
+
+#endif //CORUNDUM_STATIC_MODEL_HPP
