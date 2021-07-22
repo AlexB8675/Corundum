@@ -38,6 +38,7 @@ add_executable(Corundum
     include/corundum/core/renderer.hpp
     include/corundum/core/static_buffer.hpp
     include/corundum/core/static_mesh.hpp
+    include/corundum/core/static_texture.hpp
     include/corundum/core/swapchain.hpp
 
     include/corundum/util/file_view.hpp
@@ -61,6 +62,8 @@ add_executable(Corundum
     src/core/renderer.cpp
     src/core/static_buffer.cpp
     src/core/static_mesh.cpp
+    src/core/static_texture.cpp
+    src/core/stb_image.cpp
     src/core/swapchain.cpp
     src/core/vma.cpp
 
@@ -88,6 +91,7 @@ target_compile_options(Corundum PUBLIC
 
 target_include_directories(Corundum PRIVATE
     include
+    ext/stb
     ext/vma/include
     ext/glfw/include)
 
@@ -98,5 +102,5 @@ target_link_libraries(Corundum PRIVATE
     Vulkan::Vulkan
     spirv-cross-glsl)
 
-file(GLOB CORUNDUM_SHADERS "data/shaders/*.spv")
-file(COPY ${CORUNDUM_SHADERS} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/data/shaders)
+file(GLOB CORUNDUM_DATA data)
+file(COPY ${CORUNDUM_DATA} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

@@ -12,6 +12,8 @@ namespace crd::core {
         std::future<T> future;
         std::optional<T> result;
 
+        crd_nodiscard crd_module T&   operator *() noexcept;
+        crd_nodiscard crd_module T*   operator ->() noexcept;
         crd_nodiscard crd_module T&   get() noexcept;
         crd_nodiscard crd_module bool is_ready() noexcept;
     };

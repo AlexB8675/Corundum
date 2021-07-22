@@ -221,7 +221,6 @@ namespace crd::core {
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Fetching device features");
             VkPhysicalDeviceFeatures features;
             vkGetPhysicalDeviceFeatures(context.gpu, &features);
-
             util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Enumerating device extensions");
             std::uint32_t extension_count;
             vkEnumerateDeviceExtensionProperties(context.gpu, nullptr, &extension_count, nullptr);
@@ -275,6 +274,28 @@ namespace crd::core {
             descriptor_pool_info.pPoolSizes = descriptor_sizes.data();
             crd_vulkan_check(vkCreateDescriptorPool(context.device, &descriptor_pool_info, nullptr, &context.descriptor_pool));
         }
+        { // Creates a VkSampler (default).
+            VkSamplerCreateInfo sampler_info;
+            sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+            sampler_info.pNext = nullptr;
+            sampler_info.flags = {};
+            sampler_info.magFilter = VK_FILTER_LINEAR;
+            sampler_info.minFilter = VK_FILTER_LINEAR;
+            sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            sampler_info.mipLodBias = 0;
+            sampler_info.anisotropyEnable = true;
+            sampler_info.maxAnisotropy = 16;
+            sampler_info.compareEnable = false;
+            sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+            sampler_info.minLod = 0;
+            sampler_info.maxLod = 8;
+            sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+            sampler_info.unnormalizedCoordinates = false;
+            crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.default_sampler));
+        }
         { // Creates a VmaAllocator.
             VkAllocationCallbacks allocation_callbacks;
             allocation_callbacks.pUserData = nullptr;
@@ -293,7 +314,7 @@ namespace crd::core {
                               "CPU Reallocation Requested, Size: %zu bytes, Alignment: %zu bytes, Scope: %d, Address: %p",
                               size, align, scope, memory);
                     return memory;
-                };;
+                };
             allocation_callbacks.pfnFree =
                 [](void*, void* memory) noexcept {
                     if (memory) {
@@ -356,6 +377,7 @@ namespace crd::core {
         destroy_queue(context, context.transfer);
         destroy_queue(context, context.compute);
         vkDestroyDescriptorPool(context.device, context.descriptor_pool, nullptr);
+        vkDestroySampler(context.device, context.default_sampler, nullptr);
         vmaDestroyAllocator(context.allocator);
         vkDestroyDevice(context.device, nullptr);
 #if defined(crd_debug)

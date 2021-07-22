@@ -1,5 +1,3 @@
-#pragma once
-
 #include <corundum/core/descriptor_set.hpp>
 #include <corundum/core/pipeline.hpp>
 #include <corundum/core/context.hpp>
@@ -28,6 +26,7 @@ namespace crd::core {
         }
 
         DescriptorSet<1> set;
+        set.bound.reserve(128);
         crd_vulkan_check(vkAllocateDescriptorSets(context.device, &allocate_info, &set.handle));
         return set;
     }
@@ -43,7 +42,7 @@ namespace crd::core {
 
     template <>
     crd_module void destroy_descriptor_set(const Context& context, DescriptorSet<1>& set) noexcept {
-        vkFreeDescriptorSets(context.device, context.descriptor_pool,1, &set.handle);
+        vkFreeDescriptorSets(context.device, context.descriptor_pool, 1, &set.handle);
     }
 
     template <>
@@ -53,10 +52,11 @@ namespace crd::core {
         }
     }
 
-    crd_module void DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorBufferInfo buffer) noexcept {
-        const auto buffer_hash = util::hash(0, buffer);
-        const auto binding_hash = util::hash(0, binding);
-        crd_unlikely_if(bound[binding_hash] != buffer_hash) {
+    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorBufferInfo buffer) noexcept {
+        const auto  buffer_hash      = util::hash(0, buffer);
+        const auto  binding_hash     = util::hash(0, binding);
+              auto& bound_descriptor = bound[binding_hash];
+        crd_unlikely_if(bound_descriptor != buffer_hash) {
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
@@ -69,8 +69,31 @@ namespace crd::core {
             update.pBufferInfo = &buffer;
             update.pTexelBufferView = nullptr;
             vkUpdateDescriptorSets(context.device, 1, &update, 0, nullptr);
-            bound[binding_hash] = buffer_hash;
+            bound_descriptor = buffer_hash;
         }
+        return *this;
+    }
+
+    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorImageInfo image) noexcept {
+        const auto  image_hash       = util::hash(0, image);
+        const auto  binding_hash     = util::hash(0, binding);
+              auto& bound_descriptor = bound[binding_hash];
+        crd_unlikely_if(bound_descriptor != image_hash) {
+            VkWriteDescriptorSet update;
+            update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            update.pNext = nullptr;
+            update.dstSet = handle;
+            update.dstBinding = binding.index;
+            update.dstArrayElement = 0;
+            update.descriptorCount = 1;
+            update.descriptorType = binding.type;
+            update.pImageInfo = &image;
+            update.pBufferInfo = nullptr;
+            update.pTexelBufferView = nullptr;
+            vkUpdateDescriptorSets(context.device, 1, &update, 0, nullptr);
+            bound_descriptor = image_hash;
+        }
+        return *this;
     }
 
     crd_nodiscard crd_module const DescriptorSet<1>& DescriptorSet<in_flight>::operator [](std::size_t index) const noexcept {

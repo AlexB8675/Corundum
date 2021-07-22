@@ -51,8 +51,6 @@ namespace crd::core {
         VkPipelineLayout layout;
         DescriptorSetLayouts descriptors;
         DescriptorLayoutBindings bindings;
-
-        crd_nodiscard crd_module DescriptorSetLayout set(std::size_t) const noexcept;
     };
 
     crd_nodiscard crd_module Pipeline make_pipeline(const Context&, Renderer&, Pipeline::CreateInfo&&) noexcept;

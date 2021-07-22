@@ -22,6 +22,7 @@ namespace std {
     crd_make_hashable(crd::core::DescriptorBinding, value, value.dynamic, value.index, value.count, value.type, value.stage);
     crd_make_hashable(crd::core::DescriptorSetLayout, value, value.handle, value.dynamic);
     crd_make_hashable(VkDescriptorBufferInfo, value, value.buffer, value.offset, value.range);
+    crd_make_hashable(VkDescriptorImageInfo, value, value.sampler, value.imageLayout, value.imageView);
 
     template <typename T>
     struct hash<vector<T>> {

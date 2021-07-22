@@ -38,6 +38,10 @@ namespace crd::core {
         pipeline_stages[1].pName = "main";
         pipeline_stages[1].pSpecializationInfo = nullptr;
 
+        VkPushConstantRange push_constant_range;
+        push_constant_range.stageFlags = {};
+        push_constant_range.offset = 0;
+        push_constant_range.size = 0;
         std::vector<std::uint32_t> vertex_input_locations;
         DescriptorLayoutBindings descriptor_layout_bindings;
         std::unordered_map<std::size_t, std::vector<DescriptorBinding>> pipeline_descriptor_layout;
@@ -62,15 +66,19 @@ namespace crd::core {
             for (const auto& uniform_buffer : resources.uniform_buffers) {
                 const auto set     = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
-                descriptor_layout_bindings[uniform_buffer.name] = {
-                    pipeline_descriptor_layout[set].emplace_back(DescriptorBinding{
+                pipeline_descriptor_layout[set].emplace_back(
+                    descriptor_layout_bindings[uniform_buffer.name] = {
                         .dynamic = false,
                         .index = binding,
                         .count = 1,
                         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                        .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                    })
-                };
+                        .stage = VK_SHADER_STAGE_VERTEX_BIT
+                    });
+            }
+            for (const auto& push_constant : resources.push_constant_buffers) {
+                const auto& type = compiler.get_type(push_constant.type_id);
+                push_constant_range.size = compiler.get_declared_struct_size(type);
+                push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
             }
         }
 
@@ -102,6 +110,22 @@ namespace crd::core {
                 VK_COLOR_COMPONENT_B_BIT |
                 VK_COLOR_COMPONENT_A_BIT;
             attachment_outputs.resize(resources.stage_outputs.size(), attachment);
+
+            for (const auto& textures : resources.sampled_images) {
+                const auto set     = compiler.get_decoration(textures.id, spv::DecorationDescriptorSet);
+                const auto binding = compiler.get_decoration(textures.id, spv::DecorationBinding);
+                pipeline_descriptor_layout[set].emplace_back(
+                    descriptor_layout_bindings[textures.name] = {
+                        .dynamic = false,
+                        .index = binding,
+                        .count = 1,
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stage = VK_SHADER_STAGE_FRAGMENT_BIT
+                    });
+            }
+            if (!resources.push_constant_buffers.empty()) {
+                push_constant_range.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
+            }
         }
 
         VkVertexInputBindingDescription vertex_binding_description;
@@ -270,38 +294,38 @@ namespace crd::core {
         }
         pipeline.descriptors = std::move(set_layouts);
         pipeline.bindings = std::move(descriptor_layout_bindings);
-        VkPipelineLayoutCreateInfo layout_create_info;
-        layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        layout_create_info.pNext = nullptr;
-        layout_create_info.flags = {};
-        layout_create_info.setLayoutCount = set_layout_handles.size();
-        layout_create_info.pSetLayouts = set_layout_handles.data();
-        layout_create_info.pushConstantRangeCount = 0;
-        layout_create_info.pPushConstantRanges = nullptr;
-        crd_vulkan_check(vkCreatePipelineLayout(context.device, &layout_create_info, nullptr, &pipeline.layout));
+        VkPipelineLayoutCreateInfo pipeline_layout_info;
+        pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipeline_layout_info.pNext = nullptr;
+        pipeline_layout_info.flags = {};
+        pipeline_layout_info.setLayoutCount = set_layout_handles.size();
+        pipeline_layout_info.pSetLayouts = set_layout_handles.data();
+        pipeline_layout_info.pushConstantRangeCount = push_constant_range.size != 0;
+        pipeline_layout_info.pPushConstantRanges = &push_constant_range;
+        crd_vulkan_check(vkCreatePipelineLayout(context.device, &pipeline_layout_info, nullptr, &pipeline.layout));
 
-        VkGraphicsPipelineCreateInfo pipeline_create_info;
-        pipeline_create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipeline_create_info.pNext = nullptr;
-        pipeline_create_info.flags = {};
-        pipeline_create_info.stageCount = 2;
-        pipeline_create_info.pStages = pipeline_stages;
-        pipeline_create_info.pVertexInputState = &vertex_input_state;
-        pipeline_create_info.pInputAssemblyState = &input_assembly_state;
-        pipeline_create_info.pTessellationState = nullptr;
-        pipeline_create_info.pViewportState = &viewport_state;
-        pipeline_create_info.pRasterizationState = &rasterizer_state;
-        pipeline_create_info.pMultisampleState = &multisampling_state;
-        pipeline_create_info.pDepthStencilState = &depth_stencil_state;
-        pipeline_create_info.pColorBlendState = &color_blend_state;
-        pipeline_create_info.pDynamicState = &pipeline_dynamic_states;
-        pipeline_create_info.layout = pipeline.layout;
-        pipeline_create_info.renderPass = info.render_pass->handle;
-        pipeline_create_info.subpass = info.subpass;
-        pipeline_create_info.basePipelineHandle = nullptr;
-        pipeline_create_info.basePipelineIndex = -1;
+        VkGraphicsPipelineCreateInfo pipeline_info;
+        pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipeline_info.pNext = nullptr;
+        pipeline_info.flags = {};
+        pipeline_info.stageCount = 2;
+        pipeline_info.pStages = pipeline_stages;
+        pipeline_info.pVertexInputState = &vertex_input_state;
+        pipeline_info.pInputAssemblyState = &input_assembly_state;
+        pipeline_info.pTessellationState = nullptr;
+        pipeline_info.pViewportState = &viewport_state;
+        pipeline_info.pRasterizationState = &rasterizer_state;
+        pipeline_info.pMultisampleState = &multisampling_state;
+        pipeline_info.pDepthStencilState = &depth_stencil_state;
+        pipeline_info.pColorBlendState = &color_blend_state;
+        pipeline_info.pDynamicState = &pipeline_dynamic_states;
+        pipeline_info.layout = pipeline.layout;
+        pipeline_info.renderPass = info.render_pass->handle;
+        pipeline_info.subpass = info.subpass;
+        pipeline_info.basePipelineHandle = nullptr;
+        pipeline_info.basePipelineIndex = -1;
 
-        crd_vulkan_check(vkCreateGraphicsPipelines(context.device, nullptr, 1, &pipeline_create_info, nullptr, &pipeline.handle));
+        crd_vulkan_check(vkCreateGraphicsPipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
         vkDestroyShaderModule(context.device, pipeline_stages[0].module, nullptr);
         vkDestroyShaderModule(context.device, pipeline_stages[1].module, nullptr);
         return pipeline;
@@ -311,9 +335,5 @@ namespace crd::core {
         vkDestroyPipelineLayout(context.device, pipeline.layout, nullptr);
         vkDestroyPipeline(context.device, pipeline.handle, nullptr);
         pipeline = {};
-    }
-
-    crd_nodiscard crd_module DescriptorSetLayout Pipeline::set(std::size_t index) const noexcept {
-        return descriptors.at(index);
     }
 } // namespace crd::core

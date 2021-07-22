@@ -1,3 +1,4 @@
+#include <corundum/core/static_texture.hpp>
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/async.hpp>
 
@@ -6,11 +7,21 @@
 
 namespace crd::core {
     template <typename T>
-    crd_nodiscard crd_module T& Async<T>::get() noexcept {
+    crd_nodiscard crd_module T& Async<T>::operator *() noexcept {
         crd_unlikely_if(!result) {
             result = std::move(future.get());
         }
         return *result;
+    }
+
+    template <typename T>
+    crd_nodiscard crd_module T* Async<T>::operator ->() noexcept {
+        return &**this;
+    }
+
+    template <typename T>
+    crd_nodiscard crd_module T& Async<T>::get() noexcept {
+        return **this;
     }
 
     template <typename T>
@@ -23,4 +34,5 @@ namespace crd::core {
     }
 
     template struct Async<StaticMesh>;
+    template struct Async<StaticTexture>;
 } // namespace crd::core

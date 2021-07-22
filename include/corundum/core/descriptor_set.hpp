@@ -16,7 +16,8 @@ namespace crd::core {
         VkDescriptorSet handle;
         std::unordered_map<std::size_t, std::size_t> bound;
 
-        crd_module void bind(const Context&, const DescriptorBinding&, VkDescriptorBufferInfo) noexcept;
+        crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, VkDescriptorBufferInfo) noexcept;
+        crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, VkDescriptorImageInfo) noexcept;
     };
 
     template <>

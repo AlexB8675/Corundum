@@ -21,6 +21,7 @@ namespace crd::core {
     struct ImageMemoryBarrier {
         const Image* image;
         std::uint32_t mip;
+        std::uint32_t level;
         VkPipelineStageFlags source_stage;
         VkPipelineStageFlags dest_stage;
         VkAccessFlags source_access;

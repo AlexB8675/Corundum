@@ -20,7 +20,6 @@ namespace crd::core {
             VkSampleCountFlagBits samples;
             VkImageUsageFlags usage;
         };
-
         VkImage handle;
         VkImageView view;
         VmaAllocation allocation;

@@ -1,4 +1,5 @@
 #include <corundum/core/descriptor_set.hpp>
+#include <corundum/core/static_texture.hpp>
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/swapchain.hpp>
@@ -84,7 +85,7 @@ int main() {
         .render_pass = &render_pass,
         .attributes = {
             crd::core::vertex_attribute_vec3,
-            crd::core::vertex_attribute_vec3
+            crd::core::vertex_attribute_vec2,
         },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
@@ -95,25 +96,32 @@ int main() {
     });
     auto triangle = crd::core::request_static_mesh(context, {
         .geometry = {
-            -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-             0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
-             0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
+            -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
+             0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+             0.0f,  0.5f, 0.0f, 0.5f, 1.0f
         },
         .indices = {
             0, 1, 2
         }
     });
+    auto black   = crd::core::request_static_texture(context, "data/textures/black.png", crd::core::texture_srgb);
+    auto texture = crd::core::request_static_texture(context, "data/textures/wall.jpg", crd::core::texture_srgb);
     const auto camera =
         glm::perspective(glm::radians(90.0f), window.width / (float)window.height, 0.1f, 100.0f) *
         glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f),
                     glm::vec3(0.0f, 0.0f, 0.0f),
                     glm::vec3(0.0f, 1.0f, 0.0f));
     auto buffer = crd::core::make_buffer<>(context, sizeof(glm::mat4), crd::core::uniform_buffer);
-    auto set = crd::core::make_descriptor_set<>(context, pipeline.set(0));
+    auto set = crd::core::make_descriptor_set<>(context, pipeline.descriptors[0]);
     while (!crd::wm::is_closed(window)) {
         const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
         buffer[index].write(glm::value_ptr(camera), 0);
         set[index].bind(context, pipeline.bindings["Camera"], buffer[index].info());
+        crd_likely_if(texture.is_ready()) {
+            set[index].bind(context, pipeline.bindings["image"], texture->info());
+        } else {
+            set[index].bind(context, pipeline.bindings["image"], black->info());
+        }
         commands
             .begin()
             .begin_render_pass(render_pass, 0)
@@ -123,7 +131,7 @@ int main() {
         crd_likely_if(triangle.is_ready()) {
             commands
                 .bind_descriptor_set(set[index])
-                .bind_static_mesh(triangle.get())
+                .bind_static_mesh(*triangle)
                 .draw_indexed(3, 1, 0, 0, 0);
         }
         commands
@@ -131,6 +139,7 @@ int main() {
             .insert_layout_transition({
                 .image = &image,
                 .mip = 0,
+                .level = 0,
                 .source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 .dest_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                 .source_access = {},
@@ -142,6 +151,7 @@ int main() {
             .insert_layout_transition({
                 .image = &image,
                 .mip = 0,
+                .level = 0,
                 .source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                 .dest_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 .source_access = VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -156,7 +166,9 @@ int main() {
     context.graphics->wait_idle();
     crd::core::destroy_descriptor_set(context, set);
     crd::core::destroy_buffer(context, buffer);
-    crd::core::destroy_static_mesh(context, triangle.get());
+    crd::core::destroy_static_texture(context, *black);
+    crd::core::destroy_static_texture(context, *texture);
+    crd::core::destroy_static_mesh(context, *triangle);
     crd::core::destroy_pipeline(context, pipeline);
     crd::core::destroy_render_pass(context, render_pass);
     crd::core::destroy_swapchain(context, swapchain);

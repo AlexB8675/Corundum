@@ -22,6 +22,7 @@ namespace crd {
         struct Renderer;
         struct StaticBuffer;
         struct StaticMesh;
+        struct StaticTexture;
         struct DescriptorBinding;
         struct DescriptorSetLayout;
         template <std::size_t = in_flight>

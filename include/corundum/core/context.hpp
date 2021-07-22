@@ -25,6 +25,7 @@ namespace crd::core {
         VmaAllocator allocator;
         ftl::TaskScheduler* scheduler;
         VkDescriptorPool descriptor_pool;
+        VkSampler default_sampler;
         Queue* graphics;
         Queue* transfer;
         Queue* compute;
