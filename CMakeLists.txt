@@ -21,6 +21,18 @@ set(FTL_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 set(FTL_CPP_17 ON CACHE BOOL "" FORCE)
 add_subdirectory(ext/FiberTaskingLib)
 
+set(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_OBJ_IMPORTER ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_GLTF_IMPORTER ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_3DS_IMPORTER ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+add_subdirectory(ext/assimp)
+if(MSVC)
+    target_compile_options(assimp PRIVATE /w)
+endif()
+
 add_subdirectory(ext/glm)
 
 add_executable(Corundum
@@ -38,6 +50,7 @@ add_executable(Corundum
     include/corundum/core/renderer.hpp
     include/corundum/core/static_buffer.hpp
     include/corundum/core/static_mesh.hpp
+    include/corundum/core/static_model.hpp
     include/corundum/core/static_texture.hpp
     include/corundum/core/swapchain.hpp
 
@@ -62,6 +75,7 @@ add_executable(Corundum
     src/core/renderer.cpp
     src/core/static_buffer.cpp
     src/core/static_mesh.cpp
+    src/core/static_model.cpp
     src/core/static_texture.cpp
     src/core/stb_image.cpp
     src/core/swapchain.cpp
@@ -92,13 +106,13 @@ target_compile_options(Corundum PUBLIC
 target_include_directories(Corundum PRIVATE
     include
     ext/stb
-    ext/vma/include
-    ext/glfw/include)
+    ext/vma/include)
 
 target_link_libraries(Corundum PRIVATE
     glm
     ftl
     glfw
+    assimp
     Vulkan::Vulkan
     spirv-cross-glsl)
 

@@ -17,14 +17,14 @@
 #include <future>
 
 namespace crd::core {
-    crd_nodiscard crd_module Async<StaticTexture> request_static_texture(const Context& context, const char* path, TextureFormat format) noexcept {
+    crd_nodiscard crd_module Async<StaticTexture> request_static_texture(const Context& context, std::string&& path, TextureFormat format) noexcept {
         const auto task = new std::packaged_task<StaticTexture(ftl::TaskScheduler*)>(
-            [&context, path, format](ftl::TaskScheduler* scheduler) noexcept -> StaticTexture {
+            [&context, path = std::move(path), format](ftl::TaskScheduler* scheduler) noexcept -> StaticTexture {
                 const auto thread_index  = scheduler->GetCurrentThreadIndex();
                 const auto graphics_pool = context.graphics->transient[thread_index];
                 const auto transfer_pool = context.transfer->transient[thread_index];
                 std::int32_t width, height, channels = 4;
-                auto file = util::make_file_view(path);
+                auto file = util::make_file_view(path.c_str());
                 auto* image_data = stbi_load_from_memory(static_cast<const std::uint8_t*>(file.data), file.size,
                                                          &width, &height, &channels,
                                                          STBI_rgb_alpha);
@@ -197,8 +197,8 @@ namespace crd::core {
                 (*task)(scheduler);
                 delete task;
             },
-                .ArgData = task
-            }, ftl::TaskPriority::High);
+            .ArgData = task
+        }, ftl::TaskPriority::High);
         return resource;
     }
 

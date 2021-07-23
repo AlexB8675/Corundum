@@ -1,4 +1,5 @@
 #include <corundum/core/static_texture.hpp>
+#include <corundum/core/static_model.hpp>
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/async.hpp>
 
@@ -33,6 +34,12 @@ namespace crd::core {
         return future.wait_for(0ms) == std::future_status::ready;
     }
 
+    template <typename T>
+    crd_nodiscard crd_module bool Async<T>::valid() const noexcept {
+        return future.valid() || result;
+    }
+
     template struct Async<StaticMesh>;
     template struct Async<StaticTexture>;
+    template struct Async<StaticModel>;
 } // namespace crd::core

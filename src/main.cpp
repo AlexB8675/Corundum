@@ -1,5 +1,6 @@
 #include <corundum/core/descriptor_set.hpp>
 #include <corundum/core/static_texture.hpp>
+#include <corundum/core/static_model.hpp>
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/swapchain.hpp>
@@ -85,7 +86,10 @@ int main() {
         .render_pass = &render_pass,
         .attributes = {
             crd::core::vertex_attribute_vec3,
+            crd::core::vertex_attribute_vec3,
             crd::core::vertex_attribute_vec2,
+            crd::core::vertex_attribute_vec3,
+            crd::core::vertex_attribute_vec3
         },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
@@ -94,18 +98,8 @@ int main() {
         .subpass = 0,
         .depth = true
     });
-    auto triangle = crd::core::request_static_mesh(context, {
-        .geometry = {
-            -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
-             0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-             0.0f,  0.5f, 0.0f, 0.5f, 1.0f
-        },
-        .indices = {
-            0, 1, 2
-        }
-    });
     auto black   = crd::core::request_static_texture(context, "data/textures/black.png", crd::core::texture_srgb);
-    auto texture = crd::core::request_static_texture(context, "data/textures/wall.jpg", crd::core::texture_srgb);
+    auto sponza  = crd::core::request_static_model(context, "data/models/sponza/Sponza.gltf");
     const auto camera =
         glm::perspective(glm::radians(90.0f), window.width / (float)window.height, 0.1f, 100.0f) *
         glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f),
@@ -117,22 +111,22 @@ int main() {
         const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
         buffer[index].write(glm::value_ptr(camera), 0);
         set[index].bind(context, pipeline.bindings["Camera"], buffer[index].info());
-        crd_likely_if(texture.is_ready()) {
-            set[index].bind(context, pipeline.bindings["image"], texture->info());
-        } else {
-            set[index].bind(context, pipeline.bindings["image"], black->info());
-        }
+        set[index].bind(context, pipeline.bindings["image"], black->info());
         commands
             .begin()
             .begin_render_pass(render_pass, 0)
             .set_viewport(0)
             .set_scissor(0)
-            .bind_pipeline(pipeline);
-        crd_likely_if(triangle.is_ready()) {
-            commands
-                .bind_descriptor_set(set[index])
-                .bind_static_mesh(*triangle)
-                .draw_indexed(3, 1, 0, 0, 0);
+            .bind_pipeline(pipeline)
+            .bind_descriptor_set(set[index]);
+        crd_likely_if(sponza.is_ready()) {
+            for (auto& model : *sponza) {
+                crd_likely_if(model.mesh.is_ready()) {
+                    commands
+                        .bind_static_mesh(*model.mesh)
+                        .draw_indexed(model.indices, 1, 0, 0, 0);
+                }
+            }
         }
         commands
             .end_render_pass()
@@ -166,9 +160,8 @@ int main() {
     context.graphics->wait_idle();
     crd::core::destroy_descriptor_set(context, set);
     crd::core::destroy_buffer(context, buffer);
+    crd::core::destroy_static_model(context, *sponza);
     crd::core::destroy_static_texture(context, *black);
-    crd::core::destroy_static_texture(context, *texture);
-    crd::core::destroy_static_mesh(context, *triangle);
     crd::core::destroy_pipeline(context, pipeline);
     crd::core::destroy_render_pass(context, render_pass);
     crd::core::destroy_swapchain(context, swapchain);

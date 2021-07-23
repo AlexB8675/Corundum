@@ -42,7 +42,7 @@ namespace crd::core {
 
     template <>
     crd_module void destroy_descriptor_set(const Context& context, DescriptorSet<1>& set) noexcept {
-        vkFreeDescriptorSets(context.device, context.descriptor_pool, 1, &set.handle);
+        crd_vulkan_check(vkFreeDescriptorSets(context.device, context.descriptor_pool, 1, &set.handle));
     }
 
     template <>

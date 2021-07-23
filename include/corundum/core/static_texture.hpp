@@ -8,6 +8,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include <string>
+
 namespace crd::core {
     enum TextureFormat {
         texture_srgb = VK_FORMAT_R8G8B8A8_SRGB,
@@ -20,6 +22,6 @@ namespace crd::core {
 
         crd_nodiscard crd_module VkDescriptorImageInfo info() const noexcept;
     };
-    crd_nodiscard crd_module Async<StaticTexture> request_static_texture(const Context&, const char*, TextureFormat) noexcept;
+    crd_nodiscard crd_module Async<StaticTexture> request_static_texture(const Context&, std::string&&, TextureFormat) noexcept;
                   crd_module void                 destroy_static_texture(const Context&, StaticTexture&);
 } // namespace crd::core
