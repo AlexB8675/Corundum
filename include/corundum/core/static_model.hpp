@@ -7,6 +7,8 @@
 #include <corundum/util/forward.hpp>
 #include <corundum/util/macros.hpp>
 
+#include <vulkan/vulkan.h>
+
 #include <vector>
 
 namespace crd::core {
@@ -18,7 +20,12 @@ namespace crd::core {
         std::uint32_t vertices;
         std::uint32_t indices;
     };
-    using StaticModel = std::vector<TexturedMesh>;
+
+    struct StaticModel {
+        std::vector<TexturedMesh> submeshes;
+
+        crd_nodiscard crd_module std::vector<VkDescriptorImageInfo> info(const StaticTexture&) const noexcept;
+    };
 
     crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context&, const char*) noexcept;
                   crd_module void               destroy_static_model(const Context&, StaticModel&) noexcept;

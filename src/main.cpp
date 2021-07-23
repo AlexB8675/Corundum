@@ -18,6 +18,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
 
+#include <array>
+#include <span>
+
 int main() {
     auto window      = crd::wm::make_window(1280, 720, "Sorting Algos");
     auto context     = crd::core::make_context();
@@ -98,20 +101,29 @@ int main() {
         .subpass = 0,
         .depth = true
     });
-    auto black   = crd::core::request_static_texture(context, "data/textures/black.png", crd::core::texture_srgb);
-    auto sponza  = crd::core::request_static_model(context, "data/models/sponza/Sponza.gltf");
+    auto black  = crd::core::request_static_texture(context, "data/textures/black.png", crd::core::texture_srgb);
+    std::vector<crd::core::Async<crd::core::StaticModel>> models;
+    models.emplace_back(crd::core::request_static_model(context, "data/models/sponza/Sponza.gltf"));
     const auto camera =
         glm::perspective(glm::radians(90.0f), window.width / (float)window.height, 0.1f, 100.0f) *
         glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f),
                     glm::vec3(0.0f, 0.0f, 0.0f),
                     glm::vec3(0.0f, 1.0f, 0.0f));
-    auto buffer = crd::core::make_buffer<>(context, sizeof(glm::mat4), crd::core::uniform_buffer);
+    const auto transforms = std::array{
+        glm::scale(glm::mat4(1.0f), glm::vec3(0.02f))
+    };
+    std::vector<VkDescriptorImageInfo> textures;
+    textures.emplace_back(black->info());
+    auto camera_buffer = crd::core::make_buffer<>(context, sizeof(glm::mat4), crd::core::uniform_buffer);
+    auto model_buffer = crd::core::make_buffer<>(context, transforms.size() * sizeof(glm::mat4), crd::core::storage_buffer);
     auto set = crd::core::make_descriptor_set<>(context, pipeline.descriptors[0]);
     while (!crd::wm::is_closed(window)) {
-        const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
-        buffer[index].write(glm::value_ptr(camera), 0);
-        set[index].bind(context, pipeline.bindings["Camera"], buffer[index].info());
-        set[index].bind(context, pipeline.bindings["image"], black->info());
+        std::size_t textures_offset = 1;
+        const auto&& [commands, image, index] = renderer.acquire_frame(context, swapchain);
+        camera_buffer[index].write(glm::value_ptr(camera), 0);
+        model_buffer[index].write(transforms.data(), 0);
+        set[index].bind(context, pipeline.bindings["Camera"], camera_buffer[index].info());
+        set[index].bind(context, pipeline.bindings["Models"], model_buffer[index].info());
         commands
             .begin()
             .begin_render_pass(render_pass, 0)
@@ -119,13 +131,35 @@ int main() {
             .set_scissor(0)
             .bind_pipeline(pipeline)
             .bind_descriptor_set(set[index]);
-        crd_likely_if(sponza.is_ready()) {
-            for (auto& model : *sponza) {
-                crd_likely_if(model.mesh.is_ready()) {
-                    commands
-                        .bind_static_mesh(*model.mesh)
-                        .draw_indexed(model.indices, 1, 0, 0, 0);
+        for (std::size_t i = 0; i < models.size(); ++i) {
+            crd_likely_if(models[i].is_ready()) {
+                auto& model = models[i]->submeshes;
+                const auto descriptors = models[i]->info(*black);
+                const auto next_offset = descriptors.size() + textures_offset;
+                textures.reserve(next_offset);
+                if (textures.size() < next_offset) {
+                    const auto where = textures.begin() + textures_offset;
+                    textures.insert(where, descriptors.begin(), descriptors.end());
                 }
+                set[index].bind(context, pipeline.bindings["textures"], textures);
+                for (std::size_t j = 0; j < model.size(); ++j) {
+                    auto& submesh = model[j];
+                    crd_likely_if(submesh.mesh.is_ready()) {
+                        const auto indices = std::to_array<std::uint32_t>({
+                            0,
+                            static_cast<std::uint32_t>(textures_offset + j),
+                            static_cast<std::uint32_t>(textures_offset + j + 1),
+                            static_cast<std::uint32_t>(textures_offset + j + 2)
+                        });
+                        commands
+                            .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                            indices.data(),
+                                            std::span(indices).size_bytes())
+                            .bind_static_mesh(*submesh.mesh)
+                            .draw_indexed(submesh.indices, 1, 0, 0, 0);
+                    }
+                }
+                textures_offset = next_offset;
             }
         }
         commands
@@ -159,8 +193,11 @@ int main() {
     }
     context.graphics->wait_idle();
     crd::core::destroy_descriptor_set(context, set);
-    crd::core::destroy_buffer(context, buffer);
-    crd::core::destroy_static_model(context, *sponza);
+    crd::core::destroy_buffer(context, model_buffer);
+    crd::core::destroy_buffer(context, camera_buffer);
+    for (auto& each : models) {
+        crd::core::destroy_static_model(context, *each);
+    }
     crd::core::destroy_static_texture(context, *black);
     crd::core::destroy_pipeline(context, pipeline);
     crd::core::destroy_render_pass(context, render_pass);

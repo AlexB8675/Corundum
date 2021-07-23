@@ -11,7 +11,7 @@
 namespace crd::core {
     enum BufferType {
         uniform_buffer = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        storage_buffer = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+        storage_buffer = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     };
 
     template <>

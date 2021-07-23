@@ -96,6 +96,28 @@ namespace crd::core {
         return *this;
     }
 
+    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::span<VkDescriptorImageInfo> images) noexcept {
+        const auto  images_hash      = util::hash(0, images);
+        const auto  binding_hash     = util::hash(0, binding);
+              auto& bound_descriptor = bound[binding_hash];
+        crd_unlikely_if(bound_descriptor != images_hash) {
+            VkWriteDescriptorSet update;
+            update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            update.pNext = nullptr;
+            update.dstSet = handle;
+            update.dstBinding = binding.index;
+            update.dstArrayElement = 0;
+            update.descriptorCount = images.size();
+            update.descriptorType = binding.type;
+            update.pImageInfo = images.data();
+            update.pBufferInfo = nullptr;
+            update.pTexelBufferView = nullptr;
+            vkUpdateDescriptorSets(context.device, 1, &update, 0, nullptr);
+            bound_descriptor = images_hash;
+        }
+        return *this;
+    }
+
     crd_nodiscard crd_module const DescriptorSet<1>& DescriptorSet<in_flight>::operator [](std::size_t index) const noexcept {
         return handles[index];
     }

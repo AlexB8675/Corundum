@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <span>
 
 namespace crd::util {
     template <typename... Args>
@@ -27,6 +28,17 @@ namespace std {
     template <typename T>
     struct hash<vector<T>> {
         crd_nodiscard size_t operator ()(const vector<T>& value) const noexcept {
+            size_t seed = 0;
+            for (const auto& each : value) {
+                seed = crd::util::hash(seed, each);
+            }
+            return seed;
+        }
+    };
+
+    template <typename T>
+    struct hash<span<T>> {
+        crd_nodiscard size_t operator ()(span<T> value) const noexcept {
             size_t seed = 0;
             for (const auto& each : value) {
                 seed = crd::util::hash(seed, each);

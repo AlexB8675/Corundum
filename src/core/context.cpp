@@ -234,9 +234,17 @@ namespace crd::core {
             constexpr std::array extension_names = {
                 VK_KHR_SWAPCHAIN_EXTENSION_NAME
             };
+            VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing = {};
+            descriptor_indexing.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+            descriptor_indexing.shaderSampledImageArrayNonUniformIndexing = true;
+            descriptor_indexing.shaderUniformBufferArrayNonUniformIndexing = true;
+            descriptor_indexing.shaderStorageBufferArrayNonUniformIndexing = true;
+            descriptor_indexing.descriptorBindingVariableDescriptorCount = true;
+            descriptor_indexing.descriptorBindingPartiallyBound = true;
+            descriptor_indexing.runtimeDescriptorArray = true;
             VkDeviceCreateInfo device_info;
             device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-            device_info.pNext = nullptr;
+            device_info.pNext = &descriptor_indexing;
             device_info.flags = {};
             device_info.pQueueCreateInfos = queue_infos.data();
             device_info.queueCreateInfoCount = queue_infos.size();

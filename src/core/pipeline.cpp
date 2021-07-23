@@ -9,6 +9,7 @@
 #include <spirv_glsl.hpp>
 #include <spirv.hpp>
 
+#include <algorithm>
 #include <numeric>
 #include <cstring>
 
@@ -75,6 +76,18 @@ namespace crd::core {
                         .stage = VK_SHADER_STAGE_VERTEX_BIT
                     });
             }
+            for (const auto& storage_buffer : resources.storage_buffers) {
+                const auto set     = compiler.get_decoration(storage_buffer.id, spv::DecorationDescriptorSet);
+                const auto binding = compiler.get_decoration(storage_buffer.id, spv::DecorationBinding);
+                pipeline_descriptor_layout[set].emplace_back(
+                    descriptor_layout_bindings[storage_buffer.name] = {
+                        .dynamic = false,
+                        .index = binding,
+                        .count = 1,
+                        .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                        .stage = VK_SHADER_STAGE_VERTEX_BIT
+                    });
+            }
             for (const auto& push_constant : resources.push_constant_buffers) {
                 const auto& type = compiler.get_type(push_constant.type_id);
                 push_constant_range.size = compiler.get_declared_struct_size(type);
@@ -110,21 +123,65 @@ namespace crd::core {
                 VK_COLOR_COMPONENT_B_BIT |
                 VK_COLOR_COMPONENT_A_BIT;
             attachment_outputs.resize(resources.stage_outputs.size(), attachment);
-
+            for (const auto& uniform_buffer : resources.uniform_buffers) {
+                const auto  set        = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
+                const auto  binding    = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
+                      auto& descriptor = pipeline_descriptor_layout[set];
+                const auto  found =
+                    std::find_if(descriptor.begin(), descriptor.end(), [binding](const auto& each) {
+                        return each.index == binding;
+                    });
+                if (found != descriptor.end()) {
+                    found->stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+                } else {
+                    descriptor.emplace_back(
+                        descriptor_layout_bindings[uniform_buffer.name] = {
+                            .dynamic = false,
+                            .index = binding,
+                            .count = 1,
+                            .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                            .stage = VK_SHADER_STAGE_FRAGMENT_BIT
+                        });
+                }
+            }
+            for (const auto& storage_buffer : resources.storage_buffers) {
+                const auto  set        = compiler.get_decoration(storage_buffer.id, spv::DecorationDescriptorSet);
+                const auto  binding    = compiler.get_decoration(storage_buffer.id, spv::DecorationBinding);
+                      auto& descriptor = pipeline_descriptor_layout[set];
+                const auto  found =
+                    std::find_if(descriptor.begin(), descriptor.end(), [binding](const auto& each) {
+                        return each.index == binding;
+                    });
+                if (found != descriptor.end()) {
+                    found->stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+                } else {
+                    descriptor.emplace_back(
+                        descriptor_layout_bindings[storage_buffer.name] = {
+                            .dynamic = false,
+                            .index = binding,
+                            .count = 1,
+                            .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                            .stage = VK_SHADER_STAGE_FRAGMENT_BIT
+                        });
+                }
+            }
             for (const auto& textures : resources.sampled_images) {
-                const auto set     = compiler.get_decoration(textures.id, spv::DecorationDescriptorSet);
-                const auto binding = compiler.get_decoration(textures.id, spv::DecorationBinding);
+                const auto set        = compiler.get_decoration(textures.id, spv::DecorationDescriptorSet);
+                const auto binding    = compiler.get_decoration(textures.id, spv::DecorationBinding);
+                const auto& image_type = compiler.get_type(textures.type_id);
+                const bool is_array   = !image_type.array.empty();
+                const bool is_dynamic = is_array && image_type.array[0] == 0;
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[textures.name] = {
-                        .dynamic = false,
-                        .index = binding,
-                        .count = 1,
-                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        .stage = VK_SHADER_STAGE_FRAGMENT_BIT
+                        .dynamic = is_dynamic,
+                        .index   = binding,
+                        .count   = !is_array ? 1 : (is_dynamic ? 4096 : image_type.array[0]),
+                        .type    = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stage   = VK_SHADER_STAGE_FRAGMENT_BIT
                     });
             }
             if (!resources.push_constant_buffers.empty()) {
-                push_constant_range.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
+                push_constant_range.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
             }
         }
 

@@ -14,7 +14,18 @@ layout (set = 0, binding = 0) uniform Camera {
     mat4 proj_view;
 };
 
+layout (set = 0, binding = 1) buffer readonly Models {
+    mat4[] model;
+};
+
+layout (push_constant) uniform Constants {
+    uint model_index;
+    uint diffuse_index;
+    uint normal_index;
+    uint specular_index;
+};
+
 void main() {
-    gl_Position = proj_view * vec4(ivertex, 1.0);
+    gl_Position = proj_view * model[model_index] * vec4(ivertex, 1.0);
     uvs = iuvs;
 }

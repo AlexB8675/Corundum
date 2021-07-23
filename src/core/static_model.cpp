@@ -3,8 +3,6 @@
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/context.hpp>
 
-#include <corundum/util/file_view.hpp>
-
 #include <assimp/postprocess.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -25,7 +23,7 @@ namespace crd::core {
                                                                      TextureCache& cache,
                                                                      const fs::path& path) noexcept {
         crd_unlikely_if(material->GetTextureCount(type) == 0) {
-            return new Async<StaticTexture>(); // Return an empty "Async<T>" object.
+            return nullptr;
         }
         aiString str;
         material->GetTexture(type, 0, &str);
@@ -45,19 +43,18 @@ namespace crd::core {
                                                                   const fs::path& path) noexcept {
         constexpr auto components = 14;
         std::vector<float> geometry;
-        std::vector<std::uint32_t> indices;
-
         geometry.resize(mesh->mNumVertices * components);
         auto* ptr = &geometry.front();
         for (std::size_t i = 0; i < mesh->mNumVertices; ++i) {
-            std::memcpy(ptr, &mesh->mVertices[i], sizeof(aiVector3D));
-            crd_likely_if(mesh->mNormals)       { std::memcpy(ptr + 3, &mesh->mNormals[i], sizeof(aiVector3D)); }
-            crd_likely_if(mesh->mTextureCoords) { std::memcpy(ptr + 6, &mesh->mTextureCoords[0][i], sizeof(aiVector2D)); }
-            crd_likely_if(mesh->mTangents)      { std::memcpy(ptr + 8, &mesh->mTangents[i], sizeof(aiVector3D)); }
-            crd_likely_if(mesh->mBitangents)    { std::memcpy(ptr + 11, &mesh->mBitangents[i], sizeof(aiVector3D)); }
+            std::memcpy(ptr, &mesh->mVertices[i], sizeof(float[3]));
+            crd_likely_if(mesh->mNormals)       { std::memcpy(ptr + 3,  &mesh->mNormals[i],          sizeof(float[3])); }
+            crd_likely_if(mesh->mTextureCoords) { std::memcpy(ptr + 6,  &mesh->mTextureCoords[0][i], sizeof(float[2])); }
+            crd_likely_if(mesh->mTangents)      { std::memcpy(ptr + 8,  &mesh->mTangents[i],         sizeof(float[3])); }
+            crd_likely_if(mesh->mBitangents)    { std::memcpy(ptr + 11, &mesh->mBitangents[i],       sizeof(float[3])); }
             ptr += components;
         }
 
+        std::vector<std::uint32_t> indices;
         indices.reserve(mesh->mNumFaces * 3);
         for (std::size_t i = 0; i < mesh->mNumFaces; i++) {
             auto& face = mesh->mFaces[i];
@@ -85,7 +82,7 @@ namespace crd::core {
                              TextureCache& cache,
                              const fs::path& path) noexcept {
         for (std::size_t i = 0; i < node->mNumMeshes; i++) {
-            model.emplace_back(import_textured_mesh(context, scene, scene->mMeshes[node->mMeshes[i]], cache, path));
+            model.submeshes.emplace_back(import_textured_mesh(context, scene, scene->mMeshes[node->mMeshes[i]], cache, path));
         }
 
         for (std::size_t i = 0; i < node->mNumChildren; i++) {
@@ -124,8 +121,8 @@ namespace crd::core {
 
     crd_module void destroy_static_model(const Context& context, StaticModel& model) noexcept {
         std::vector<Async<StaticTexture>*> to_destroy;
-        to_destroy.resize(model.size() * 3);
-        for (std::size_t i = 0; auto& each : model) {
+        to_destroy.resize(model.submeshes.size() * 3);
+        for (std::size_t i = 0; auto& each : model.submeshes) {
             destroy_static_mesh(context, *each.mesh);
             to_destroy[i]     = each.diffuse;
             to_destroy[i + 1] = each.normal;
@@ -134,12 +131,26 @@ namespace crd::core {
         }
         std::sort(to_destroy.begin(), to_destroy.end());
         to_destroy.erase(std::unique(to_destroy.begin(), to_destroy.end()), to_destroy.end());
+        if (!to_destroy[0]) {
+            std::swap(to_destroy.back(), to_destroy.front());
+            to_destroy.pop_back();
+        }
         for (const auto each : to_destroy) {
-            crd_likely_if(each->valid()) {
-                destroy_static_texture(context, **each);
-            }
+            destroy_static_texture(context, **each);
             delete each;
         }
-        model.clear();
+        model.submeshes.clear();
+    }
+
+    crd_nodiscard crd_module std::vector<VkDescriptorImageInfo> StaticModel::info(const StaticTexture& fallback) const noexcept {
+        std::vector<VkDescriptorImageInfo> textures;
+        textures.resize(submeshes.size() * 3, fallback.info());
+        for (std::size_t i = 0; const auto& each : submeshes) {
+            crd_likely_if(each.diffuse  && each.diffuse->is_ready())  { textures[i]     = (*each.diffuse)->info();  }
+            crd_likely_if(each.normal   && each.normal->is_ready())   { textures[i + 1] = (*each.normal)->info();   }
+            crd_likely_if(each.specular && each.specular->is_ready()) { textures[i + 2] = (*each.specular)->info(); }
+            i += 3;
+        }
+        return textures;
     }
 } // namespace crd::core
