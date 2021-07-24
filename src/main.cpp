@@ -21,6 +21,78 @@
 #include <array>
 #include <span>
 
+struct Camera {
+    glm::mat4 perspective;
+    glm::vec3 position = {1.2f, 0.4f, 0.0f };
+    glm::vec3 front = { 0.0f, 0.0f, -1.0f };
+    glm::vec3 up = { 0.0f, 1.0f, 0.0f };
+    glm::vec3 right = { 0.0f, 0.0f, 0.0f };
+    glm::vec3 world_up = { 0.0f, 1.0f, 0.0f };
+    float yaw = -180.0f;
+    float pitch = 0.0f;
+
+    void update(const crd::wm::Window& window, double delta_time) noexcept {
+        _process_keyboard(window, delta_time);
+        perspective = glm::perspective(glm::radians(60.0f), window.width / (float)window.height, 0.1f, 100.0f);
+
+        const auto cos_pitch = std::cos(glm::radians(pitch));
+        front = glm::normalize(glm::vec3{
+            std::cos(glm::radians(yaw)) * cos_pitch,
+            std::sin(glm::radians(pitch)),
+            std::sin(glm::radians(yaw)) * cos_pitch
+        });
+        right = glm::normalize(glm::cross(front, world_up));
+        up = glm::normalize(glm::cross(right, front));
+    }
+
+    glm::mat4 raw() const noexcept {
+        return perspective * glm::lookAt(position, position + front, up);
+    }
+private:
+    void _process_keyboard(const crd::wm::Window& window, double delta_time) noexcept {
+        constexpr auto camera_speed = 2.5f;
+        const auto delta_movement = camera_speed * (float)delta_time;
+        if (window.key(crd::wm::key_w) == crd::wm::key_pressed) {
+            position.x += std::cos(glm::radians(yaw)) * delta_movement;
+            position.z += std::sin(glm::radians(yaw)) * delta_movement;
+        }
+        if (window.key(crd::wm::key_s) == crd::wm::key_pressed) {
+            position.x -= std::cos(glm::radians(yaw)) * delta_movement;
+            position.z -= std::sin(glm::radians(yaw)) * delta_movement;
+        }
+        if (window.key(crd::wm::key_a) == crd::wm::key_pressed) {
+            position -= right * delta_movement;
+        }
+        if (window.key(crd::wm::key_d) == crd::wm::key_pressed) {
+            position += right * delta_movement;
+        }
+        if (window.key(crd::wm::key_space) == crd::wm::key_pressed) {
+            position += world_up * delta_movement;
+        }
+        if (window.key(crd::wm::key_left_shift) == crd::wm::key_pressed) {
+            position -= world_up * delta_movement;
+        }
+        if (window.key(crd::wm::key_left) == crd::wm::key_pressed) {
+            yaw -= 0.065f;
+        }
+        if (window.key(crd::wm::key_right) == crd::wm::key_pressed) {
+            yaw += 0.065f;
+        }
+        if (window.key(crd::wm::key_up) == crd::wm::key_pressed) {
+            pitch += 0.065f;
+        }
+        if (window.key(crd::wm::key_down) == crd::wm::key_pressed) {
+            pitch -= 0.065f;
+        }
+        if (pitch > 89.9f) {
+            pitch = 89.9f;
+        }
+        if (pitch < -89.9f) {
+            pitch = -89.9f;
+        }
+    }
+};
+
 int main() {
     auto window      = crd::wm::make_window(1280, 720, "Sorting Algos");
     auto context     = crd::core::make_context();
@@ -103,53 +175,53 @@ int main() {
     });
     auto black  = crd::core::request_static_texture(context, "data/textures/black.png", crd::core::texture_srgb);
     std::vector<crd::core::Async<crd::core::StaticModel>> models;
-    models.emplace_back(crd::core::request_static_model(context, "data/models/sponza/Sponza.gltf"));
-    const auto camera =
-        glm::perspective(glm::radians(90.0f), window.width / (float)window.height, 0.1f, 100.0f) *
-        glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f),
-                    glm::vec3(0.0f, 0.0f, 0.0f),
-                    glm::vec3(0.0f, 1.0f, 0.0f));
-    const auto transforms = std::array{
+    models.emplace_back(crd::core::request_static_model(context, "data/models/sponza/sponza.obj"));
+    Camera camera;
+    std::array transforms{
         glm::scale(glm::mat4(1.0f), glm::vec3(0.02f))
     };
     std::vector<VkDescriptorImageInfo> textures;
-    textures.emplace_back(black->info());
     auto camera_buffer = crd::core::make_buffer<>(context, sizeof(glm::mat4), crd::core::uniform_buffer);
-    auto model_buffer = crd::core::make_buffer<>(context, transforms.size() * sizeof(glm::mat4), crd::core::storage_buffer);
+    auto model_buffer = crd::core::make_buffer<>(context, sizeof(glm::mat4), crd::core::storage_buffer);
     auto set = crd::core::make_descriptor_set<>(context, pipeline.descriptors[0]);
+    double delta_time = 0, last_frame = 0;
     while (!crd::wm::is_closed(window)) {
-        std::size_t textures_offset = 1;
-        const auto&& [commands, image, index] = renderer.acquire_frame(context, swapchain);
-        camera_buffer[index].write(glm::value_ptr(camera), 0);
+         std::int32_t textures_offset = 0;
+        const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
+        const auto current_frame = crd::wm::time();
+        delta_time = current_frame - last_frame;
+        last_frame = current_frame;
+        model_buffer[index].resize(context, std::span(transforms).size_bytes());
+        camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
         model_buffer[index].write(transforms.data(), 0);
         set[index].bind(context, pipeline.bindings["Camera"], camera_buffer[index].info());
         set[index].bind(context, pipeline.bindings["Models"], model_buffer[index].info());
+
         commands
             .begin()
             .begin_render_pass(render_pass, 0)
             .set_viewport(0)
             .set_scissor(0)
-            .bind_pipeline(pipeline)
-            .bind_descriptor_set(set[index]);
-        for (std::size_t i = 0; i < models.size(); ++i) {
-            crd_likely_if(models[i].is_ready()) {
-                auto& model = models[i]->submeshes;
-                const auto descriptors = models[i]->info(*black);
+            .bind_pipeline(pipeline);
+        for (auto& model : models) {
+            crd_likely_if(model.is_ready()) {
+                auto& submeshes = model->submeshes;
+                const auto descriptors = model->info(*black);
                 const auto next_offset = descriptors.size() + textures_offset;
-                textures.reserve(next_offset);
-                if (textures.size() < next_offset) {
-                    const auto where = textures.begin() + textures_offset;
-                    textures.insert(where, descriptors.begin(), descriptors.end());
+                crd_unlikely_if(textures.size() < next_offset) {
+                    textures.resize(next_offset);
                 }
+                std::copy(descriptors.begin(),  descriptors.end(), textures.begin() + textures_offset);
                 set[index].bind(context, pipeline.bindings["textures"], textures);
-                for (std::size_t j = 0; j < model.size(); ++j) {
-                    auto& submesh = model[j];
+                commands.bind_descriptor_set(set[index]);
+                for (std::size_t j = 0; j < submeshes.size(); ++j) {
+                    auto& submesh = submeshes[j];
                     crd_likely_if(submesh.mesh.is_ready()) {
                         const auto indices = std::to_array<std::uint32_t>({
                             0,
-                            static_cast<std::uint32_t>(textures_offset + j),
-                            static_cast<std::uint32_t>(textures_offset + j + 1),
-                            static_cast<std::uint32_t>(textures_offset + j + 2)
+                            static_cast<std::uint32_t>(textures_offset + (j * 3)),
+                            static_cast<std::uint32_t>(textures_offset + (j * 3) + 1),
+                            static_cast<std::uint32_t>(textures_offset + (j * 3) + 2)
                         });
                         commands
                             .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -190,6 +262,7 @@ int main() {
             .end();
         renderer.present_frame(context, swapchain, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
         crd::wm::poll_events();
+        camera.update(window, delta_time);
     }
     context.graphics->wait_idle();
     crd::core::destroy_descriptor_set(context, set);

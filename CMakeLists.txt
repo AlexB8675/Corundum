@@ -3,8 +3,6 @@ project(Corundum)
 
 find_package(Vulkan REQUIRED)
 
-set(CMAKE_CXX_STANDARD 20)
-
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_VULKAN_STATIC ON CACHE BOOL "" FORCE)
@@ -35,6 +33,7 @@ endif()
 
 add_subdirectory(ext/glm)
 
+set(CMAKE_CXX_STANDARD 20)
 add_executable(Corundum
     include/corundum/core/async.hpp
     include/corundum/core/buffer.hpp

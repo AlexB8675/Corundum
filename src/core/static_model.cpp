@@ -7,6 +7,9 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 
+#include <glm/vec3.hpp>
+#include <glm/vec2.hpp>
+
 #include <unordered_map>
 #include <filesystem>
 #include <algorithm>
@@ -41,16 +44,46 @@ namespace crd::core {
                                                                   const aiMesh* mesh,
                                                                   TextureCache& cache,
                                                                   const fs::path& path) noexcept {
+        struct Vertex {
+            glm::vec3 position;
+            glm::vec3 normals;
+            glm::vec2 uvs;
+            glm::vec3 tangents;
+            glm::vec3 bi_tangents;
+        };
         constexpr auto components = 14;
         std::vector<float> geometry;
         geometry.resize(mesh->mNumVertices * components);
         auto* ptr = &geometry.front();
         for (std::size_t i = 0; i < mesh->mNumVertices; ++i) {
-            std::memcpy(ptr, &mesh->mVertices[i], sizeof(float[3]));
-            crd_likely_if(mesh->mNormals)       { std::memcpy(ptr + 3,  &mesh->mNormals[i],          sizeof(float[3])); }
-            crd_likely_if(mesh->mTextureCoords) { std::memcpy(ptr + 6,  &mesh->mTextureCoords[0][i], sizeof(float[2])); }
-            crd_likely_if(mesh->mTangents)      { std::memcpy(ptr + 8,  &mesh->mTangents[i],         sizeof(float[3])); }
-            crd_likely_if(mesh->mBitangents)    { std::memcpy(ptr + 11, &mesh->mBitangents[i],       sizeof(float[3])); }
+            Vertex vertex = {};
+            vertex.position[0] = mesh->mVertices[i].x;
+            vertex.position[1] = mesh->mVertices[i].y;
+            vertex.position[2] = mesh->mVertices[i].z;
+
+            crd_likely_if(mesh->mNormals) {
+                vertex.normals[0] = mesh->mNormals[i].x;
+                vertex.normals[1] = mesh->mNormals[i].y;
+                vertex.normals[2] = mesh->mNormals[i].z;
+            }
+
+            crd_likely_if(mesh->mTextureCoords[0]) {
+                vertex.uvs[0] = mesh->mTextureCoords[0][i].x;
+                vertex.uvs[1] = mesh->mTextureCoords[0][i].y;
+            }
+
+            crd_likely_if(mesh->mTangents) {
+                vertex.tangents[0] = mesh->mTangents[i].x;
+                vertex.tangents[1] = mesh->mTangents[i].y;
+                vertex.tangents[2] = mesh->mTangents[i].z;
+            }
+
+            crd_likely_if(mesh->mBitangents) {
+                vertex.bi_tangents[0] = mesh->mBitangents[i].x;
+                vertex.bi_tangents[1] = mesh->mBitangents[i].y;
+                vertex.bi_tangents[2] = mesh->mBitangents[i].z;
+            }
+            std::memcpy(ptr, &vertex, sizeof(Vertex));
             ptr += components;
         }
 
@@ -76,11 +109,11 @@ namespace crd::core {
     }
 
     static inline void process_node(const Context& context,
-                             const aiScene* scene,
-                             const aiNode* node,
-                             StaticModel& model,
-                             TextureCache& cache,
-                             const fs::path& path) noexcept {
+                                    const aiScene* scene,
+                                    const aiNode* node,
+                                    StaticModel& model,
+                                    TextureCache& cache,
+                                    const fs::path& path) noexcept {
         for (std::size_t i = 0; i < node->mNumMeshes; i++) {
             model.submeshes.emplace_back(import_textured_mesh(context, scene, scene->mMeshes[node->mMeshes[i]], cache, path));
         }
@@ -145,7 +178,7 @@ namespace crd::core {
     crd_nodiscard crd_module std::vector<VkDescriptorImageInfo> StaticModel::info(const StaticTexture& fallback) const noexcept {
         std::vector<VkDescriptorImageInfo> textures;
         textures.resize(submeshes.size() * 3, fallback.info());
-        for (std::size_t i = 0; const auto& each : submeshes) {
+        for (std::size_t i = 0; auto& each : submeshes) {
             crd_likely_if(each.diffuse  && each.diffuse->is_ready())  { textures[i]     = (*each.diffuse)->info();  }
             crd_likely_if(each.normal   && each.normal->is_ready())   { textures[i + 1] = (*each.normal)->info();   }
             crd_likely_if(each.specular && each.specular->is_ready()) { textures[i + 2] = (*each.specular)->info(); }

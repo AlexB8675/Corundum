@@ -1,5 +1,3 @@
-#pragma once
-
 #include <corundum/core/static_texture.hpp>
 #include <corundum/core/command_buffer.hpp>
 #include <corundum/core/static_buffer.hpp>
@@ -15,6 +13,7 @@
 
 #include <cstring>
 #include <future>
+#include <cmath>
 
 namespace crd::core {
     crd_nodiscard crd_module Async<StaticTexture> request_static_texture(const Context& context, std::string&& path, TextureFormat format) noexcept {

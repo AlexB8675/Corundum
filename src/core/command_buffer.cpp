@@ -280,7 +280,7 @@ namespace crd::core {
         barrier.image = info.image->handle;
         barrier.subresourceRange.aspectMask = info.image->aspect;
         barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount = info.image->mips;
+        barrier.subresourceRange.levelCount = info.level == 0 ? info.image->mips : info.level;
         barrier.subresourceRange.baseArrayLayer = 0;
         barrier.subresourceRange.layerCount = 1;
         vkCmdPipelineBarrier(

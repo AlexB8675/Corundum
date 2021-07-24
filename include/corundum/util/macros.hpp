@@ -1,6 +1,9 @@
 #pragma once
 
-#define crd_debug_logging
+#if 1
+    #define crd_debug_logging
+#endif
+
 #if defined(_MSVC_LANG)
     #define crd_cpp_version _MSVC_LANG
     #define crd_unreachable() __assume(false)
@@ -67,4 +70,4 @@
         crd_nodiscard size_t operator ()(const T& name) const noexcept { \
             return crd::util::hash(0, __VA_ARGS__);                      \
         }                                                                \
-    }                                                                    \
+    }

@@ -59,10 +59,6 @@ namespace crd::core {
             module_create_info.pCode = binary.data();
             crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &pipeline_stages[0].module));
 
-            vertex_input_locations.reserve(resources.stage_inputs.size());
-            for (const auto& vertex_input : resources.stage_inputs) {
-                vertex_input_locations.emplace_back(compiler.get_decoration(vertex_input.id, spv::DecorationLocation));
-            }
             pipeline_descriptor_layout.reserve(resources.uniform_buffers.size());
             for (const auto& uniform_buffer : resources.uniform_buffers) {
                 const auto set     = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
@@ -196,11 +192,11 @@ namespace crd::core {
 
         std::vector<VkVertexInputAttributeDescription> vertex_attribute_descriptions;
         vertex_attribute_descriptions.reserve(info.attributes.size());
-        for (std::uint32_t location = 0, offset = 0; const auto attribute : info.attributes) {
+        for (std::uint32_t offset = 0, location = 0; const auto attribute : info.attributes) {
             vertex_attribute_descriptions.push_back({
-                .location = vertex_input_locations[location++],
+                .location = location++,
                 .binding = 0,
-                .format = [attribute]() noexcept {
+                .format = [&]() noexcept {
                     switch (attribute) {
                         case VertexAttribute::vec1: return VK_FORMAT_R32_SFLOAT;
                         case VertexAttribute::vec2: return VK_FORMAT_R32G32_SFLOAT;

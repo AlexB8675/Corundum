@@ -24,6 +24,10 @@ namespace crd::wm {
         return glfwWindowShouldClose(window.handle);
     }
 
+    crd_nodiscard crd_module float time() noexcept {
+        return glfwGetTime();
+    }
+
     crd_module void poll_events() noexcept {
         glfwPollEvents();
     }
@@ -37,5 +41,9 @@ namespace crd::wm {
     crd_module void destroy_window(Window& window) noexcept {
         glfwDestroyWindow(window.handle);
         window = {};
+    }
+
+    crd_nodiscard crd_module KeyState Window::key(Keys key) const noexcept {
+        return static_cast<KeyState>(glfwGetKey(handle, static_cast<int>(key)));
     }
 } // namespace crd::wm
