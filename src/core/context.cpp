@@ -3,6 +3,7 @@
 
 #include <string_view>
 #include <optional>
+#include <utility>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
@@ -137,6 +138,7 @@ namespace crd::core {
                     const auto vulkan_patch = VK_VERSION_PATCH(properties.apiVersion);
                     util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - Driver Version: %d.%d.%d", driver_major, driver_minor, driver_patch);
                     util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - Vulkan Version: %d.%d.%d", vulkan_major, vulkan_minor, vulkan_patch);
+                    context.gpu_properties = properties;
                     context.gpu = gpu;
                     break;
                 }
@@ -267,17 +269,18 @@ namespace crd::core {
             });
         }
         { // Creates a Descriptor Pool.
-            constexpr auto descriptor_sizes = std::to_array<VkDescriptorPoolSize>({
-                { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         2048 },
-                { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         2048 },
-                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4096 },
+            const auto max_samplers = max_bound_samplers(context);
+            const auto descriptor_sizes = std::to_array<VkDescriptorPoolSize>({
+                { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         2048         },
+                { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         2048         },
+                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, max_samplers },
             });
 
             VkDescriptorPoolCreateInfo descriptor_pool_info;
             descriptor_pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
             descriptor_pool_info.pNext = nullptr;
             descriptor_pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-            descriptor_pool_info.maxSets = 8192;
+            descriptor_pool_info.maxSets = 4096 + max_samplers;
             descriptor_pool_info.poolSizeCount = descriptor_sizes.size();
             descriptor_pool_info.pPoolSizes = descriptor_sizes.data();
             crd_vulkan_check(vkCreateDescriptorPool(context.device, &descriptor_pool_info, nullptr, &context.descriptor_pool));
@@ -395,5 +398,9 @@ namespace crd::core {
         vkDestroyInstance(context.instance, nullptr);
         context = {};
         util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Core Context terminated successfully");
+    }
+
+    crd_nodiscard crd_module std::uint32_t max_bound_samplers(const Context& context) noexcept {
+        return std::min(context.gpu_properties.limits.maxPerStageDescriptorSampledImages, 32768u);
     }
 } //namespace crd::core

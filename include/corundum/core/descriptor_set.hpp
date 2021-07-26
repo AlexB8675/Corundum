@@ -8,8 +8,8 @@
 #include <vulkan/vulkan.h>
 
 #include <unordered_map>
+#include <vector>
 #include <array>
-#include <span>
 
 namespace crd::core {
     template <>
@@ -19,7 +19,7 @@ namespace crd::core {
 
         crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, VkDescriptorBufferInfo) noexcept;
         crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, VkDescriptorImageInfo) noexcept;
-        crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, std::span<VkDescriptorImageInfo>) noexcept;
+        crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, const std::vector<VkDescriptorImageInfo>&) noexcept;
     };
 
     template <>

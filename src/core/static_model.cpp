@@ -174,16 +174,4 @@ namespace crd::core {
         }
         model.submeshes.clear();
     }
-
-    crd_nodiscard crd_module std::vector<VkDescriptorImageInfo> StaticModel::info(const StaticTexture& fallback) const noexcept {
-        std::vector<VkDescriptorImageInfo> textures;
-        textures.resize(submeshes.size() * 3, fallback.info());
-        for (std::size_t i = 0; auto& each : submeshes) {
-            crd_likely_if(each.diffuse  && each.diffuse->is_ready())  { textures[i]     = (*each.diffuse)->info();  }
-            crd_likely_if(each.normal   && each.normal->is_ready())   { textures[i + 1] = (*each.normal)->info();   }
-            crd_likely_if(each.specular && each.specular->is_ready()) { textures[i + 2] = (*each.specular)->info(); }
-            i += 3;
-        }
-        return textures;
-    }
 } // namespace crd::core

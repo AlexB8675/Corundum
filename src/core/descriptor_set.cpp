@@ -15,13 +15,13 @@ namespace crd::core {
         allocate_info.descriptorSetCount = 1;
         allocate_info.pSetLayouts = &layout.handle;
 
-        constexpr auto count = 4096u;
+        const auto max_samplers = max_bound_samplers(context);
         VkDescriptorSetVariableDescriptorCountAllocateInfo variable_count;
         if (layout.dynamic) {
             variable_count.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
             variable_count.pNext = nullptr;
             variable_count.descriptorSetCount = 1;
-            variable_count.pDescriptorCounts = &count;
+            variable_count.pDescriptorCounts = &max_samplers;
             allocate_info.pNext = &variable_count;
         }
 
@@ -96,7 +96,7 @@ namespace crd::core {
         return *this;
     }
 
-    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::span<VkDescriptorImageInfo> images) noexcept {
+    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, const std::vector<VkDescriptorImageInfo>& images) noexcept {
         const auto  images_hash      = util::hash(0, images);
         const auto  binding_hash     = util::hash(0, binding);
               auto& bound_descriptor = bound[binding_hash];

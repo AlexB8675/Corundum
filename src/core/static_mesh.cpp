@@ -15,8 +15,8 @@ namespace crd::core {
                 const auto thread_index  = scheduler->GetCurrentThreadIndex();
                 const auto graphics_pool = context.graphics->transient[thread_index];
                 const auto transfer_pool = context.transfer->transient[thread_index];
-                const auto vertex_bytes = info.geometry.size() * sizeof(float);
-                const auto index_bytes = info.indices.size() * sizeof(std::uint32_t);
+                const auto vertex_bytes  = info.geometry.size() * sizeof(float);
+                const auto index_bytes   = info.indices.size() * sizeof(std::uint32_t);
                 util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral,
                           "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", vertex_bytes * index_bytes);
                 auto vertex_staging = make_static_buffer(context, {
@@ -130,5 +130,6 @@ namespace crd::core {
     crd_module void destroy_static_mesh(const Context& context, StaticMesh& mesh) noexcept {
         destroy_static_buffer(context, mesh.geometry);
         destroy_static_buffer(context, mesh.indices);
+        mesh = {};
     }
 } // namespace crd::core

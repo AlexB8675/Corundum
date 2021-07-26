@@ -18,16 +18,17 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
 
+#include <vector>
 #include <array>
 #include <span>
 
 struct Camera {
     glm::mat4 perspective;
-    glm::vec3 position = {1.2f, 0.4f, 0.0f };
-    glm::vec3 front = { 0.0f, 0.0f, -1.0f };
-    glm::vec3 up = { 0.0f, 1.0f, 0.0f };
-    glm::vec3 right = { 0.0f, 0.0f, 0.0f };
-    glm::vec3 world_up = { 0.0f, 1.0f, 0.0f };
+    glm::vec3 position = { 1.2f, 0.4f,  0.0f };
+    glm::vec3 front =    { 0.0f, 0.0f, -1.0f };
+    glm::vec3 up =       { 0.0f, 1.0f,  0.0f };
+    glm::vec3 right =    { 0.0f, 0.0f,  0.0f };
+    glm::vec3 world_up = { 0.0f, 1.0f,  0.0f };
     float yaw = -180.0f;
     float pitch = 0.0f;
 
@@ -73,16 +74,16 @@ private:
             position -= world_up * delta_movement;
         }
         if (window.key(crd::wm::key_left) == crd::wm::key_pressed) {
-            yaw -= 0.065f;
+            yaw -= 0.150f;
         }
         if (window.key(crd::wm::key_right) == crd::wm::key_pressed) {
-            yaw += 0.065f;
+            yaw += 0.150f;
         }
         if (window.key(crd::wm::key_up) == crd::wm::key_pressed) {
-            pitch += 0.065f;
+            pitch += 0.150f;
         }
         if (window.key(crd::wm::key_down) == crd::wm::key_pressed) {
-            pitch -= 0.065f;
+            pitch -= 0.150f;
         }
         if (pitch > 89.9f) {
             pitch = 89.9f;
@@ -92,6 +93,54 @@ private:
         }
     }
 };
+
+
+struct Model {
+    struct Submesh {
+        std::array<std::uint32_t, 3> textures;
+    };
+    std::vector<Submesh> submeshes;
+};
+
+struct Scene {
+    std::vector<VkDescriptorImageInfo> descriptors;
+    std::vector<Model> models;
+};
+
+static inline Scene build_scene(std::span<crd::core::Async<crd::core::StaticModel>> models, VkDescriptorImageInfo black) noexcept {
+    Scene scene;
+    scene.descriptors = { black };
+    std::unordered_map<void*, std::uint32_t> texture_cache;
+    for (auto& model : models) {
+        crd_likely_if(model.is_ready()) {
+            const auto submeshes_size = model->submeshes.size();
+            auto& handle = scene.models.emplace_back();
+            scene.descriptors.reserve(scene.descriptors.size() + submeshes_size * 3);
+            handle.submeshes.reserve(submeshes_size);
+            for (auto& submesh : model->submeshes) {
+                crd_likely_if(submesh.mesh.is_ready()) {
+                    std::array<std::uint32_t, 3> indices = {};
+                    const auto emplace_descriptor = [&](const auto texture, std::uint32_t which) {
+                        crd_likely_if(texture) {
+                            auto& index = texture_cache[texture];
+                            crd_likely_if(index != 0) {
+                                indices[which] = index;
+                            } else crd_likely_if(texture->is_ready()) {
+                                scene.descriptors.emplace_back((*texture)->info());
+                                indices[which] = index = scene.descriptors.size() - 1;
+                            }
+                        }
+                    };
+                    emplace_descriptor(submesh.diffuse, 0);
+                    emplace_descriptor(submesh.normal, 1);
+                    emplace_descriptor(submesh.specular, 2);
+                    handle.submeshes.emplace_back().textures = indices;
+                }
+            }
+        }
+    }
+    return scene;
+}
 
 int main() {
     auto window      = crd::wm::make_window(1280, 720, "Sorting Algos");
@@ -173,21 +222,20 @@ int main() {
         .subpass = 0,
         .depth = true
     });
-    auto black  = crd::core::request_static_texture(context, "data/textures/black.png", crd::core::texture_srgb);
+    auto black = crd::core::request_static_texture(context, "data/textures/black.png", crd::core::texture_srgb);
     std::vector<crd::core::Async<crd::core::StaticModel>> models;
     models.emplace_back(crd::core::request_static_model(context, "data/models/sponza/sponza.obj"));
     Camera camera;
-    std::array transforms{
+    std::vector transforms{
         glm::scale(glm::mat4(1.0f), glm::vec3(0.02f))
     };
-    std::vector<VkDescriptorImageInfo> textures;
     auto camera_buffer = crd::core::make_buffer<>(context, sizeof(glm::mat4), crd::core::uniform_buffer);
     auto model_buffer = crd::core::make_buffer<>(context, sizeof(glm::mat4), crd::core::storage_buffer);
     auto set = crd::core::make_descriptor_set<>(context, pipeline.descriptors[0]);
     double delta_time = 0, last_frame = 0;
     while (!crd::wm::is_closed(window)) {
-         std::int32_t textures_offset = 0;
         const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
+        const auto scene = build_scene(models, black->info());
         const auto current_frame = crd::wm::time();
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
@@ -196,42 +244,31 @@ int main() {
         model_buffer[index].write(transforms.data(), 0);
         set[index].bind(context, pipeline.bindings["Camera"], camera_buffer[index].info());
         set[index].bind(context, pipeline.bindings["Models"], model_buffer[index].info());
+        set[index].bind(context, pipeline.bindings["textures"], scene.descriptors);
 
         commands
             .begin()
             .begin_render_pass(render_pass, 0)
             .set_viewport(0)
             .set_scissor(0)
-            .bind_pipeline(pipeline);
-        for (auto& model : models) {
-            crd_likely_if(model.is_ready()) {
-                auto& submeshes = model->submeshes;
-                const auto descriptors = model->info(*black);
-                const auto next_offset = descriptors.size() + textures_offset;
-                crd_unlikely_if(textures.size() < next_offset) {
-                    textures.resize(next_offset);
-                }
-                std::copy(descriptors.begin(),  descriptors.end(), textures.begin() + textures_offset);
-                set[index].bind(context, pipeline.bindings["textures"], textures);
-                commands.bind_descriptor_set(set[index]);
-                for (std::size_t j = 0; j < submeshes.size(); ++j) {
-                    auto& submesh = submeshes[j];
-                    crd_likely_if(submesh.mesh.is_ready()) {
-                        const auto indices = std::to_array<std::uint32_t>({
-                            0,
-                            static_cast<std::uint32_t>(textures_offset + (j * 3)),
-                            static_cast<std::uint32_t>(textures_offset + (j * 3) + 1),
-                            static_cast<std::uint32_t>(textures_offset + (j * 3) + 2)
-                        });
-                        commands
-                            .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                                            indices.data(),
-                                            std::span(indices).size_bytes())
-                            .bind_static_mesh(*submesh.mesh)
-                            .draw_indexed(submesh.indices, 1, 0, 0, 0);
-                    }
-                }
-                textures_offset = next_offset;
+            .bind_pipeline(pipeline)
+            .bind_descriptor_set(set[index]);
+        for (std::uint32_t i = 0; const auto& model : scene.models) {
+            auto& raw_model = *models[i++];
+            for (std::uint32_t j = 0; const auto& submesh : model.submeshes) {
+                auto& raw_submesh = raw_model.submeshes[j++];
+                std::array indices{
+                    0u,
+                    submesh.textures[0],
+                    submesh.textures[1],
+                    submesh.textures[2]
+                };
+                commands
+                    .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                    indices.data(),
+                                    std::span(indices).size_bytes())
+                    .bind_static_mesh(*raw_submesh.mesh)
+                    .draw_indexed(raw_submesh.indices, 1, 0, 0, 0);
             }
         }
         commands

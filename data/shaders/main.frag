@@ -17,5 +17,5 @@ layout (push_constant) uniform Constants {
 };
 
 void main() {
-    pixel = vec4(texture(textures[diffuse_index], uvs).rgb, 1.0);
+    pixel = vec4(texture(textures[diffuse_index], uvs));
 }

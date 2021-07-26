@@ -23,8 +23,6 @@ namespace crd::core {
 
     struct StaticModel {
         std::vector<TexturedMesh> submeshes;
-
-        crd_nodiscard crd_module std::vector<VkDescriptorImageInfo> info(const StaticTexture&) const noexcept;
     };
 
     crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context&, const char*) noexcept;

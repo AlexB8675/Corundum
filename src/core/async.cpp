@@ -28,7 +28,7 @@ namespace crd::core {
     template <typename T>
     crd_nodiscard crd_module bool Async<T>::is_ready() noexcept {
         using namespace std::literals;
-        crd_likely_if(result.has_value()) {
+        crd_likely_if(result) {
             return true;
         }
         return future.wait_for(0ms) == std::future_status::ready;

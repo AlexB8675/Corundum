@@ -19,6 +19,7 @@ namespace crd::core {
 #if crd_debug == 1
         VkDebugUtilsMessengerEXT validation;
 #endif
+        VkPhysicalDeviceProperties gpu_properties;
         VkPhysicalDevice gpu;
         QueueFamilies families;
         VkDevice device;
@@ -32,6 +33,7 @@ namespace crd::core {
 
     };
 
-    crd_nodiscard crd_module Context make_context() noexcept;
-                  crd_module void    destroy_context(Context& context) noexcept;
+    crd_nodiscard crd_module Context       make_context() noexcept;
+                  crd_module void          destroy_context(Context&) noexcept;
+    crd_nodiscard crd_module std::uint32_t max_bound_samplers(const Context&) noexcept;
 } // namespace crd::core

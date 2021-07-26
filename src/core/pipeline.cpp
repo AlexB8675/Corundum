@@ -162,16 +162,17 @@ namespace crd::core {
                 }
             }
             for (const auto& textures : resources.sampled_images) {
-                const auto set        = compiler.get_decoration(textures.id, spv::DecorationDescriptorSet);
-                const auto binding    = compiler.get_decoration(textures.id, spv::DecorationBinding);
-                const auto& image_type = compiler.get_type(textures.type_id);
-                const bool is_array   = !image_type.array.empty();
-                const bool is_dynamic = is_array && image_type.array[0] == 0;
+                const auto set          = compiler.get_decoration(textures.id, spv::DecorationDescriptorSet);
+                const auto binding      = compiler.get_decoration(textures.id, spv::DecorationBinding);
+                const auto& image_type  = compiler.get_type(textures.type_id);
+                const bool is_array     = !image_type.array.empty();
+                const bool is_dynamic   = is_array && image_type.array[0] == 0;
+                const auto max_samplers = max_bound_samplers(context);
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[textures.name] = {
                         .dynamic = is_dynamic,
                         .index   = binding,
-                        .count   = !is_array ? 1 : (is_dynamic ? 4096 : image_type.array[0]),
+                        .count   = !is_array ? 1 : (is_dynamic ? max_samplers : image_type.array[0]),
                         .type    = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                         .stage   = VK_SHADER_STAGE_FRAGMENT_BIT
                     });
