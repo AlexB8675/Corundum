@@ -9,7 +9,7 @@
 #include <vector>
 #include <corundum/core/static_buffer.hpp>
 
-namespace crd::core {
+namespace crd {
     crd_nodiscard crd_module std::vector<CommandBuffer> make_command_buffers(const Context& context, CommandBuffer::CreateInfo&& info) noexcept {
         VkCommandBufferAllocateInfo allocate_info;
         allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -323,4 +323,4 @@ namespace crd::core {
     crd_module void CommandBuffer::end() const noexcept {
         crd_vulkan_check(vkEndCommandBuffer(handle));
     }
-} // namespace crd::core
+} // namespace crd

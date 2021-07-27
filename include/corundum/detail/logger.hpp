@@ -1,6 +1,6 @@
 #pragma once
 
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <iomanip>
 #include <sstream>
@@ -8,7 +8,7 @@
 #include <chrono>
 #include <cstdio>
 
-namespace crd::util {
+namespace crd::detail {
     enum class Severity {
         eInfo    = 1 << 0,
         eWarning = 1 << 1,
@@ -52,4 +52,4 @@ namespace crd::util {
         log(sender, severity_string, type_string, message, std::forward<Args>(args)...);
 #endif
     }
-} // namespace crd::util
+} // namespace crd::detail

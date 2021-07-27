@@ -4,8 +4,8 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/queue.hpp>
 
-#include <corundum/util/file_view.hpp>
-#include <corundum/util/logger.hpp>
+#include <corundum/detail/file_view.hpp>
+#include <corundum/detail/logger.hpp>
 
 #include <vulkan/vulkan.h>
 
@@ -15,7 +15,7 @@
 #include <future>
 #include <cmath>
 
-namespace crd::core {
+namespace crd {
     crd_nodiscard crd_module Async<StaticTexture> request_static_texture(const Context& context, std::string&& path, TextureFormat format) noexcept {
         const auto task = new std::packaged_task<StaticTexture(ftl::TaskScheduler*)>(
             [&context, path = std::move(path), format](ftl::TaskScheduler* scheduler) noexcept -> StaticTexture {
@@ -23,13 +23,13 @@ namespace crd::core {
                 const auto graphics_pool = context.graphics->transient[thread_index];
                 const auto transfer_pool = context.transfer->transient[thread_index];
                 std::int32_t width, height, channels = 4;
-                auto file = util::make_file_view(path.c_str());
+                auto file = detail::make_file_view(path.c_str());
                 auto* image_data = stbi_load_from_memory(static_cast<const std::uint8_t*>(file.data), file.size,
                                                          &width, &height, &channels,
                                                          STBI_rgb_alpha);
-                util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral,
+                detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral,
                           "StaticTexture was asynchronously requested, expected bytes to transfer: %zu", file.size);
-                util::destroy_file_view(file);
+                detail::destroy_file_view(file);
                 auto image = make_image(context, {
                     .width = (std::uint32_t)width,
                     .height = (std::uint32_t)height,
@@ -213,4 +213,4 @@ namespace crd::core {
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         };
     }
-} // namespace crd::core
+} // namespace crd

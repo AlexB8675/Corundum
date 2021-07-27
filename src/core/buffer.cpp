@@ -3,7 +3,7 @@
 
 #include <cstring>
 
-namespace crd::core {
+namespace crd {
     template <>
     crd_nodiscard crd_module Buffer<1> make_buffer(const Context& context, std::size_t size, BufferType type) {
         Buffer<1> buffer;
@@ -101,4 +101,4 @@ namespace crd::core {
             each.write(data, offset, length);
         }
     }
-} // namespace crd::core
+} // namespace crd

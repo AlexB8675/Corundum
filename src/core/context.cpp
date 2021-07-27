@@ -1,5 +1,5 @@
 #include <corundum/core/context.hpp>
-#include <corundum/util/logger.hpp>
+#include <corundum/detail/logger.hpp>
 
 #include <string_view>
 #include <optional>
@@ -12,12 +12,12 @@
 
 #define load_instance_function(instance, fn) const auto fn = reinterpret_cast<PFN_##fn>(vkGetInstanceProcAddr(instance, #fn))
 
-namespace crd::core {
+namespace crd {
     crd_nodiscard Context make_context() noexcept {
-        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Vulkan initialization started");
+        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Vulkan initialization started");
         Context context = {};
         { // Creates a VkInstance.
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Requesting Vulkan Version 1.2");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Requesting Vulkan Version 1.2");
             VkApplicationInfo application_info;
             application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
             application_info.pNext = nullptr;
@@ -27,7 +27,7 @@ namespace crd::core {
             application_info.engineVersion = VK_API_VERSION_1_2;
             application_info.apiVersion = VK_API_VERSION_1_2;
 
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Enumerating extensions:");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Enumerating extensions:");
             std::uint32_t extension_count;
             vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
             std::vector<VkExtensionProperties> extensions_props(extension_count);
@@ -39,7 +39,7 @@ namespace crd::core {
 #endif
             for (const auto& [name, _] : extensions_props) {
                 crd_likely_if(std::string_view(name).find("debug") == std::string::npos) {
-                    util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - %s", name);
+                    detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "  - %s", name);
                     extension_names.emplace_back(name);
                 }
             }
@@ -50,7 +50,7 @@ namespace crd::core {
             instance_info.flags = {};
             instance_info.pApplicationInfo = &application_info;
 #if defined(crd_debug)
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Debug mode active, requesting validation layers");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Debug mode active, requesting validation layers");
             const char* validation_layer = "VK_LAYER_KHRONOS_validation";
             instance_info.enabledLayerCount = 1;
             instance_info.ppEnabledLayerNames = &validation_layer;
@@ -62,7 +62,7 @@ namespace crd::core {
             instance_info.ppEnabledExtensionNames = extension_names.data();
 
             crd_vulkan_check(vkCreateInstance(&instance_info, nullptr, &context.instance));
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Extensions enabled successfully");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Extensions enabled successfully");
         }
 #if defined(crd_debug)
         { // Installs validation layers only if debug mode is active.
@@ -97,7 +97,7 @@ namespace crd::core {
                     case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT: type_string = "Performance"; break;
                 }
 
-                util::log("Vulkan", severity_string, type_string, data->pMessage);
+                detail::log("Vulkan", severity_string, type_string, data->pMessage);
                 const auto fatal_bits = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
                 crd_unlikely_if(severity & fatal_bits) {
                     crd_force_assert("Fatal Vulkan Error has occurred");
@@ -106,11 +106,11 @@ namespace crd::core {
             };
             validation_info.pUserData = nullptr;
 
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Loading validation function: vkCreateDebugUtilsMessengerEXT");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Loading validation function: vkCreateDebugUtilsMessengerEXT");
             load_instance_function(context.instance, vkCreateDebugUtilsMessengerEXT);
             crd_assert(vkCreateDebugUtilsMessengerEXT, "Failed loading validation function");
             crd_vulkan_check(vkCreateDebugUtilsMessengerEXT(context.instance, &validation_info, nullptr, &context.validation));
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Validation layers enabled successfully");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Validation layers enabled successfully");
         }
 #endif
         { // Picks a VkPhysicalDevice.
@@ -119,25 +119,25 @@ namespace crd::core {
             std::vector<VkPhysicalDevice> devices(device_count);
             vkEnumeratePhysicalDevices(context.instance, &device_count, devices.data());
 
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Enumerating physical devices:");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Enumerating physical devices:");
             for (const auto& gpu : devices) {
                 VkPhysicalDeviceProperties properties;
                 vkGetPhysicalDeviceProperties(gpu, &properties);
-                util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - Found device: %s", properties.deviceName);
+                detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "  - Found device: %s", properties.deviceName);
                 const auto device_criteria =
                     VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU |
                     VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU   |
                     VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU;
                 crd_likely_if(properties.deviceType & device_criteria) {
-                    util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - Chosen device: %s", properties.deviceName);
+                    detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "  - Chosen device: %s", properties.deviceName);
                     const auto driver_major = VK_VERSION_MAJOR(properties.driverVersion);
                     const auto driver_minor = VK_VERSION_MINOR(properties.driverVersion);
                     const auto driver_patch = VK_VERSION_PATCH(properties.driverVersion);
                     const auto vulkan_major = VK_VERSION_MAJOR(properties.apiVersion);
                     const auto vulkan_minor = VK_VERSION_MINOR(properties.apiVersion);
                     const auto vulkan_patch = VK_VERSION_PATCH(properties.apiVersion);
-                    util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - Driver Version: %d.%d.%d", driver_major, driver_minor, driver_patch);
-                    util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - Vulkan Version: %d.%d.%d", vulkan_major, vulkan_minor, vulkan_patch);
+                    detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "  - Driver Version: %d.%d.%d", driver_major, driver_minor, driver_patch);
+                    detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "  - Vulkan Version: %d.%d.%d", vulkan_major, vulkan_minor, vulkan_patch);
                     context.gpu_properties = properties;
                     context.gpu = gpu;
                     break;
@@ -147,7 +147,7 @@ namespace crd::core {
 
         }
         { // Chooses queue families and creates a VkDevice.
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Enumerating Queue families");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Enumerating Queue families");
             std::uint32_t families_count;
             vkGetPhysicalDeviceQueueFamilyProperties(context.gpu, &families_count, nullptr);
             std::vector<VkQueueFamilyProperties> queue_families(families_count);
@@ -203,7 +203,7 @@ namespace crd::core {
             }
 
             context.families = families;
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Chosen families: %d, %d, %d", families.graphics.family, families.transfer.family, families.compute.family);
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Chosen families: %d, %d, %d", families.graphics.family, families.transfer.family, families.compute.family);
             std::vector<VkDeviceQueueCreateInfo> queue_infos;
             for (std::uint32_t family = 0; family < families_count; family++) {
                 crd_unlikely_if(queue_sizes[family] == 0) {
@@ -220,19 +220,19 @@ namespace crd::core {
                 queue_infos.emplace_back(queue_info);
             }
 
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Fetching device features");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Fetching device features");
             VkPhysicalDeviceFeatures features;
             vkGetPhysicalDeviceFeatures(context.gpu, &features);
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Enumerating device extensions");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Enumerating device extensions");
             std::uint32_t extension_count;
             vkEnumerateDeviceExtensionProperties(context.gpu, nullptr, &extension_count, nullptr);
             std::vector<VkExtensionProperties> extensions_props(extension_count);
             vkEnumerateDeviceExtensionProperties(context.gpu, nullptr, &extension_count, extensions_props.data());
             for (const auto& [name, _] : extensions_props) {
-                util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "  - %s", name);
+                detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "  - %s", name);
             }
 
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Requesting ownership of device");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Requesting ownership of device");
             constexpr std::array extension_names = {
                 VK_KHR_SWAPCHAIN_EXTENSION_NAME
             };
@@ -256,12 +256,12 @@ namespace crd::core {
             device_info.ppEnabledExtensionNames = extension_names.data();
             device_info.pEnabledFeatures = &features;
             crd_vulkan_check(vkCreateDevice(context.gpu, &device_info, nullptr, &context.device));
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Ownership acquired successfully, locked");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Ownership acquired successfully, locked");
 
             context.graphics = make_queue(context, families.graphics);
             context.transfer = make_queue(context, families.transfer);
             context.compute = make_queue(context, families.compute);
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Device queues initialized");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Device queues initialized");
         }
         { // Creates the Task Scheduler.
             (context.scheduler = new ftl::TaskScheduler())->Init({
@@ -313,7 +313,7 @@ namespace crd::core {
             allocation_callbacks.pfnAllocation =
                 [](void*, std::size_t size, std::size_t align, VkSystemAllocationScope scope) noexcept {
                     void* memory = std::malloc(size);
-                    util::log("Vulkan", util::Severity::eInfo, util::Type::eValidation,
+                    detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eValidation,
                               "CPU Allocation Requested, Size: %zu bytes, Alignment: %zu bytes, Scope: %d, Address: %p",
                               size, align, scope, memory);
                     return memory;
@@ -321,7 +321,7 @@ namespace crd::core {
             allocation_callbacks.pfnReallocation =
                 [](void*, void* old, std::size_t size, std::size_t align, VkSystemAllocationScope scope) noexcept {
                     void* memory = std::realloc(old, size);
-                    util::log("Vulkan", util::Severity::eInfo, util::Type::eValidation,
+                    detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eValidation,
                               "CPU Reallocation Requested, Size: %zu bytes, Alignment: %zu bytes, Scope: %d, Address: %p",
                               size, align, scope, memory);
                     return memory;
@@ -329,37 +329,37 @@ namespace crd::core {
             allocation_callbacks.pfnFree =
                 [](void*, void* memory) noexcept {
                     if (memory) {
-                        util::log("Vulkan", util::Severity::eInfo, util::Type::eValidation, "CPU Free Requested, Address: %p", memory);
+                        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eValidation, "CPU Free Requested, Address: %p", memory);
                         std::free(memory);
                     }
                 };
             allocation_callbacks.pfnInternalAllocation =
                 [](void*, std::size_t size, VkInternalAllocationType type, VkSystemAllocationScope scope) noexcept {
-                    util::log("Vulkan", util::Severity::eInfo, util::Type::eValidation,
+                    detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eValidation,
                               "Internal Allocation Requested, Size: %zu bytes, Type: %d, Scope: %d",
                               size, type, scope);
                 };
             allocation_callbacks.pfnInternalFree =
                 [](void*, std::size_t size, VkInternalAllocationType type, VkSystemAllocationScope scope) noexcept {
-                    util::log("Vulkan", util::Severity::eInfo, util::Type::eValidation,
+                    detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eValidation,
                               "Internal Free Requested, Size: %zu bytes, Type: %d, Scope: %d",
                               size, type, scope);
                 };
             VmaDeviceMemoryCallbacks device_memory_callbacks;
             device_memory_callbacks.pfnAllocate =
                 [](VmaAllocator allocator, std::uint32_t type, VkDeviceMemory memory, VkDeviceSize size, void*) noexcept {
-                    util::log("Vulkan", util::Severity::eInfo, util::Type::eValidation,
+                    detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eValidation,
                               "GPU Allocation Requested, Allocator: %p, Size: %zu bytes, Type: %d, Address: %p",
                               allocator, size, type, memory);
                 };
             device_memory_callbacks.pfnFree =
                 [](VmaAllocator allocator, std::uint32_t type, VkDeviceMemory memory, VkDeviceSize size, void*) noexcept {
-                    util::log("Vulkan", util::Severity::eInfo, util::Type::eValidation,
+                    detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eValidation,
                               "GPU Free Requested, Allocator: %p, Size: %zu bytes, Type: %d, Address: %p",
                               allocator, size, type, memory);
                 };
             device_memory_callbacks.pUserData = nullptr;
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Creating allocator");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Creating allocator");
             VmaAllocatorCreateInfo allocator_info;
             allocator_info.flags = {};
             allocator_info.physicalDevice = context.gpu;
@@ -375,14 +375,14 @@ namespace crd::core {
             allocator_info.vulkanApiVersion = VK_API_VERSION_1_2;
             allocator_info.pTypeExternalMemoryHandleTypes = nullptr;
             crd_vulkan_check(vmaCreateAllocator(&allocator_info, &context.allocator));
-            util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Allocator created successfully");
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Allocator created successfully");
         }
-        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Vulkan initialization completed");
+        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Vulkan initialization completed");
         return context;
     }
 
     crd_module void destroy_context(Context& context) noexcept {
-        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Terminating Core Context");
+        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Terminating Core Context");
         delete context.scheduler;
         destroy_queue(context, context.graphics);
         destroy_queue(context, context.transfer);
@@ -397,10 +397,10 @@ namespace crd::core {
 #endif
         vkDestroyInstance(context.instance, nullptr);
         context = {};
-        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Core Context terminated successfully");
+        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Core Context terminated successfully");
     }
 
     crd_nodiscard crd_module std::uint32_t max_bound_samplers(const Context& context) noexcept {
         return std::min(context.gpu_properties.limits.maxPerStageDescriptorSampledImages, 32768u);
     }
-} //namespace crd::core
+} //namespace crd

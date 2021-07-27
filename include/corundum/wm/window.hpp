@@ -1,7 +1,7 @@
 #pragma once
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <vulkan/vulkan.h>
 
@@ -9,7 +9,7 @@
 
 #include <cstdint>
 
-namespace crd::wm {
+namespace crd {
     enum Keys {
         key_space      = GLFW_KEY_SPACE,
         key_a          = GLFW_KEY_A,
@@ -55,13 +55,13 @@ namespace crd::wm {
         std::uint32_t width;
         std::uint32_t height;
 
+        crd_nodiscard crd_module bool     is_closed() const noexcept;
         crd_nodiscard crd_module KeyState key(Keys) const noexcept;
     };
 
     crd_nodiscard crd_module Window       make_window(std::uint32_t, std::uint32_t, const char*) noexcept;
-    crd_nodiscard crd_module bool         is_closed(const Window&) noexcept;
     crd_nodiscard crd_module float        time() noexcept;
                   crd_module void         poll_events() noexcept;
-    crd_nodiscard crd_module VkSurfaceKHR make_vulkan_surface(const core::Context&, const Window&) noexcept;
+    crd_nodiscard crd_module VkSurfaceKHR make_vulkan_surface(const Context&, const Window&) noexcept;
                   crd_module void         destroy_window(Window&) noexcept;
-} // namespace crd::wm
+} // namespace crd

@@ -5,7 +5,7 @@
 
 #include <thread>
 
-namespace crd::core {
+namespace crd {
     crd_nodiscard crd_module Queue* make_queue(const Context& context, QueueFamily family) noexcept {
         auto* queue = new Queue();
         queue->family = family.family;
@@ -79,4 +79,4 @@ namespace crd::core {
         std::lock_guard<std::mutex> guard(lock);
         crd_vulkan_check(vkQueueWaitIdle(handle));
     }
-} // namespace crd::core
+} // namespace crd

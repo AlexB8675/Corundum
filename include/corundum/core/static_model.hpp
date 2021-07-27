@@ -4,14 +4,14 @@
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/async.hpp>
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <vulkan/vulkan.h>
 
 #include <vector>
 
-namespace crd::core {
+namespace crd {
     struct TexturedMesh {
         Async<StaticMesh> mesh;
         Async<StaticTexture>* diffuse;
@@ -27,4 +27,4 @@ namespace crd::core {
 
     crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context&, const char*) noexcept;
                   crd_module void               destroy_static_model(const Context&, StaticModel&) noexcept;
-} // namespace crd::core
+} // namespace crd

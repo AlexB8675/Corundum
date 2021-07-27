@@ -2,15 +2,15 @@
 
 #include <corundum/core/clear.hpp>
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <vulkan/vulkan.h>
 #include <vk_mem_alloc.h>
 
 #include <cstdint>
 
-namespace crd::core {
+namespace crd {
     struct Image {
         struct CreateInfo {
             std::uint32_t width;
@@ -33,4 +33,4 @@ namespace crd::core {
 
     crd_nodiscard crd_module Image make_image(const Context&, Image::CreateInfo&&) noexcept;
                   crd_module void  destroy_image(const Context&, Image&) noexcept;
-} // namespace crd::core
+} // namespace crd

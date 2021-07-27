@@ -3,12 +3,12 @@
 #include <corundum/core/static_buffer.hpp>
 #include <corundum/core/constants.hpp>
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <array>
 
-namespace crd::core {
+namespace crd {
     enum BufferType {
         uniform_buffer = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         storage_buffer = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
@@ -39,4 +39,4 @@ namespace crd::core {
 
     template <std::size_t N = in_flight> crd_nodiscard crd_module Buffer<N> make_buffer(const Context&, std::size_t, BufferType);
     template <std::size_t N = in_flight>               crd_module void      destroy_buffer(const Context&, Buffer<N>&);
-} // namespace crd::core
+} // namespace crd

@@ -2,7 +2,7 @@
 
 #include <corundum/core/queue.hpp>
 
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <ftl/task_scheduler.h>
 
@@ -13,7 +13,7 @@
 #include <future>
 #include <chrono>
 
-namespace crd::core {
+namespace crd {
     struct Context {
         VkInstance instance;
 #if crd_debug == 1
@@ -36,4 +36,4 @@ namespace crd::core {
     crd_nodiscard crd_module Context       make_context() noexcept;
                   crd_module void          destroy_context(Context&) noexcept;
     crd_nodiscard crd_module std::uint32_t max_bound_samplers(const Context&) noexcept;
-} // namespace crd::core
+} // namespace crd

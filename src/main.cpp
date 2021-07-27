@@ -32,7 +32,7 @@ struct Camera {
     float yaw = -180.0f;
     float pitch = 0.0f;
 
-    void update(const crd::wm::Window& window, double delta_time) noexcept {
+    void update(const crd::Window& window, double delta_time) noexcept {
         _process_keyboard(window, delta_time);
         perspective = glm::perspective(glm::radians(60.0f), window.width / (float)window.height, 0.1f, 100.0f);
 
@@ -50,39 +50,39 @@ struct Camera {
         return perspective * glm::lookAt(position, position + front, up);
     }
 private:
-    void _process_keyboard(const crd::wm::Window& window, double delta_time) noexcept {
+    void _process_keyboard(const crd::Window& window, double delta_time) noexcept {
         constexpr auto camera_speed = 2.5f;
         const auto delta_movement = camera_speed * (float)delta_time;
-        if (window.key(crd::wm::key_w) == crd::wm::key_pressed) {
+        if (window.key(crd::key_w) == crd::key_pressed) {
             position.x += std::cos(glm::radians(yaw)) * delta_movement;
             position.z += std::sin(glm::radians(yaw)) * delta_movement;
         }
-        if (window.key(crd::wm::key_s) == crd::wm::key_pressed) {
+        if (window.key(crd::key_s) == crd::key_pressed) {
             position.x -= std::cos(glm::radians(yaw)) * delta_movement;
             position.z -= std::sin(glm::radians(yaw)) * delta_movement;
         }
-        if (window.key(crd::wm::key_a) == crd::wm::key_pressed) {
+        if (window.key(crd::key_a) == crd::key_pressed) {
             position -= right * delta_movement;
         }
-        if (window.key(crd::wm::key_d) == crd::wm::key_pressed) {
+        if (window.key(crd::key_d) == crd::key_pressed) {
             position += right * delta_movement;
         }
-        if (window.key(crd::wm::key_space) == crd::wm::key_pressed) {
+        if (window.key(crd::key_space) == crd::key_pressed) {
             position += world_up * delta_movement;
         }
-        if (window.key(crd::wm::key_left_shift) == crd::wm::key_pressed) {
+        if (window.key(crd::key_left_shift) == crd::key_pressed) {
             position -= world_up * delta_movement;
         }
-        if (window.key(crd::wm::key_left) == crd::wm::key_pressed) {
+        if (window.key(crd::key_left) == crd::key_pressed) {
             yaw -= 0.150f;
         }
-        if (window.key(crd::wm::key_right) == crd::wm::key_pressed) {
+        if (window.key(crd::key_right) == crd::key_pressed) {
             yaw += 0.150f;
         }
-        if (window.key(crd::wm::key_up) == crd::wm::key_pressed) {
+        if (window.key(crd::key_up) == crd::key_pressed) {
             pitch += 0.150f;
         }
-        if (window.key(crd::wm::key_down) == crd::wm::key_pressed) {
+        if (window.key(crd::key_down) == crd::key_pressed) {
             pitch -= 0.150f;
         }
         if (pitch > 89.9f) {
@@ -98,8 +98,10 @@ private:
 struct Model {
     struct Submesh {
         std::array<std::uint32_t, 3> textures;
+        std::uint32_t index;
     };
     std::vector<Submesh> submeshes;
+    std::uint32_t index;
 };
 
 struct Scene {
@@ -107,17 +109,19 @@ struct Scene {
     std::vector<Model> models;
 };
 
-static inline Scene build_scene(std::span<crd::core::Async<crd::core::StaticModel>> models, VkDescriptorImageInfo black) noexcept {
+static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, VkDescriptorImageInfo black) noexcept {
     Scene scene;
     scene.descriptors = { black };
     std::unordered_map<void*, std::uint32_t> texture_cache;
-    for (auto& model : models) {
+    for (std::uint32_t i = 0; auto& model : models) {
         crd_likely_if(model.is_ready()) {
             const auto submeshes_size = model->submeshes.size();
             auto& handle = scene.models.emplace_back();
             scene.descriptors.reserve(scene.descriptors.size() + submeshes_size * 3);
+            texture_cache.reserve(texture_cache.size() + submeshes_size * 3);
             handle.submeshes.reserve(submeshes_size);
-            for (auto& submesh : model->submeshes) {
+            handle.index = i;
+            for (std::uint32_t j = 0; auto& submesh : model->submeshes) {
                 crd_likely_if(submesh.mesh.is_ready()) {
                     std::array<std::uint32_t, 3> indices = {};
                     const auto emplace_descriptor = [&](const auto texture, std::uint32_t which) {
@@ -134,22 +138,27 @@ static inline Scene build_scene(std::span<crd::core::Async<crd::core::StaticMode
                     emplace_descriptor(submesh.diffuse, 0);
                     emplace_descriptor(submesh.normal, 1);
                     emplace_descriptor(submesh.specular, 2);
-                    handle.submeshes.emplace_back().textures = indices;
+                    handle.submeshes.push_back({
+                        .textures = indices,
+                        .index = j
+                    });
                 }
+                j++;
             }
         }
+        i++;
     }
     return scene;
 }
 
 int main() {
-    auto window      = crd::wm::make_window(1280, 720, "Sorting Algos");
-    auto context     = crd::core::make_context();
-    auto renderer    = crd::core::make_renderer(context);
-    auto swapchain   = crd::core::make_swapchain(context, window);
-    auto render_pass = crd::core::make_render_pass(context, {
+    auto window      = crd::make_window(1280, 720, "Sorting Algos");
+    auto context     = crd::make_context();
+    auto renderer    = crd::make_renderer(context);
+    auto swapchain   = crd::make_swapchain(context, window);
+    auto render_pass = crd::make_render_pass(context, {
         .attachments = { {
-            .image = crd::core::make_image(context, {
+            .image = crd::make_image(context, {
                 .width   = 1280,
                 .height  = 720,
                 .mips    = 1,
@@ -162,7 +171,7 @@ int main() {
                 .initial = VK_IMAGE_LAYOUT_UNDEFINED,
                 .final   = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
             },
-            .clear   = crd::core::make_clear_color({
+            .clear   = crd::make_clear_color({
                 24  / 255.0f,
                 154 / 255.0f,
                 207 / 255.0f,
@@ -171,7 +180,7 @@ int main() {
             .owning  = true,
             .discard = false
         }, {
-            .image = crd::core::make_image(context, {
+            .image = crd::make_image(context, {
                 .width   = 1280,
                 .height  = 720,
                 .mips    = 1,
@@ -183,7 +192,7 @@ int main() {
                 .initial = VK_IMAGE_LAYOUT_UNDEFINED,
                 .final   = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
             },
-            .clear   = crd::core::make_clear_depth({ 1.0, 0 }),
+            .clear   = crd::make_clear_depth({ 1.0, 0 }),
             .owning  = true,
             .discard = true
         } },
@@ -193,7 +202,7 @@ int main() {
             .input       = {}
         } },
         .dependencies = { {
-            .source_subpass = crd::core::external_subpass,
+            .source_subpass = crd::external_subpass,
             .dest_subpass   = 0,
             .source_stage   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
             .dest_stage     = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -204,16 +213,16 @@ int main() {
             { { 0, 1 } }
         }
     });
-    auto pipeline = crd::core::make_pipeline(context, renderer, {
+    auto pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "data/shaders/main.vert.spv",
         .fragment = "data/shaders/main.frag.spv",
         .render_pass = &render_pass,
         .attributes = {
-            crd::core::vertex_attribute_vec3,
-            crd::core::vertex_attribute_vec3,
-            crd::core::vertex_attribute_vec2,
-            crd::core::vertex_attribute_vec3,
-            crd::core::vertex_attribute_vec3
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec2,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3
         },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
@@ -222,23 +231,26 @@ int main() {
         .subpass = 0,
         .depth = true
     });
-    auto black = crd::core::request_static_texture(context, "data/textures/black.png", crd::core::texture_srgb);
-    std::vector<crd::core::Async<crd::core::StaticModel>> models;
-    models.emplace_back(crd::core::request_static_model(context, "data/models/sponza/sponza.obj"));
+    auto black = crd::request_static_texture(context, "data/textures/black.png", crd::texture_srgb);
+    std::vector<crd::Async<crd::StaticModel>> models;
+    models.emplace_back(crd::request_static_model(context, "data/models/sponza/sponza.obj"));
     Camera camera;
     std::vector transforms{
-        glm::scale(glm::mat4(1.0f), glm::vec3(0.02f))
+        glm::scale(glm::mat4(1.0f), glm::vec3(0.02f)),
     };
-    auto camera_buffer = crd::core::make_buffer<>(context, sizeof(glm::mat4), crd::core::uniform_buffer);
-    auto model_buffer = crd::core::make_buffer<>(context, sizeof(glm::mat4), crd::core::storage_buffer);
-    auto set = crd::core::make_descriptor_set<>(context, pipeline.descriptors[0]);
-    double delta_time = 0, last_frame = 0;
-    while (!crd::wm::is_closed(window)) {
+    auto camera_buffer = crd::make_buffer<>(context, sizeof(glm::mat4), crd::uniform_buffer);
+    auto model_buffer = crd::make_buffer<>(context, sizeof(glm::mat4), crd::storage_buffer);
+    auto set = crd::make_descriptor_set<>(context, pipeline.descriptors[0]);
+    std::size_t frames = 0;
+    double delta_time = 0, last_frame = 0, fps = 0;
+    while (!window.is_closed()) {
         const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
         const auto scene = build_scene(models, black->info());
-        const auto current_frame = crd::wm::time();
+        const auto current_frame = crd::time();
+        ++frames;
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
+        fps += 1 / delta_time;
         model_buffer[index].resize(context, std::span(transforms).size_bytes());
         camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
         model_buffer[index].write(transforms.data(), 0);
@@ -253,12 +265,12 @@ int main() {
             .set_scissor(0)
             .bind_pipeline(pipeline)
             .bind_descriptor_set(set[index]);
-        for (std::uint32_t i = 0; const auto& model : scene.models) {
-            auto& raw_model = *models[i++];
-            for (std::uint32_t j = 0; const auto& submesh : model.submeshes) {
-                auto& raw_submesh = raw_model.submeshes[j++];
+        for (const auto& model : scene.models) {
+            auto& raw_model = *models[model.index];
+            for (const auto& submesh : model.submeshes) {
+                auto& raw_submesh = raw_model.submeshes[submesh.index];
                 std::array indices{
-                    0u,
+                    model.index,
                     submesh.textures[0],
                     submesh.textures[1],
                     submesh.textures[2]
@@ -298,22 +310,22 @@ int main() {
             })
             .end();
         renderer.present_frame(context, swapchain, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-        crd::wm::poll_events();
+        crd::poll_events();
         camera.update(window, delta_time);
     }
     context.graphics->wait_idle();
-    crd::core::destroy_descriptor_set(context, set);
-    crd::core::destroy_buffer(context, model_buffer);
-    crd::core::destroy_buffer(context, camera_buffer);
+    crd::destroy_descriptor_set(context, set);
+    crd::destroy_buffer(context, model_buffer);
+    crd::destroy_buffer(context, camera_buffer);
     for (auto& each : models) {
-        crd::core::destroy_static_model(context, *each);
+        crd::destroy_static_model(context, *each);
     }
-    crd::core::destroy_static_texture(context, *black);
-    crd::core::destroy_pipeline(context, pipeline);
-    crd::core::destroy_render_pass(context, render_pass);
-    crd::core::destroy_swapchain(context, swapchain);
-    crd::core::destroy_renderer(context, renderer);
-    crd::core::destroy_context(context);
-    crd::wm::destroy_window(window);
+    crd::destroy_static_texture(context, *black);
+    crd::destroy_pipeline(context, pipeline);
+    crd::destroy_render_pass(context, render_pass);
+    crd::destroy_swapchain(context, swapchain);
+    crd::destroy_renderer(context, renderer);
+    crd::destroy_context(context);
+    destroy_window(window);
     return 0;
 }

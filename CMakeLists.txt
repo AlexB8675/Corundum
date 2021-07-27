@@ -53,11 +53,11 @@ add_executable(Corundum
     include/corundum/core/static_texture.hpp
     include/corundum/core/swapchain.hpp
 
-    include/corundum/util/file_view.hpp
-    include/corundum/util/forward.hpp
-    include/corundum/util/hash.hpp
-    include/corundum/util/logger.hpp
-    include/corundum/util/macros.hpp
+    include/corundum/detail/file_view.hpp
+    include/corundum/detail/forward.hpp
+    include/corundum/detail/hash.hpp
+    include/corundum/detail/logger.hpp
+    include/corundum/detail/macros.hpp
 
     include/corundum/wm/window.hpp
 

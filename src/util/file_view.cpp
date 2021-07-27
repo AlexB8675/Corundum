@@ -1,4 +1,4 @@
-#include <corundum/util/file_view.hpp>
+#include <corundum/detail/file_view.hpp>
 
 #if defined(_WIN32)
     #include <Windows.h>
@@ -8,7 +8,7 @@
     #include <fcntl.h>
 #endif
 
-namespace crd::util {
+namespace crd::detail {
     crd_nodiscard crd_module FileView make_file_view(const char* path) noexcept {
         FileView file;
 #if defined(_WIN32)
@@ -37,4 +37,4 @@ namespace crd::util {
 #endif
         file = {};
     }
-} // namespace crd::util
+} // namespace crd::detail

@@ -1,6 +1,6 @@
 #pragma once
 
-#if 1
+#if 0
     #define crd_debug_logging
 #endif
 
@@ -68,6 +68,6 @@
     template <>                                                          \
     struct hash<T> {                                                     \
         crd_nodiscard size_t operator ()(const T& name) const noexcept { \
-            return crd::util::hash(0, __VA_ARGS__);                      \
+            return crd::detail::hash(0, __VA_ARGS__);                    \
         }                                                                \
     }

@@ -1,13 +1,13 @@
 #pragma once
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <vulkan/vulkan.h>
 
 #include <cstdint>
 
-namespace crd::core {
+namespace crd {
     struct ClearColor {
         float color[4];
     };
@@ -32,4 +32,4 @@ namespace crd::core {
     crd_nodiscard crd_module VkClearValue as_vulkan(ClearValue clear) noexcept;
     crd_nodiscard crd_module ClearValue   make_clear_color(ClearColor) noexcept;
     crd_nodiscard crd_module ClearValue   make_clear_depth(ClearDepth) noexcept;
-} // namespace crd::core
+} // namespace crd

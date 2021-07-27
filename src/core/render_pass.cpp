@@ -4,7 +4,7 @@
 #include <optional>
 #include <utility>
 
-namespace crd::core {
+namespace crd {
     crd_nodiscard static inline VkImageLayout deduce_reference_layout(const AttachmentInfo& attachment) noexcept {
         switch (attachment.image.aspect) {
             case VK_IMAGE_ASPECT_STENCIL_BIT | VK_IMAGE_ASPECT_DEPTH_BIT:
@@ -170,4 +170,4 @@ namespace crd::core {
     crd_nodiscard crd_module const Image& RenderPass::image(std::size_t index) const noexcept {
         return attachments[index].image;
     }
-} // namespace crd::core
+} // namespace crd

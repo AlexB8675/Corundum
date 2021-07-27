@@ -3,9 +3,9 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/buffer.hpp>
 
-#include <corundum/util/hash.hpp>
+#include <corundum/detail/hash.hpp>
 
-namespace crd::core {
+namespace crd {
     template <>
     crd_nodiscard crd_module DescriptorSet<1> make_descriptor_set(const Context& context, DescriptorSetLayout layout) noexcept {
         VkDescriptorSetAllocateInfo allocate_info;
@@ -53,8 +53,8 @@ namespace crd::core {
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorBufferInfo buffer) noexcept {
-        const auto  buffer_hash      = util::hash(0, buffer);
-        const auto  binding_hash     = util::hash(0, binding);
+        const auto  buffer_hash      = detail::hash(0, buffer);
+        const auto  binding_hash     = detail::hash(0, binding);
               auto& bound_descriptor = bound[binding_hash];
         crd_unlikely_if(bound_descriptor != buffer_hash) {
             VkWriteDescriptorSet update;
@@ -75,8 +75,8 @@ namespace crd::core {
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorImageInfo image) noexcept {
-        const auto  image_hash       = util::hash(0, image);
-        const auto  binding_hash     = util::hash(0, binding);
+        const auto  image_hash       = detail::hash(0, image);
+        const auto  binding_hash     = detail::hash(0, binding);
               auto& bound_descriptor = bound[binding_hash];
         crd_unlikely_if(bound_descriptor != image_hash) {
             VkWriteDescriptorSet update;
@@ -97,8 +97,8 @@ namespace crd::core {
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, const std::vector<VkDescriptorImageInfo>& images) noexcept {
-        const auto  images_hash      = util::hash(0, images);
-        const auto  binding_hash     = util::hash(0, binding);
+        const auto  images_hash      = detail::hash(0, images);
+        const auto  binding_hash     = detail::hash(0, binding);
               auto& bound_descriptor = bound[binding_hash];
         crd_unlikely_if(bound_descriptor != images_hash) {
             VkWriteDescriptorSet update;
@@ -125,4 +125,4 @@ namespace crd::core {
     crd_nodiscard crd_module DescriptorSet<1>& DescriptorSet<in_flight>::operator [](std::size_t index) noexcept {
         return handles[index];
     }
-} // namespace crd::core
+} // namespace crd

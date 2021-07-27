@@ -4,11 +4,11 @@
 #include <corundum/core/async.hpp>
 #include <corundum/core/queue.hpp>
 
-#include <corundum/util/logger.hpp>
+#include <corundum/detail/logger.hpp>
 
 #include <cstring>
 
-namespace crd::core {
+namespace crd {
     crd_nodiscard crd_module Async<StaticMesh> request_static_mesh(const Context& context, StaticMesh::CreateInfo&& info) noexcept {
         const auto task = new std::packaged_task<StaticMesh(ftl::TaskScheduler*)>(
             [&context, info = std::move(info)](ftl::TaskScheduler* scheduler) noexcept -> StaticMesh {
@@ -17,7 +17,7 @@ namespace crd::core {
                 const auto transfer_pool = context.transfer->transient[thread_index];
                 const auto vertex_bytes  = info.geometry.size() * sizeof(float);
                 const auto index_bytes   = info.indices.size() * sizeof(std::uint32_t);
-                util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral,
+                detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral,
                           "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", vertex_bytes * index_bytes);
                 auto vertex_staging = make_static_buffer(context, {
                     .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -132,4 +132,4 @@ namespace crd::core {
         destroy_static_buffer(context, mesh.indices);
         mesh = {};
     }
-} // namespace crd::core
+} // namespace crd

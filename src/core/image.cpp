@@ -1,11 +1,11 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/image.hpp>
 
-#include <corundum/util/logger.hpp>
+#include <corundum/detail/logger.hpp>
 
 #include <vulkan/vulkan.hpp>
 
-namespace crd::core {
+namespace crd {
     crd_nodiscard static inline VkImageAspectFlags aspect_from_format(VkFormat format) noexcept {
         switch (format) {
             case VK_FORMAT_D16_UNORM:
@@ -68,7 +68,7 @@ namespace crd::core {
 
         VkMemoryRequirements memory_requirements;
         vkGetImageMemoryRequirements(context.device, image.handle, &memory_requirements);
-        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral,
+        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral,
                   "Image Allocated Successfully: Size: %llu bytes, Alignment: %llu bytes",
                   memory_requirements.size, memory_requirements.alignment);
         VkImageViewCreateInfo image_view_info;
@@ -96,4 +96,4 @@ namespace crd::core {
         vmaDestroyImage(context.allocator, image.handle, image.allocation);
         image = {};
     }
-} // namespace crd::core
+} // namespace crd

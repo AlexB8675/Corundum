@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-namespace crd::core {
+namespace crd {
     using TextureCache = std::unordered_map<std::string, Async<StaticTexture>*>;
     namespace fs = std::filesystem;
 
@@ -30,7 +30,8 @@ namespace crd::core {
         }
         aiString str;
         material->GetTexture(type, 0, &str);
-        auto file_name = (path / str.C_Str()).string();
+        auto file_name = (path / str.C_Str()).generic_string();
+        std::replace(file_name.begin(), file_name.end(), '\\', '/');
         const auto format = type == aiTextureType_DIFFUSE ? texture_srgb : texture_unorm;
         const auto [cached, miss] = cache.try_emplace(file_name);
         crd_likely_if(!miss) {
@@ -174,4 +175,4 @@ namespace crd::core {
         }
         model.submeshes.clear();
     }
-} // namespace crd::core
+} // namespace crd

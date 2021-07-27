@@ -2,19 +2,19 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/image.hpp>
 
-#include <corundum/util/logger.hpp>
+#include <corundum/detail/logger.hpp>
 
 #include <corundum/wm/window.hpp>
 
 #include <algorithm>
 #include <vector>
 
-namespace crd::core {
-    crd_nodiscard crd_module Swapchain make_swapchain(const Context& context, const wm::Window& window) noexcept {
+namespace crd {
+    crd_nodiscard crd_module Swapchain make_swapchain(const Context& context, const Window& window) noexcept {
         Swapchain swapchain;
-        swapchain.surface = crd::wm::make_vulkan_surface(context, window);
+        swapchain.surface = make_vulkan_surface(context, window);
 
-        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Vulkan Surface requested");
+        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Vulkan Surface requested");
         VkBool32 present_support;
         const auto family = context.families.graphics.family;
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceSupportKHR(context.gpu, family, swapchain.surface, &present_support));
@@ -23,12 +23,12 @@ namespace crd::core {
         VkSurfaceCapabilitiesKHR capabilities;
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.gpu, swapchain.surface, &capabilities));
 
-        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "vkQueuePresentKHR: supported");
+        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "vkQueuePresentKHR: supported");
         auto image_count = capabilities.minImageCount + 1;
         crd_unlikely_if(capabilities.maxImageCount > 0 && image_count > capabilities.maxImageCount) {
             image_count = capabilities.maxImageCount;
         }
-        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Image Count: %d", image_count);
+        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Image Count: %d", image_count);
 
         crd_unlikely_if(capabilities.currentExtent.width != -1) {
             swapchain.width  = capabilities.currentExtent.width;
@@ -37,7 +37,7 @@ namespace crd::core {
             swapchain.width  = std::clamp(window.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
             swapchain.height = std::clamp(window.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         }
-        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Swapchain Extent: { %d, %d }", swapchain.width, swapchain.height);
+        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Swapchain Extent: { %d, %d }", swapchain.width, swapchain.height);
 
         std::uint32_t format_count;
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(context.gpu, swapchain.surface, &format_count, nullptr));
@@ -108,7 +108,7 @@ namespace crd::core {
             crd_vulkan_check(vkCreateImageView(context.device, &image_view_info, nullptr, &image.view));
             swapchain.images.emplace_back(image);
         }
-        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral, "Swapchain created successfully");
+        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Swapchain created successfully");
         return swapchain;
     }
 
@@ -120,4 +120,4 @@ namespace crd::core {
         vkDestroySurfaceKHR(context.instance, swapchain.surface, nullptr);
         swapchain = {};
     }
-} // namespace crd::core
+} // namespace crd

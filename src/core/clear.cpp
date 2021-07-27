@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cstring>
 
-namespace crd::core {
+namespace crd {
     crd_nodiscard crd_module VkClearValue as_vulkan(ClearValue clear) noexcept {
         VkClearValue value = {};
         switch (clear.tag) {
@@ -35,4 +35,4 @@ namespace crd::core {
         new (&value.depth) ClearDepth(depth);
         return value;
     }
-} // namespace crd::core
+} // namespace crd

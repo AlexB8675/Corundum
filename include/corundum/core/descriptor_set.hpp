@@ -2,8 +2,8 @@
 
 #include <corundum/core/constants.hpp>
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <vulkan/vulkan.h>
 
@@ -11,7 +11,7 @@
 #include <vector>
 #include <array>
 
-namespace crd::core {
+namespace crd {
     template <>
     struct DescriptorSet<1> {
         VkDescriptorSet handle;
@@ -32,4 +32,4 @@ namespace crd::core {
 
     template <std::size_t N = in_flight> crd_nodiscard crd_module DescriptorSet<N> make_descriptor_set(const Context&, DescriptorSetLayout) noexcept;
     template <std::size_t N = in_flight>               crd_module void             destroy_descriptor_set(const Context&, DescriptorSet<N>&) noexcept;
-} // namespace crd::core
+} // namespace crd

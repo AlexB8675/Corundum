@@ -3,14 +3,14 @@
 #include <corundum/core/clear.hpp>
 #include <corundum/core/image.hpp>
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <vulkan/vulkan.h>
 
 #include <vector>
 
-namespace crd::core {
+namespace crd {
     struct AttachmentInfo {
         struct Layout {
             VkImageLayout initial;
@@ -64,4 +64,4 @@ namespace crd::core {
 
     crd_nodiscard crd_module RenderPass make_render_pass(const Context&, RenderPass::CreateInfo&&) noexcept;
                   crd_module void       destroy_render_pass(const Context&, RenderPass&) noexcept;
-} // namespace crd::core
+} // namespace crd

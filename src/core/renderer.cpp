@@ -3,7 +3,7 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/image.hpp>
 
-namespace crd::core {
+namespace crd {
     crd_nodiscard crd_module Renderer make_renderer(const Context& context) noexcept {
         Renderer renderer;
         renderer.frame_idx = 0;
@@ -61,4 +61,4 @@ namespace crd::core {
 
         frame_idx = (frame_idx + 1) % in_flight;
     }
-} // namespace crd::core
+} // namespace crd

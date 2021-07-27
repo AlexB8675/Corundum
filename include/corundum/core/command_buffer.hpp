@@ -1,7 +1,7 @@
 #pragma once
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <vulkan/vulkan.h>
 
@@ -9,7 +9,7 @@
 #include <vector>
 #include <span>
 
-namespace crd::core {
+namespace crd {
     struct BufferMemoryBarrier {
         const StaticBuffer* buffer;
         VkPipelineStageFlags source_stage;
@@ -79,4 +79,4 @@ namespace crd::core {
     crd_nodiscard crd_module CommandBuffer              make_command_buffer(const Context&, CommandBuffer::CreateInfo&&) noexcept;
                   crd_module void                       destroy_command_buffers(const Context&, std::span<CommandBuffer>) noexcept;
                   crd_module void                       destroy_command_buffer(const Context&, CommandBuffer) noexcept;
-} // namespace crd::core
+} // namespace crd

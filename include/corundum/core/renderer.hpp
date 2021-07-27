@@ -3,8 +3,8 @@
 #include <corundum/core/command_buffer.hpp>
 #include <corundum/core/constants.hpp>
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <vulkan/vulkan.h>
 
@@ -12,7 +12,7 @@
 #include <cstdint>
 #include <array>
 
-namespace crd::core {
+namespace crd {
     struct FrameInfo {
         CommandBuffer& commands;
         const Image& image;
@@ -36,4 +36,4 @@ namespace crd::core {
 
     crd_nodiscard crd_module Renderer make_renderer(const Context&) noexcept;
                   crd_module void     destroy_renderer(const Context&, Renderer&) noexcept;
-} // namespace crd::core
+} // namespace crd

@@ -1,14 +1,14 @@
 #pragma once
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <vulkan/vulkan.h>
 
 #include <vector>
 #include <mutex>
 
-namespace crd::core {
+namespace crd {
     struct QueueFamily {
         std::uint32_t family;
         std::uint32_t index;
@@ -34,4 +34,4 @@ namespace crd::core {
 
     crd_nodiscard crd_module Queue* make_queue(const Context&, QueueFamily) noexcept;
                   crd_module void   destroy_queue(const Context&, Queue*&) noexcept;
-} // namespace crd::core
+} // namespace crd

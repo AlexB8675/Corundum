@@ -1,10 +1,10 @@
 #pragma once
 
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <cstddef>
 
-namespace crd::util {
+namespace crd::detail {
     struct FileView {
 #if defined(_WIN32)
         void* handle;
@@ -16,4 +16,4 @@ namespace crd::util {
 
     crd_nodiscard crd_module FileView make_file_view(const char*) noexcept;
                   crd_module void     destroy_file_view(FileView&) noexcept;
-} // namespace crd::util
+} // namespace crd::detail

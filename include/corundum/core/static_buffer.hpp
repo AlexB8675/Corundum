@@ -1,14 +1,14 @@
 #pragma once
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <vulkan/vulkan.h>
 #include <vk_mem_alloc.h>
 
 #include <cstddef>
 
-namespace crd::core {
+namespace crd {
     struct StaticBuffer {
         struct CreateInfo {
             VkBufferUsageFlags flags;
@@ -24,4 +24,4 @@ namespace crd::core {
 
     crd_nodiscard crd_module StaticBuffer make_static_buffer(const Context&, StaticBuffer::CreateInfo&&) noexcept;
                   crd_module void         destroy_static_buffer(const Context&, StaticBuffer&) noexcept;
-} // namespace crd::core
+} // namespace crd

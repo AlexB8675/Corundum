@@ -1,9 +1,9 @@
 #include <corundum/core/static_buffer.hpp>
 #include <corundum/core/context.hpp>
 
-#include <corundum/util/logger.hpp>
+#include <corundum/detail/logger.hpp>
 
-namespace crd::core {
+namespace crd {
     crd_nodiscard crd_module StaticBuffer make_static_buffer(const Context& context, StaticBuffer::CreateInfo&& info) noexcept {
         VkBufferCreateInfo buffer_info;
         buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -37,7 +37,7 @@ namespace crd::core {
         buffer.flags = info.flags;
         buffer.capacity = info.capacity;
         buffer.mapped = extra_info.pMappedData;
-        util::log("Vulkan", util::Severity::eInfo, util::Type::eGeneral,
+        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral,
                   "Successfully Allocated Static Buffer, Size: %zu bytes, Address: %p",
                   buffer.capacity, buffer.mapped);
         return buffer;
@@ -47,4 +47,4 @@ namespace crd::core {
         vmaDestroyBuffer(context.allocator, buffer.handle, buffer.allocation);
         buffer = {};
     }
-} // namespace crd::core
+} // namespace crd

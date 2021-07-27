@@ -3,8 +3,8 @@
 #include <corundum/core/renderer.hpp>
 #include <corundum/core/context.hpp>
 
-#include <corundum/util/file_view.hpp>
-#include <corundum/util/hash.hpp>
+#include <corundum/detail/file_view.hpp>
+#include <corundum/detail/hash.hpp>
 
 #include <spirv_glsl.hpp>
 #include <spirv.hpp>
@@ -13,12 +13,12 @@
 #include <numeric>
 #include <cstring>
 
-namespace crd::core {
+namespace crd {
     crd_nodiscard static inline std::vector<std::uint32_t> import_spirv(const char* path) noexcept {
-        auto file = util::make_file_view(path);
+        auto file = detail::make_file_view(path);
         std::vector<std::uint32_t> code(file.size / sizeof(std::uint32_t));
         std::memcpy(code.data(), file.data, file.size);
-        util::destroy_file_view(file);
+        detail::destroy_file_view(file);
         return code;
     }
 
@@ -199,10 +199,10 @@ namespace crd::core {
                 .binding = 0,
                 .format = [&]() noexcept {
                     switch (attribute) {
-                        case VertexAttribute::vec1: return VK_FORMAT_R32_SFLOAT;
-                        case VertexAttribute::vec2: return VK_FORMAT_R32G32_SFLOAT;
-                        case VertexAttribute::vec3: return VK_FORMAT_R32G32B32_SFLOAT;
-                        case VertexAttribute::vec4: return VK_FORMAT_R32G32B32A32_SFLOAT;
+                        case vertex_attribute_vec1: return VK_FORMAT_R32_SFLOAT;
+                        case vertex_attribute_vec2: return VK_FORMAT_R32G32_SFLOAT;
+                        case vertex_attribute_vec3: return VK_FORMAT_R32G32B32_SFLOAT;
+                        case vertex_attribute_vec4: return VK_FORMAT_R32G32B32A32_SFLOAT;
                     }
                     crd_unreachable();
                 }(),
@@ -305,7 +305,7 @@ namespace crd::core {
         set_layout_handles.reserve(pipeline_descriptor_layout.size());
         for (const auto& [index, descriptors] : pipeline_descriptor_layout) {
             bool dynamic = false;
-            const auto layout_hash = crd::util::hash(0, set_layouts);
+            const auto layout_hash = crd::detail::hash(0, set_layouts);
             auto& layout = renderer.set_layout_cache[layout_hash];
             crd_likely_if(!layout) {
                 std::vector<VkDescriptorBindingFlags> flags;
@@ -390,4 +390,4 @@ namespace crd::core {
         vkDestroyPipeline(context.device, pipeline.handle, nullptr);
         pipeline = {};
     }
-} // namespace crd::core
+} // namespace crd

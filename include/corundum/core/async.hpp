@@ -1,12 +1,12 @@
 #pragma once
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <optional>
 #include <future>
 
-namespace crd::core {
+namespace crd {
     template <typename T>
     struct Async {
         std::future<T> future;
@@ -18,4 +18,4 @@ namespace crd::core {
         crd_nodiscard crd_module bool is_ready() noexcept;
         crd_nodiscard crd_module bool valid() const noexcept;
     };
-} // namespace crd::core
+} // namespace crd

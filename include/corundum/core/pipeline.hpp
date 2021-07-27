@@ -1,7 +1,7 @@
 #pragma once
 
-#include <corundum/util/forward.hpp>
-#include <corundum/util/macros.hpp>
+#include <corundum/detail/forward.hpp>
+#include <corundum/detail/macros.hpp>
 
 #include <vulkan/vulkan.h>
 
@@ -9,17 +9,13 @@
 #include <vector>
 #include <string>
 
-namespace crd::core {
-    enum class VertexAttribute {
-        vec1 = sizeof(float[1]),
-        vec2 = sizeof(float[2]),
-        vec3 = sizeof(float[3]),
-        vec4 = sizeof(float[4])
+namespace crd {
+    enum VertexAttribute {
+        vertex_attribute_vec1 = sizeof(float[1]),
+        vertex_attribute_vec2 = sizeof(float[2]),
+        vertex_attribute_vec3 = sizeof(float[3]),
+        vertex_attribute_vec4 = sizeof(float[4])
     };
-    constexpr auto vertex_attribute_vec1 = VertexAttribute::vec1;
-    constexpr auto vertex_attribute_vec2 = VertexAttribute::vec2;
-    constexpr auto vertex_attribute_vec3 = VertexAttribute::vec3;
-    constexpr auto vertex_attribute_vec4 = VertexAttribute::vec4;
 
     struct DescriptorBinding {
         bool dynamic;
@@ -55,4 +51,4 @@ namespace crd::core {
 
     crd_nodiscard crd_module Pipeline make_pipeline(const Context&, Renderer&, Pipeline::CreateInfo&&) noexcept;
                   crd_module void     destroy_pipeline(const Context&, Pipeline&) noexcept;
-} // namespace crd::core
+} // namespace crd

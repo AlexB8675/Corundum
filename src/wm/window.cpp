@@ -4,7 +4,7 @@
 
 #include <GLFW/glfw3.h>
 
-namespace crd::wm {
+namespace crd {
     crd_nodiscard crd_module Window make_window(std::uint32_t width, std::uint32_t height, const char* title) noexcept {
         crd_assert(glfwInit(), "couldn't initialize GLFW");
 
@@ -20,10 +20,6 @@ namespace crd::wm {
         return window;
     }
 
-    crd_nodiscard crd_module bool is_closed(const Window& window) noexcept {
-        return glfwWindowShouldClose(window.handle);
-    }
-
     crd_nodiscard crd_module float time() noexcept {
         return glfwGetTime();
     }
@@ -32,7 +28,7 @@ namespace crd::wm {
         glfwPollEvents();
     }
 
-    crd_nodiscard crd_module VkSurfaceKHR make_vulkan_surface(const core::Context& context, const Window& window) noexcept {
+    crd_nodiscard crd_module VkSurfaceKHR make_vulkan_surface(const Context& context, const Window& window) noexcept {
         VkSurfaceKHR surface;
         crd_vulkan_check(glfwCreateWindowSurface(context.instance, window.handle, nullptr, &surface));
         return surface;
@@ -43,7 +39,11 @@ namespace crd::wm {
         window = {};
     }
 
+    crd_nodiscard crd_module bool Window::is_closed() const noexcept {
+        return glfwWindowShouldClose(handle);
+    }
+
     crd_nodiscard crd_module KeyState Window::key(Keys key) const noexcept {
         return static_cast<KeyState>(glfwGetKey(handle, static_cast<int>(key)));
     }
-} // namespace crd::wm
+} // namespace crd

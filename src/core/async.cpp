@@ -6,7 +6,7 @@
 #include <utility>
 #include <chrono>
 
-namespace crd::core {
+namespace crd {
     template <typename T>
     crd_nodiscard crd_module T& Async<T>::operator *() noexcept {
         crd_unlikely_if(!result) {
@@ -42,4 +42,4 @@ namespace crd::core {
     template struct Async<StaticMesh>;
     template struct Async<StaticTexture>;
     template struct Async<StaticModel>;
-} // namespace crd::core
+} // namespace crd
