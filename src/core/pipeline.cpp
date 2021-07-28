@@ -119,6 +119,18 @@ namespace crd {
                 VK_COLOR_COMPONENT_B_BIT |
                 VK_COLOR_COMPONENT_A_BIT;
             attachment_outputs.resize(resources.stage_outputs.size(), attachment);
+            for (const auto& input_attachment : resources.subpass_inputs) {
+                const auto set     = compiler.get_decoration(input_attachment.id, spv::DecorationDescriptorSet);
+                const auto binding = compiler.get_decoration(input_attachment.id, spv::DecorationBinding);
+                pipeline_descriptor_layout[set].emplace_back(
+                    descriptor_layout_bindings[input_attachment.name] = {
+                        .dynamic = false,
+                        .index = binding,
+                        .count = 1,
+                        .type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                        .stage = VK_SHADER_STAGE_FRAGMENT_BIT
+                    });
+            }
             for (const auto& uniform_buffer : resources.uniform_buffers) {
                 const auto  set        = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
                 const auto  binding    = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
@@ -128,7 +140,7 @@ namespace crd {
                         return each.index == binding;
                     });
                 if (found != descriptor.end()) {
-                    found->stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+                    found->stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
                 } else {
                     descriptor.emplace_back(
                         descriptor_layout_bindings[uniform_buffer.name] = {
@@ -149,7 +161,7 @@ namespace crd {
                         return each.index == binding;
                     });
                 if (found != descriptor.end()) {
-                    found->stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+                    found->stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
                 } else {
                     descriptor.emplace_back(
                         descriptor_layout_bindings[storage_buffer.name] = {
@@ -246,8 +258,8 @@ namespace crd {
         rasterizer_state.depthClampEnable = true;
         rasterizer_state.rasterizerDiscardEnable = false;
         rasterizer_state.polygonMode = VK_POLYGON_MODE_FILL;
-        rasterizer_state.cullMode = VK_CULL_MODE_NONE;
-        rasterizer_state.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizer_state.cullMode = info.cull;
+        rasterizer_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer_state.depthBiasEnable = true;
         rasterizer_state.depthBiasConstantFactor = 0.0f;
         rasterizer_state.depthBiasClamp = 0.0f;
@@ -262,8 +274,8 @@ namespace crd {
         multisampling_state.sampleShadingEnable = true;
         multisampling_state.minSampleShading = 0.2f;
         multisampling_state.pSampleMask = nullptr;
-        multisampling_state.alphaToCoverageEnable = true;
-        multisampling_state.alphaToOneEnable = true;
+        multisampling_state.alphaToCoverageEnable = !attachment_outputs.empty();
+        multisampling_state.alphaToOneEnable = !attachment_outputs.empty();
 
         VkPipelineDepthStencilStateCreateInfo depth_stencil_state;
         depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -305,9 +317,9 @@ namespace crd {
         set_layout_handles.reserve(pipeline_descriptor_layout.size());
         for (const auto& [index, descriptors] : pipeline_descriptor_layout) {
             bool dynamic = false;
-            const auto layout_hash = crd::detail::hash(0, set_layouts);
+            const auto layout_hash = crd::detail::hash(0, descriptors);
             auto& layout = renderer.set_layout_cache[layout_hash];
-            crd_likely_if(!layout) {
+            crd_unlikely_if(!layout) {
                 std::vector<VkDescriptorBindingFlags> flags;
                 flags.reserve(descriptors.size());
                 std::vector<VkDescriptorSetLayoutBinding> bindings;

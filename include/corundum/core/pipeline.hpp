@@ -40,6 +40,7 @@ namespace crd {
             const RenderPass* render_pass;
             std::vector<VertexAttribute> attributes;
             std::vector<VkDynamicState> states;
+            VkCullModeFlagBits cull;
             std::uint32_t subpass;
             bool depth;
         };

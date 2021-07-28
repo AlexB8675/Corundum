@@ -1,6 +1,6 @@
 #pragma once
 
-#if 0
+#if 1
     #define crd_debug_logging
 #endif
 

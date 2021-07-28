@@ -1,7 +1,6 @@
 #pragma once
 
 #include <corundum/core/image.hpp>
-#include <corundum/core/async.hpp>
 
 #include <corundum/detail/forward.hpp>
 #include <corundum/detail/macros.hpp>

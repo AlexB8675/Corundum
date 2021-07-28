@@ -2,6 +2,7 @@
 #include <corundum/core/command_buffer.hpp>
 #include <corundum/core/static_buffer.hpp>
 #include <corundum/core/context.hpp>
+#include <corundum/core/async.hpp>
 #include <corundum/core/queue.hpp>
 
 #include <corundum/detail/file_view.hpp>
@@ -25,10 +26,9 @@ namespace crd {
                 std::int32_t width, height, channels = 4;
                 auto file = detail::make_file_view(path.c_str());
                 auto* image_data = stbi_load_from_memory(static_cast<const std::uint8_t*>(file.data), file.size,
-                                                         &width, &height, &channels,
-                                                         STBI_rgb_alpha);
+                                                         &width, &height, &channels, STBI_rgb_alpha);
                 detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral,
-                          "StaticTexture was asynchronously requested, expected bytes to transfer: %zu", file.size);
+                            "StaticTexture was asynchronously requested, expected bytes to transfer: %zu", file.size);
                 detail::destroy_file_view(file);
                 auto image = make_image(context, {
                     .width = (std::uint32_t)width,
@@ -54,7 +54,7 @@ namespace crd {
                 });
                 transfer_cmd
                     .begin()
-                    .insert_layout_transition({
+                    .transition_layout({
                         .image = &image,
                         .mip = 0,
                         .source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
@@ -104,7 +104,7 @@ namespace crd {
                     }, *context.transfer, *context.graphics);
                 for (std::uint32_t mip = 1; mip < image.mips; ++mip) {
                     ownership_cmd
-                        .insert_layout_transition({
+                        .transition_layout({
                             .image = &image,
                             .mip = mip,
                             .level = 1,
@@ -132,7 +132,7 @@ namespace crd {
                             .dest_mip = mip
                         });
                     if (mip != image.mips - 1) {
-                        ownership_cmd.insert_layout_transition({
+                        ownership_cmd.transition_layout({
                             .image = &image,
                             .mip = mip,
                             .level = 1,
@@ -144,7 +144,7 @@ namespace crd {
                             .new_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
                         });
                     } else {
-                        ownership_cmd.insert_layout_transition({
+                        ownership_cmd.transition_layout({
                             .image = &image,
                             .mip = mip,
                             .level = 1,
@@ -158,7 +158,7 @@ namespace crd {
                     }
                 }
                 ownership_cmd
-                    .insert_layout_transition({
+                    .transition_layout({
                         .image = &image,
                         .mip = 0,
                         .level = std::max(image.mips - 1, 1u),

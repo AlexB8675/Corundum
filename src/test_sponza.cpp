@@ -109,9 +109,9 @@ struct Scene {
     std::vector<Model> models;
 };
 
-static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, VkDescriptorImageInfo black) noexcept {
+static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, VkDescriptorImageInfo fallback) noexcept {
     Scene scene;
-    scene.descriptors = { black };
+    scene.descriptors = { fallback };
     std::unordered_map<void*, std::uint32_t> texture_cache;
     for (std::uint32_t i = 0; auto& model : models) {
         crd_likely_if(model.is_ready()) {
@@ -126,13 +126,12 @@ static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, 
                     std::array<std::uint32_t, 3> indices = {};
                     const auto emplace_descriptor = [&](const auto texture, std::uint32_t which) {
                         crd_likely_if(texture) {
-                            auto& index = texture_cache[texture];
-                            crd_likely_if(index != 0) {
-                                indices[which] = index;
-                            } else crd_likely_if(texture->is_ready()) {
+                            auto& cached = texture_cache[texture];
+                            crd_likely_if(cached == 0 && texture->is_ready()) {
                                 scene.descriptors.emplace_back((*texture)->info());
-                                indices[which] = index = scene.descriptors.size() - 1;
+                                cached = scene.descriptors.size() - 1;
                             }
+                            indices[which] = cached;
                         }
                     };
                     emplace_descriptor(submesh.diffuse, 0);
@@ -156,7 +155,7 @@ int main() {
     auto context     = crd::make_context();
     auto renderer    = crd::make_renderer(context);
     auto swapchain   = crd::make_swapchain(context, window);
-    auto render_pass = crd::make_render_pass(context, {
+    auto main_pass   = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
                 .width   = 1280,
@@ -192,7 +191,7 @@ int main() {
                 .initial = VK_IMAGE_LAYOUT_UNDEFINED,
                 .final   = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
             },
-            .clear   = crd::make_clear_depth({ 1.0, 0 }),
+            .clear   = crd::make_clear_depth({ 1.0f, 0 }),
             .owning  = true,
             .discard = true
         } },
@@ -216,7 +215,7 @@ int main() {
     auto pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "data/shaders/main.vert.spv",
         .fragment = "data/shaders/main.frag.spv",
-        .render_pass = &render_pass,
+        .render_pass = &main_pass,
         .attributes = {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3,
@@ -228,6 +227,7 @@ int main() {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
         },
+        .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 0,
         .depth = true
     });
@@ -260,7 +260,7 @@ int main() {
 
         commands
             .begin()
-            .begin_render_pass(render_pass, 0)
+            .begin_render_pass(main_pass, 0)
             .set_viewport(0)
             .set_scissor(0)
             .bind_pipeline(pipeline)
@@ -269,23 +269,21 @@ int main() {
             auto& raw_model = *models[model.index];
             for (const auto& submesh : model.submeshes) {
                 auto& raw_submesh = raw_model.submeshes[submesh.index];
-                std::array indices{
+                const std::uint32_t indices[] = {
                     model.index,
                     submesh.textures[0],
                     submesh.textures[1],
                     submesh.textures[2]
                 };
                 commands
-                    .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                                    indices.data(),
-                                    std::span(indices).size_bytes())
+                    .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, indices, sizeof(indices))
                     .bind_static_mesh(*raw_submesh.mesh)
                     .draw_indexed(raw_submesh.indices, 1, 0, 0, 0);
             }
         }
         commands
             .end_render_pass()
-            .insert_layout_transition({
+            .transition_layout({
                 .image = &image,
                 .mip = 0,
                 .level = 0,
@@ -296,8 +294,8 @@ int main() {
                 .old_layout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             })
-            .copy_image(render_pass.image(0), image)
-            .insert_layout_transition({
+            .copy_image(main_pass.image(0), image)
+            .transition_layout({
                 .image = &image,
                 .mip = 0,
                 .level = 0,
@@ -309,7 +307,7 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, swapchain, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+        renderer.present_frame(context, swapchain, main_pass.stage);
         crd::poll_events();
         camera.update(window, delta_time);
     }
@@ -322,10 +320,10 @@ int main() {
     }
     crd::destroy_static_texture(context, *black);
     crd::destroy_pipeline(context, pipeline);
-    crd::destroy_render_pass(context, render_pass);
+    crd::destroy_render_pass(context, main_pass);
     crd::destroy_swapchain(context, swapchain);
     crd::destroy_renderer(context, renderer);
     crd::destroy_context(context);
-    destroy_window(window);
+    crd::destroy_window(window);
     return 0;
 }

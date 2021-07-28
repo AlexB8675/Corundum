@@ -17,16 +17,18 @@ namespace crd {
         std::uint32_t stencil;
     };
 
+    enum ClearValueType {
+        clear_value_none,
+        clear_value_color,
+        clear_value_depth
+    };
+
     struct ClearValue {
         union {
             ClearColor color;
             ClearDepth depth;
         };
-        enum {
-            eNone,
-            eColor,
-            eDepth
-        } tag;
+        ClearValueType tag;
     };
 
     crd_nodiscard crd_module VkClearValue as_vulkan(ClearValue clear) noexcept;

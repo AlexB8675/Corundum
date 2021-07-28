@@ -9,6 +9,8 @@ namespace crd::detail {
 #if defined(_WIN32)
         void* handle;
         void* mapping;
+#else
+        int handle;
 #endif
         const void* data;
         std::size_t size;

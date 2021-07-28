@@ -17,10 +17,10 @@ namespace crd::detail {
         file.size = GetFileSize(file.handle, nullptr);
         file.data = MapViewOfFile(file.mapping, FILE_MAP_READ, 0, 0, file.size);
 #else
-        const auto file_desc = open(path, O_RDONLY);
+        file.handle = open(path, O_RDONLY);
         struct stat file_info;
-        crd_assert(fstat(file_desc, &file_info) != -1, "failed to get file info");
-        file.data = mmap(nullptr, file_info.st_size, PROT_READ, MAP_PRIVATE, file_desc, 0);
+        crd_assert(fstat(file.handle, &file_info) != -1, "failed to get file info");
+        file.data = mmap(nullptr, file_info.st_size, PROT_READ, MAP_PRIVATE, file.handle, 0);
         file.size = file_info.st_size;
 #endif
         crd_assert(file.data, "file not found");
@@ -34,6 +34,7 @@ namespace crd::detail {
         CloseHandle(file.mapping);
 #else
         munmap(const_cast<void*>(file.data), file.size);
+        close(file.handle);
 #endif
         file = {};
     }

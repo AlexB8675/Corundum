@@ -21,14 +21,13 @@ namespace crd {
 
     crd_nodiscard crd_module RenderPass make_render_pass(const Context& context, RenderPass::CreateInfo&& info) noexcept {
         RenderPass render_pass;
-
         std::vector<VkAttachmentDescription> attachments;
         attachments.reserve(info.attachments.size());
         for (const auto& attachment : info.attachments) {
             const auto is_stencil = attachment.image.aspect & VK_IMAGE_ASPECT_STENCIL_BIT;
-            const auto is_depth   = attachment.clear.tag == ClearValue::eDepth;
+            const auto is_depth   = attachment.clear.tag == clear_value_depth;
             const auto load_op =
-                attachment.clear.tag == ClearValue::eNone ?
+                attachment.clear.tag == clear_value_none ?
                     VK_ATTACHMENT_LOAD_OP_LOAD :
                     VK_ATTACHMENT_LOAD_OP_CLEAR;
             const auto store_op =
@@ -57,7 +56,6 @@ namespace crd {
             render_pass.clears.emplace_back(as_vulkan(attachment.clear));
         }
         render_pass.attachments = std::move(info.attachments);
-
         std::vector<VkSubpassDescription> subpasses;
         subpasses.reserve(info.subpasses.size());
         struct SubpassStorage {
@@ -66,15 +64,18 @@ namespace crd {
             std::optional<VkAttachmentReference> depth;
         };
         std::vector<SubpassStorage> subpass_storage;
+        subpass_storage.reserve(info.subpasses.size());
         for (const auto& subpass : info.subpasses) {
             auto& storage = subpass_storage.emplace_back();
-            const auto process_attachments = [&](const std::vector<std::uint32_t>& attachments, bool check_depth) {
+            const auto process_attachments = [&](const std::vector<std::uint32_t>& attachments, bool is_input, bool check_depth) {
                 std::vector<VkAttachmentReference> result;
                 for (const auto& index : attachments) {
                     const auto& attachment = render_pass.attachments[index];
                     VkAttachmentReference reference;
                     reference.attachment = index;
-                    reference.layout = deduce_reference_layout(attachment);
+                    reference.layout = is_input ?
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL :
+                        deduce_reference_layout(attachment);
                     if (check_depth && (attachment.image.aspect & VK_IMAGE_ASPECT_DEPTH_BIT)) {
                         storage.depth = reference;
                     } else {
@@ -83,8 +84,8 @@ namespace crd {
                 }
                 return result;
             };
-            storage.color = process_attachments(subpass.attachments, true);
-            storage.input = process_attachments(subpass.input, false);
+            storage.color = process_attachments(subpass.attachments, false, true);
+            storage.input = process_attachments(subpass.input, true, false);
 
             VkSubpassDescription description;
             description.flags = {};
@@ -100,6 +101,7 @@ namespace crd {
             subpasses.emplace_back(description);
         }
 
+        render_pass.stage = info.dependencies[0].source_stage;
         std::vector<VkSubpassDependency> dependencies;
         dependencies.reserve(info.dependencies.size());
         for (const auto& each : info.dependencies) {

@@ -45,46 +45,37 @@ namespace crd {
                                                                   const aiMesh* mesh,
                                                                   TextureCache& cache,
                                                                   const fs::path& path) noexcept {
-        struct Vertex {
-            glm::vec3 position;
-            glm::vec3 normals;
-            glm::vec2 uvs;
-            glm::vec3 tangents;
-            glm::vec3 bi_tangents;
-        };
         constexpr auto components = 14;
         std::vector<float> geometry;
         geometry.resize(mesh->mNumVertices * components);
         auto* ptr = &geometry.front();
         for (std::size_t i = 0; i < mesh->mNumVertices; ++i) {
-            Vertex vertex = {};
-            vertex.position[0] = mesh->mVertices[i].x;
-            vertex.position[1] = mesh->mVertices[i].y;
-            vertex.position[2] = mesh->mVertices[i].z;
+            ptr[0] = mesh->mVertices[i].x;
+            ptr[1] = mesh->mVertices[i].y;
+            ptr[2] = mesh->mVertices[i].z;
 
             crd_likely_if(mesh->mNormals) {
-                vertex.normals[0] = mesh->mNormals[i].x;
-                vertex.normals[1] = mesh->mNormals[i].y;
-                vertex.normals[2] = mesh->mNormals[i].z;
+                ptr[3] = mesh->mNormals[i].x;
+                ptr[4] = mesh->mNormals[i].y;
+                ptr[5] = mesh->mNormals[i].z;
             }
 
             crd_likely_if(mesh->mTextureCoords[0]) {
-                vertex.uvs[0] = mesh->mTextureCoords[0][i].x;
-                vertex.uvs[1] = mesh->mTextureCoords[0][i].y;
+                ptr[6] = mesh->mTextureCoords[0][i].x;
+                ptr[7] = mesh->mTextureCoords[0][i].y;
             }
 
             crd_likely_if(mesh->mTangents) {
-                vertex.tangents[0] = mesh->mTangents[i].x;
-                vertex.tangents[1] = mesh->mTangents[i].y;
-                vertex.tangents[2] = mesh->mTangents[i].z;
+                ptr[8] = mesh->mTangents[i].x;
+                ptr[9] = mesh->mTangents[i].y;
+                ptr[10] = mesh->mTangents[i].z;
             }
 
             crd_likely_if(mesh->mBitangents) {
-                vertex.bi_tangents[0] = mesh->mBitangents[i].x;
-                vertex.bi_tangents[1] = mesh->mBitangents[i].y;
-                vertex.bi_tangents[2] = mesh->mBitangents[i].z;
+                ptr[11] = mesh->mBitangents[i].x;
+                ptr[12] = mesh->mBitangents[i].y;
+                ptr[13] = mesh->mBitangents[i].z;
             }
-            std::memcpy(ptr, &vertex, sizeof(Vertex));
             ptr += components;
         }
 

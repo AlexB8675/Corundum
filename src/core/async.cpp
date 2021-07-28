@@ -8,7 +8,7 @@
 
 namespace crd {
     template <typename T>
-    crd_nodiscard crd_module T& Async<T>::operator *() noexcept {
+    crd_nodiscard crd_module T& Async<T>::get() noexcept {
         crd_unlikely_if(!result) {
             result = std::move(future.get());
         }
@@ -16,13 +16,13 @@ namespace crd {
     }
 
     template <typename T>
-    crd_nodiscard crd_module T* Async<T>::operator ->() noexcept {
-        return &**this;
+    crd_nodiscard crd_module T& Async<T>::operator *() noexcept {
+        return get();
     }
 
     template <typename T>
-    crd_nodiscard crd_module T& Async<T>::get() noexcept {
-        return **this;
+    crd_nodiscard crd_module T* Async<T>::operator ->() noexcept {
+        return &get();
     }
 
     template <typename T>

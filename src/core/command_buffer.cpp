@@ -294,7 +294,7 @@ namespace crd {
         return *this;
     }
 
-    crd_module CommandBuffer& CommandBuffer::insert_layout_transition(const ImageMemoryBarrier& info) noexcept {
+    crd_module CommandBuffer& CommandBuffer::transition_layout(const ImageMemoryBarrier& info) noexcept {
         VkImageMemoryBarrier barrier = {};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barrier.srcAccessMask = info.source_access;

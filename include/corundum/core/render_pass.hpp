@@ -55,6 +55,7 @@ namespace crd {
             std::vector<FramebufferInfo> framebuffers;
         };
         VkRenderPass handle;
+        VkPipelineStageFlags stage;
         std::vector<VkClearValue> clears;
         std::vector<Framebuffer> framebuffers;
         std::vector<AttachmentInfo> attachments;

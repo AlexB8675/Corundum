@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(Corundum)
+project(corundum)
 
 find_package(Vulkan REQUIRED)
 
@@ -28,13 +28,13 @@ set(ASSIMP_BUILD_3DS_IMPORTER ON CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(ext/assimp)
 if(MSVC)
-    target_compile_options(assimp PRIVATE /w)
+    target_compile_options(assimp PUBLIC /w)
 endif()
 
 add_subdirectory(ext/glm)
 
 set(CMAKE_CXX_STANDARD 20)
-add_executable(Corundum
+add_library(corundum STATIC
     include/corundum/core/async.hpp
     include/corundum/core/buffer.hpp
     include/corundum/core/clear.hpp
@@ -82,11 +82,9 @@ add_executable(Corundum
 
     src/util/file_view.cpp
 
-    src/wm/window.cpp
+    src/wm/window.cpp)
 
-    src/main.cpp)
-
-target_compile_definitions(Corundum PUBLIC
+target_compile_definitions(corundum PUBLIC
     $<$<CONFIG:Debug>:crd_debug>
 
     $<$<BOOL:${WIN32}>:
@@ -99,15 +97,15 @@ target_compile_definitions(Corundum PUBLIC
     GLM_FORCE_DEPTH_ZERO_TO_ONE
     GLM_FORCE_RADIANS)
 
-target_compile_options(Corundum PUBLIC
+target_compile_options(corundum PUBLIC
     $<$<NOT:$<BOOL:${WIN32}>>:-march=native -m64 -fvisibility=hidden>)
 
-target_include_directories(Corundum PRIVATE
+target_include_directories(corundum PUBLIC
     include
     ext/stb
     ext/vma/include)
 
-target_link_libraries(Corundum PRIVATE
+target_link_libraries(corundum PUBLIC
     glm
     ftl
     glfw
@@ -117,3 +115,9 @@ target_link_libraries(Corundum PRIVATE
 
 file(GLOB CORUNDUM_DATA data)
 file(COPY ${CORUNDUM_DATA} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+add_executable(test-sponza src/test_sponza.cpp)
+add_executable(test-sponza-shadows src/test_sponza_shadows.cpp)
+
+target_link_libraries(test-sponza PRIVATE corundum)
+target_link_libraries(test-sponza-shadows PRIVATE corundum)
