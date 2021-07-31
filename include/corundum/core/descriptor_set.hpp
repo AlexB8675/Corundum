@@ -26,6 +26,10 @@ namespace crd {
     struct DescriptorSet<in_flight> {
         std::array<DescriptorSet<1>, in_flight> handles;
 
+                      crd_module DescriptorSet<in_flight>& bind(const Context&, const DescriptorBinding&, VkDescriptorBufferInfo) noexcept;
+                      crd_module DescriptorSet<in_flight>& bind(const Context&, const DescriptorBinding&, VkDescriptorImageInfo) noexcept;
+                      crd_module DescriptorSet<in_flight>& bind(const Context&, const DescriptorBinding&, const std::vector<VkDescriptorImageInfo>&) noexcept;
+
         crd_nodiscard crd_module DescriptorSet<1>&       operator [](std::size_t) noexcept;
         crd_nodiscard crd_module const DescriptorSet<1>& operator [](std::size_t) const noexcept;
     };

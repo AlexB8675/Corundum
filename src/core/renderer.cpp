@@ -54,9 +54,9 @@ namespace crd {
         };
     }
 
-    crd_module void Renderer::present_frame(const Context& context, const Swapchain& swapchain, VkPipelineStageFlags stage) noexcept {
+    crd_module void Renderer::present_frame(const Context& context, const Swapchain& swapchain, const CommandBuffer& commands, VkPipelineStageFlags stage) noexcept {
         crd_vulkan_check(vkResetFences(context.device, 1, &cmd_wait[frame_idx]));
-        context.graphics->submit(gfx_cmds[frame_idx], stage, img_ready[frame_idx], gfx_done[frame_idx], cmd_wait[frame_idx]);
+        context.graphics->submit(commands, stage, img_ready[frame_idx], gfx_done[frame_idx], cmd_wait[frame_idx]);
         context.graphics->present(swapchain, image_idx, gfx_done[frame_idx]);
 
         frame_idx = (frame_idx + 1) % in_flight;

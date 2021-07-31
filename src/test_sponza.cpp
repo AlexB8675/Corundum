@@ -162,6 +162,7 @@ int main() {
                 .height  = 720,
                 .mips    = 1,
                 .format  = swapchain.format,
+                .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .usage   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
                            VK_IMAGE_USAGE_TRANSFER_SRC_BIT
@@ -184,6 +185,7 @@ int main() {
                 .height  = 720,
                 .mips    = 1,
                 .format  = VK_FORMAT_D32_SFLOAT_S8_UINT,
+                .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
             }),
@@ -307,7 +309,7 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, swapchain, main_pass.stage);
+        renderer.present_frame(context, swapchain, commands, main_pass.stage);
         crd::poll_events();
         camera.update(window, delta_time);
     }

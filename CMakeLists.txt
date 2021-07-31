@@ -117,7 +117,7 @@ file(GLOB CORUNDUM_DATA data)
 file(COPY ${CORUNDUM_DATA} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(test-sponza src/test_sponza.cpp)
-add_executable(test-sponza-shadows src/test_sponza_shadows.cpp)
+add_executable(test-shadows src/test_shadows.cpp)
 
 target_link_libraries(test-sponza PRIVATE corundum)
-target_link_libraries(test-sponza-shadows PRIVATE corundum)
+target_link_libraries(test-shadows PRIVATE corundum)

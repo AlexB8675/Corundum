@@ -74,16 +74,16 @@ private:
             position -= world_up * delta_movement;
         }
         if (window.key(crd::key_left) == crd::key_pressed) {
-            yaw -= 0.150f;
+            yaw -= 150 * delta_time;
         }
         if (window.key(crd::key_right) == crd::key_pressed) {
-            yaw += 0.150f;
+            yaw += 150 * delta_time;
         }
         if (window.key(crd::key_up) == crd::key_pressed) {
-            pitch += 0.150f;
+            pitch += 150 * delta_time;
         }
         if (window.key(crd::key_down) == crd::key_pressed) {
-            pitch -= 0.150f;
+            pitch -= 150 * delta_time;
         }
         if (pitch > 89.9f) {
             pitch = 89.9f;
@@ -109,19 +109,19 @@ struct Scene {
     std::vector<Model> models;
 };
 
-static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, VkDescriptorImageInfo fallback) noexcept {
+static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>*> models, VkDescriptorImageInfo fallback) noexcept {
     Scene scene;
     scene.descriptors = { fallback };
     std::unordered_map<void*, std::uint32_t> texture_cache;
     for (std::uint32_t i = 0; auto& model : models) {
-        crd_likely_if(model.is_ready()) {
-            const auto submeshes_size = model->submeshes.size();
+        crd_likely_if(model->is_ready()) {
+            const auto submeshes_size = (*model)->submeshes.size();
             auto& handle = scene.models.emplace_back();
             scene.descriptors.reserve(scene.descriptors.size() + submeshes_size * 3);
             texture_cache.reserve(texture_cache.size() + submeshes_size * 3);
             handle.submeshes.reserve(submeshes_size);
             handle.index = i;
-            for (std::uint32_t j = 0; auto& submesh : model->submeshes) {
+            for (std::uint32_t j = 0; auto& submesh : (*model)->submeshes) {
                 crd_likely_if(submesh.mesh.is_ready()) {
                     std::array<std::uint32_t, 3> indices = {};
                     const auto emplace_descriptor = [&](const auto texture, std::uint32_t which) {
@@ -162,6 +162,7 @@ int main() {
                 .height  = 1024,
                 .mips    = 1,
                 .format  = VK_FORMAT_D32_SFLOAT_S8_UINT,
+                .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
                            VK_IMAGE_USAGE_SAMPLED_BIT
@@ -200,6 +201,7 @@ int main() {
                 .height  = 720,
                 .mips    = 1,
                 .format  = swapchain.format,
+                .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .usage   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
                            VK_IMAGE_USAGE_TRANSFER_SRC_BIT
@@ -222,6 +224,7 @@ int main() {
                 .height  = 720,
                 .mips    = 1,
                 .format  = VK_FORMAT_D32_SFLOAT_S8_UINT,
+                .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
             }),
@@ -271,8 +274,8 @@ int main() {
         .depth = true
     });
     auto main_pipeline = crd::make_pipeline(context, renderer, {
-        .vertex = "data/shaders/main.vert.spv",
-        .fragment = "data/shaders/main.frag.spv",
+        .vertex = "data/shaders/main_shadow.vert.spv",
+        .fragment = "data/shaders/main_shadow.frag.spv",
         .render_pass = &main_pass,
         .attributes = {
             crd::vertex_attribute_vec3,
@@ -291,15 +294,28 @@ int main() {
     });
     auto black = crd::request_static_texture(context, "data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
-    models.emplace_back(crd::request_static_model(context, "data/models/sponza/sponza.obj"));
+    models.emplace_back(crd::request_static_model(context, "data/models/cube/cube.obj"));
+    models.emplace_back(crd::request_static_model(context, "data/models/plane/plane.obj"));
+    std::vector<crd::Async<crd::StaticModel>*> model_handles = {
+        &models[0], &models[0], &models[0], &models[1]
+    };
     Camera camera;
     std::vector transforms{
-        glm::scale(glm::mat4(1.0f), glm::vec3(0.02f))
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.5f, 0.0)), glm::vec3(0.5f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 1.0)), glm::vec3(0.5f)),
+        glm::scale(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 2.0)), glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f))), glm::vec3(0.25f)),
+        glm::mat4(1.0f)
     };
-    auto camera_buffer = crd::make_buffer<>(context, sizeof(glm::mat4), crd::uniform_buffer);
+    auto camera_buffer = crd::make_buffer<>(context, 2 * sizeof(glm::mat4), crd::uniform_buffer);
+    auto shadow_buffer = crd::make_buffer<>(context, sizeof(glm::mat4), crd::uniform_buffer);
     auto model_buffer = crd::make_buffer<>(context, sizeof(glm::mat4), crd::storage_buffer);
     auto shadow_set = crd::make_descriptor_set<>(context, shadow_pipeline.descriptors[0]);
     auto main_set = crd::make_descriptor_set<>(context, main_pipeline.descriptors[0]);
+    main_set.bind(context, main_pipeline.bindings["shadow_map"], {
+        .sampler = context.shadow_sampler,
+        .imageView = shadow_pass.image(0).view,
+        .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    });
     std::atomic<std::size_t> frames = 0;
     std::atomic<double> fps = 0;
     double delta_time = 0, last_frame = 0;
@@ -315,16 +331,23 @@ int main() {
     }).detach();
     while (!window.is_closed()) {
         const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
-        const auto scene = build_scene(models, black->info());
+        const auto scene = build_scene(model_handles, black->info());
         const auto current_frame = crd::time();
+        auto shadow_camera =
+            glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 10.0f) *
+            glm::lookAt(glm::vec3(-2.0f, 4.0f, -1.0f),
+                        glm::vec3( 0.0f, 0.0f,  0.0f),
+                        glm::vec3( 0.0f, 1.0f,  0.0f));
         ++frames;
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
         fps += 1 / delta_time;
         model_buffer[index].resize(context, std::span(transforms).size_bytes());
-        camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
+        camera_buffer[index].write(glm::value_ptr(shadow_camera), 0);
+        camera_buffer[index].write(glm::value_ptr(camera.raw()), sizeof(glm::mat4), sizeof(glm::mat4));
+        shadow_buffer[index].write(glm::value_ptr(shadow_camera), 0);
         model_buffer[index].write(transforms.data(), 0);
-        shadow_set[index].bind(context, shadow_pipeline.bindings["Camera"], camera_buffer[index].info());
+        shadow_set[index].bind(context, shadow_pipeline.bindings["Camera"], shadow_buffer[index].info());
         shadow_set[index].bind(context, shadow_pipeline.bindings["Models"], model_buffer[index].info());
         main_set[index].bind(context, main_pipeline.bindings["Camera"], camera_buffer[index].info());
         main_set[index].bind(context, main_pipeline.bindings["Models"], model_buffer[index].info());
@@ -338,7 +361,7 @@ int main() {
             .bind_pipeline(shadow_pipeline)
             .bind_descriptor_set(shadow_set[index]);
         for (const auto& model : scene.models) {
-            auto& raw_model = *models[model.index];
+            auto& raw_model = **model_handles[model.index];
             for (const auto& submesh : model.submeshes) {
                 auto& raw_submesh = raw_model.submeshes[submesh.index];
                 const std::uint32_t indices[] = {
@@ -358,7 +381,7 @@ int main() {
             .bind_pipeline(main_pipeline)
             .bind_descriptor_set(main_set[index]);
         for (const auto& model : scene.models) {
-            auto& raw_model = *models[model.index];
+            auto& raw_model = **model_handles[model.index];
             for (const auto& submesh : model.submeshes) {
                 auto& raw_submesh = raw_model.submeshes[submesh.index];
                 const std::uint32_t indices[] = {
@@ -399,7 +422,7 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, swapchain, shadow_pass.stage);
+        renderer.present_frame(context, swapchain, commands, shadow_pass.stage);
         crd::poll_events();
         camera.update(window, delta_time);
     }
@@ -407,6 +430,7 @@ int main() {
     crd::destroy_descriptor_set(context, main_set);
     crd::destroy_buffer(context, model_buffer);
     crd::destroy_buffer(context, camera_buffer);
+    crd::destroy_buffer(context, shadow_buffer);
     for (auto& each : models) {
         crd::destroy_static_model(context, *each);
     }

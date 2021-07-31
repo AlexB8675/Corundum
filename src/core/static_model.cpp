@@ -117,7 +117,7 @@ namespace crd {
 
     crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context& context, const char* path) noexcept {
         auto* task = new std::packaged_task<StaticModel()>(
-            [&context, path]() {
+            [&context, path]() noexcept -> StaticModel {
                 Assimp::Importer importer;
                 const auto post_process =
                     aiProcess_Triangulate |

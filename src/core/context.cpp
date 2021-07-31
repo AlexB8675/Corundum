@@ -306,6 +306,13 @@ namespace crd {
             sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
             sampler_info.unnormalizedCoordinates = false;
             crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.default_sampler));
+            sampler_info.magFilter = VK_FILTER_NEAREST;
+            sampler_info.minFilter = VK_FILTER_NEAREST;
+            sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+            sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+            sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+            sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+            crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.shadow_sampler));
         }
         { // Creates a VmaAllocator.
             VkAllocationCallbacks allocation_callbacks;
@@ -388,6 +395,7 @@ namespace crd {
         destroy_queue(context, context.transfer);
         destroy_queue(context, context.compute);
         vkDestroyDescriptorPool(context.device, context.descriptor_pool, nullptr);
+        vkDestroySampler(context.device, context.shadow_sampler, nullptr);
         vkDestroySampler(context.device, context.default_sampler, nullptr);
         vmaDestroyAllocator(context.allocator);
         vkDestroyDevice(context.device, nullptr);

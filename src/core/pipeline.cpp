@@ -255,12 +255,12 @@ namespace crd {
         rasterizer_state.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         rasterizer_state.pNext = nullptr;
         rasterizer_state.flags = {};
-        rasterizer_state.depthClampEnable = true;
+        rasterizer_state.depthClampEnable = false;
         rasterizer_state.rasterizerDiscardEnable = false;
         rasterizer_state.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer_state.cullMode = info.cull;
         rasterizer_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        rasterizer_state.depthBiasEnable = true;
+        rasterizer_state.depthBiasEnable = false;
         rasterizer_state.depthBiasConstantFactor = 0.0f;
         rasterizer_state.depthBiasClamp = 0.0f;
         rasterizer_state.depthBiasSlopeFactor = 0.0f;

@@ -6,17 +6,20 @@
 
 namespace crd {
     crd_nodiscard static inline VkImageLayout deduce_reference_layout(const AttachmentInfo& attachment) noexcept {
-        switch (attachment.image.aspect) {
-            case VK_IMAGE_ASPECT_STENCIL_BIT | VK_IMAGE_ASPECT_DEPTH_BIT:
-                return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            case VK_IMAGE_ASPECT_COLOR_BIT:
-                return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            case VK_IMAGE_ASPECT_DEPTH_BIT:
+        switch (attachment.image.format) {
+            case VK_FORMAT_D16_UNORM:
+            case VK_FORMAT_D32_SFLOAT:
                 return VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-            case VK_IMAGE_ASPECT_STENCIL_BIT:
+            case VK_FORMAT_D16_UNORM_S8_UINT:
+            case VK_FORMAT_D24_UNORM_S8_UINT:
+            case VK_FORMAT_D32_SFLOAT_S8_UINT:
+                return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            case VK_FORMAT_S8_UINT:
                 return VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
+            default:
+                return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         }
-        return VK_IMAGE_LAYOUT_UNDEFINED;
+        crd_unreachable();
     }
 
     crd_nodiscard crd_module RenderPass make_render_pass(const Context& context, RenderPass::CreateInfo&& info) noexcept {

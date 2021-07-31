@@ -2,6 +2,7 @@
 
 #include <corundum/core/queue.hpp>
 
+#include <corundum/detail/forward.hpp>
 #include <corundum/detail/macros.hpp>
 
 #include <ftl/task_scheduler.h>
@@ -27,10 +28,10 @@ namespace crd {
         ftl::TaskScheduler* scheduler;
         VkDescriptorPool descriptor_pool;
         VkSampler default_sampler;
+        VkSampler shadow_sampler;
         Queue* graphics;
         Queue* transfer;
         Queue* compute;
-
     };
 
     crd_nodiscard crd_module Context       make_context() noexcept;

@@ -2,6 +2,7 @@
 #include <corundum/core/pipeline.hpp>
 #include <corundum/core/context.hpp>
 #include <corundum/core/buffer.hpp>
+#include <corundum/core/image.hpp>
 
 #include <corundum/detail/hash.hpp>
 
@@ -114,6 +115,27 @@ namespace crd {
             update.pTexelBufferView = nullptr;
             vkUpdateDescriptorSets(context.device, 1, &update, 0, nullptr);
             bound_descriptor = images_hash;
+        }
+        return *this;
+    }
+
+    crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorBufferInfo buffer) noexcept {
+        for (auto& each : handles) {
+            each.bind(context, binding, buffer);
+        }
+        return *this;
+    }
+
+    crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorImageInfo image) noexcept {
+        for (auto& each : handles) {
+            each.bind(context, binding, image);
+        }
+        return *this;
+    }
+
+    crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, const std::vector<VkDescriptorImageInfo>& images) noexcept {
+        for (auto& each : handles) {
+            each.bind(context, binding, images);
         }
         return *this;
     }

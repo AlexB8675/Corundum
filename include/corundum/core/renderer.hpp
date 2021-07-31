@@ -31,7 +31,7 @@ namespace crd {
         std::unordered_map<std::size_t, VkDescriptorSetLayout> set_layout_cache;
 
         crd_nodiscard crd_module FrameInfo acquire_frame(const Context&, const Swapchain&) noexcept;
-                      crd_module void      present_frame(const Context&, const Swapchain&, VkPipelineStageFlags stage) noexcept;
+                      crd_module void      present_frame(const Context&, const Swapchain&, const CommandBuffer&, VkPipelineStageFlags stage) noexcept;
     };
 
     crd_nodiscard crd_module Renderer make_renderer(const Context&) noexcept;

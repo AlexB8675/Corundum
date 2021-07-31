@@ -6,26 +6,9 @@
 #include <vulkan/vulkan.hpp>
 
 namespace crd {
-    crd_nodiscard static inline VkImageAspectFlags aspect_from_format(VkFormat format) noexcept {
-        switch (format) {
-            case VK_FORMAT_D16_UNORM:
-            case VK_FORMAT_D32_SFLOAT:
-                return VK_IMAGE_ASPECT_DEPTH_BIT;
-            case VK_FORMAT_D16_UNORM_S8_UINT:
-            case VK_FORMAT_D24_UNORM_S8_UINT:
-            case VK_FORMAT_D32_SFLOAT_S8_UINT:
-                return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-            case VK_FORMAT_S8_UINT:
-                return VK_IMAGE_ASPECT_STENCIL_BIT;
-            default:
-                return VK_IMAGE_ASPECT_COLOR_BIT;
-        }
-        crd_unreachable();
-    }
-
     crd_nodiscard crd_module Image make_image(const Context& context, Image::CreateInfo&& info) noexcept {
         Image image;
-        image.aspect  = aspect_from_format(info.format);
+        image.aspect  = info.aspect;
         image.samples = info.samples;
         image.format  = info.format;
         image.height  = info.height;
