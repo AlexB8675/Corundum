@@ -261,9 +261,9 @@ namespace crd {
         rasterizer_state.cullMode = info.cull;
         rasterizer_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer_state.depthBiasEnable = false;
-        rasterizer_state.depthBiasConstantFactor = 0.0f;
+        rasterizer_state.depthBiasConstantFactor = 1.25f;
         rasterizer_state.depthBiasClamp = 0.0f;
-        rasterizer_state.depthBiasSlopeFactor = 0.0f;
+        rasterizer_state.depthBiasSlopeFactor = 1.75f;
         rasterizer_state.lineWidth = 1.0f;
 
         VkPipelineMultisampleStateCreateInfo multisampling_state;

@@ -8,13 +8,16 @@ layout (location = 4) in vec3 ibitangents;
 
 layout (location = 0) out VertexData {
     vec4 shadow_frag_pos;
+    vec3 light_pos;
+    vec3 normal;
     vec3 frag_pos;
     vec2 uvs;
-};
+} vout;
 
 layout (set = 0, binding = 0) uniform Camera {
     mat4 shadow_proj_view;
     mat4 proj_view;
+    vec3 light_pos;
 };
 
 layout (set = 0, binding = 1) buffer readonly Models {
@@ -29,8 +32,10 @@ layout (push_constant) uniform Constants {
 };
 
 void main() {
-    frag_pos = vec3(model[model_index] * vec4(ivertex, 1.0));
-    uvs = iuvs;
-    shadow_frag_pos = shadow_proj_view * vec4(frag_pos, 1.0);
-    gl_Position = proj_view * vec4(frag_pos, 1.0);
+    vout.frag_pos = vec3(model[model_index] * vec4(ivertex, 1.0));
+    vout.uvs = iuvs;
+    vout.normal = transpose(inverse(mat3(model[model_index]))) * inormal;
+    vout.light_pos = light_pos;
+    vout.shadow_frag_pos = shadow_proj_view * vec4(vout.frag_pos, 1.0);
+    gl_Position = proj_view * vec4(vout.frag_pos, 1.0);
 }

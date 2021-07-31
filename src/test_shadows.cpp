@@ -158,8 +158,8 @@ int main() {
     auto shadow_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
-                .width   = 1024,
-                .height  = 1024,
+                .width   = 2048,
+                .height  = 2048,
                 .mips    = 1,
                 .format  = VK_FORMAT_D32_SFLOAT_S8_UINT,
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
@@ -301,12 +301,12 @@ int main() {
     };
     Camera camera;
     std::vector transforms{
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.5f, 0.0)), glm::vec3(0.5f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 1.0)), glm::vec3(0.5f)),
-        glm::scale(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 2.0)), glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f))), glm::vec3(0.25f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.5f, 0.0f)), glm::vec3(0.5f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 1.0f)), glm::vec3(0.5f)),
+        glm::scale(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 2.0f)), glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f))), glm::vec3(0.25f)),
         glm::mat4(1.0f)
     };
-    auto camera_buffer = crd::make_buffer<>(context, 2 * sizeof(glm::mat4), crd::uniform_buffer);
+    auto camera_buffer = crd::make_buffer<>(context, 2 * sizeof(glm::mat4) + sizeof(glm::vec3), crd::uniform_buffer);
     auto shadow_buffer = crd::make_buffer<>(context, sizeof(glm::mat4), crd::uniform_buffer);
     auto model_buffer = crd::make_buffer<>(context, sizeof(glm::mat4), crd::storage_buffer);
     auto shadow_set = crd::make_descriptor_set<>(context, shadow_pipeline.descriptors[0]);
@@ -333,11 +333,15 @@ int main() {
         const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
         const auto scene = build_scene(model_handles, black->info());
         const auto current_frame = crd::time();
+        auto light_pos = glm::vec3(
+            2 * std::sin(current_frame) * -2.0f,
+            5.0f,
+            2 * std::cos(current_frame) * -2.0f);
         auto shadow_camera =
-            glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 10.0f) *
-            glm::lookAt(glm::vec3(-2.0f, 4.0f, -1.0f),
-                        glm::vec3( 0.0f, 0.0f,  0.0f),
-                        glm::vec3( 0.0f, 1.0f,  0.0f));
+            glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 1.0f, 20.0f) *
+            glm::lookAt(light_pos,
+                        glm::vec3(0.0f, 0.0f, 0.0f),
+                        glm::vec3(0.0f, 1.0f, 0.0f));
         ++frames;
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
@@ -345,6 +349,7 @@ int main() {
         model_buffer[index].resize(context, std::span(transforms).size_bytes());
         camera_buffer[index].write(glm::value_ptr(shadow_camera), 0);
         camera_buffer[index].write(glm::value_ptr(camera.raw()), sizeof(glm::mat4), sizeof(glm::mat4));
+        camera_buffer[index].write(glm::value_ptr(light_pos), 2 * sizeof(glm::mat4), sizeof(glm::vec3));
         shadow_buffer[index].write(glm::value_ptr(shadow_camera), 0);
         model_buffer[index].write(transforms.data(), 0);
         shadow_set[index].bind(context, shadow_pipeline.bindings["Camera"], shadow_buffer[index].info());
