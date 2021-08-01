@@ -47,12 +47,12 @@ namespace crd {
         return handle.capacity;
     }
 
-    crd_nodiscard crd_module const void* Buffer<1>::view() const noexcept {
-        return handle.mapped;
+    crd_nodiscard crd_module const char* Buffer<1>::view() const noexcept {
+        return static_cast<const char*>(handle.mapped);
     }
 
-    crd_nodiscard crd_module void* Buffer<1>::raw() const noexcept {
-        return handle.mapped;
+    crd_nodiscard crd_module char* Buffer<1>::raw() const noexcept {
+        return static_cast<char*>(handle.mapped);
     }
 
     crd_module void Buffer<1>::write(const void* data, std::size_t offset) noexcept {
@@ -99,6 +99,12 @@ namespace crd {
     crd_module void Buffer<in_flight>::write(const void* data, std::size_t offset, std::size_t length) noexcept {
         for (auto& each : handles) {
             each.write(data, offset, length);
+        }
+    }
+
+    crd_module void Buffer<in_flight>::resize(const Context& context, std::size_t new_size) noexcept {
+        for (auto& each : handles) {
+            each.resize(context, new_size);
         }
     }
 } // namespace crd

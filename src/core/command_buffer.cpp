@@ -98,9 +98,9 @@ namespace crd {
         const auto extent = active_pass->framebuffers[index].extent;
         VkViewport viewport;
         viewport.x = 0;
-        viewport.y = (float)extent.height;
-        viewport.width = (float)extent.width;
-        viewport.height = -(float)extent.height;
+        viewport.y = 0;
+        viewport.width = extent.width;
+        viewport.height = extent.height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         return set_viewport(viewport);
