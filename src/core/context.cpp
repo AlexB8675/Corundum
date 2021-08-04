@@ -155,7 +155,7 @@ namespace crd {
 
             std::vector<std::uint32_t> queue_sizes(families_count);
             std::vector<std::vector<float>> queue_priorities(families_count);
-            const auto fetch_family = [&](VkQueueFlags required, VkQueueFlags ignore, float priority) -> std::optional<QueueFamily> {
+            const auto fetch_family = [&](VkQueueFlags required, VkQueueFlags ignore, float priority) noexcept -> std::optional<QueueFamily> {
                 for (std::uint32_t family = 0; family < families_count; family++) {
                     crd_unlikely_if((queue_families[family].queueFlags & ignore) != 0) {
                         continue;
@@ -173,30 +173,30 @@ namespace crd {
             };
 
             QueueFamilies families;
-            if (const auto&& queue = fetch_family(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0, 0.5f)) {
-                families.graphics = queue.value();
+            if (auto queue = fetch_family(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0, 0.5f)) {
+                families.graphics = *queue;
             } else {
                 crd_force_assert("No suitable Graphics queue found");
             }
 
-            if (const auto&& queue = fetch_family(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0, 1.0f)) {
+            if (auto queue = fetch_family(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0, 1.0f)) {
                 // Prefer another graphics queue since we can do async graphics that way.
-                families.compute = queue.value();
-            } else if (const auto&& fallback = fetch_family(VK_QUEUE_COMPUTE_BIT, VK_QUEUE_GRAPHICS_BIT, 1.0f)) {
+                families.compute = *queue;
+            } else if (auto fallback = fetch_family(VK_QUEUE_COMPUTE_BIT, VK_QUEUE_GRAPHICS_BIT, 1.0f)) {
                 // Fallback to a dedicated compute queue which doesn't support graphics.
-                families.compute = fallback.value();
+                families.compute = *fallback;
             } else {
                 // Finally, fallback to graphics queue
                 families.compute = families.graphics;
             }
 
 
-            if (const auto&& queue = fetch_family(VK_QUEUE_TRANSFER_BIT, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0.5f)) {
+            if (auto queue = fetch_family(VK_QUEUE_TRANSFER_BIT, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0.5f)) {
                 // Find a queue which only supports transfer.
-                families.transfer = queue.value();
-            } else if (const auto&& fallback = fetch_family(VK_QUEUE_COMPUTE_BIT, VK_QUEUE_GRAPHICS_BIT, 0.5f)) {
+                families.transfer = *queue;
+            } else if (auto fallback = fetch_family(VK_QUEUE_COMPUTE_BIT, VK_QUEUE_GRAPHICS_BIT, 0.5f)) {
                 // Fallback to a dedicated compute queue.
-                families.transfer = fallback.value();
+                families.transfer = *fallback;
             } else {
                 // Finally, fallback to same queue as compute.
                 families.transfer = families.compute;
@@ -228,14 +228,12 @@ namespace crd {
             vkEnumerateDeviceExtensionProperties(context.gpu, nullptr, &extension_count, nullptr);
             std::vector<VkExtensionProperties> extensions_props(extension_count);
             vkEnumerateDeviceExtensionProperties(context.gpu, nullptr, &extension_count, extensions_props.data());
-            for (const auto& [name, _] : extensions_props) {
-                detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "  - %s", name);
-            }
+            constexpr std::array extension_names = {
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+            };
 
             detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Requesting ownership of device");
-            constexpr std::array extension_names = {
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME
-            };
             VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing = {};
             descriptor_indexing.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
             descriptor_indexing.shaderSampledImageArrayNonUniformIndexing = true;

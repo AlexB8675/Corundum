@@ -16,6 +16,6 @@ namespace crd::detail {
         std::size_t size;
     };
 
-    crd_nodiscard crd_module FileView make_file_view(const char*) noexcept;
-                  crd_module void     destroy_file_view(FileView&) noexcept;
+    crd_nodiscard FileView make_file_view(const char*) noexcept;
+                  void     destroy_file_view(FileView&) noexcept;
 } // namespace crd::detail

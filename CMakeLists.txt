@@ -42,6 +42,7 @@ add_library(corundum STATIC
     include/corundum/core/constants.hpp
     include/corundum/core/context.hpp
     include/corundum/core/descriptor_set.hpp
+    include/corundum/core/expected.hpp
     include/corundum/core/image.hpp
     include/corundum/core/pipeline.hpp
     include/corundum/core/queue.hpp
@@ -80,12 +81,12 @@ add_library(corundum STATIC
     src/core/swapchain.cpp
     src/core/vma.cpp
 
-    src/util/file_view.cpp
+    src/detail/file_view.cpp
 
     src/wm/window.cpp)
 
 target_compile_definitions(corundum PUBLIC
-    $<$<CONFIG:Debug>:crd_debug>
+    $<$<CONFIG:Debug>:crd_debug crd_debug_logging>
 
     $<$<BOOL:${WIN32}>:
         _CRT_SECURE_NO_WARNINGS
@@ -111,13 +112,12 @@ target_link_libraries(corundum PUBLIC
     glfw
     assimp
     Vulkan::Vulkan
-    spirv-cross-glsl)
+    spirv-cross-glsl
+    $<$<BOOL:${UNIX}>:pthread>)
 
 file(GLOB CORUNDUM_DATA data)
 file(COPY ${CORUNDUM_DATA} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(test-sponza src/test_sponza.cpp)
-add_executable(test-shadows src/test_shadows.cpp)
 
 target_link_libraries(test-sponza PRIVATE corundum)
-target_link_libraries(test-shadows PRIVATE corundum)

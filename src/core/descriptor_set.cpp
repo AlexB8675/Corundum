@@ -27,7 +27,7 @@ namespace crd {
         }
 
         DescriptorSet<1> set;
-        set.bound.reserve(128);
+        set.bound.reserve(32);
         crd_vulkan_check(vkAllocateDescriptorSets(context.device, &allocate_info, &set.handle));
         return set;
     }

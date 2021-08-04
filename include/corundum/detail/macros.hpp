@@ -1,9 +1,5 @@
 #pragma once
 
-#if 1
-    #define crd_debug_logging
-#endif
-
 #if defined(_MSVC_LANG)
     #define crd_cpp_version _MSVC_LANG
     #define crd_unreachable() __assume(false)
@@ -22,8 +18,10 @@
 
 #if crd_cpp_version >= 201703l
     #define crd_nodiscard [[nodiscard]]
+    #define crd_noreturn [[noreturn]]
 #else
     #define crd_nodiscard
+    #define crd_noreturn
 #endif
 
 #if crd_cpp_version >= 202002l
@@ -47,7 +45,7 @@
 
 #if defined(crd_debug)
     #include <cassert>
-    #define crd_assert(expr, msg) assert((expr) && msg)
+    #define crd_assert(expr, msg) assert((expr) && (msg))
     #define crd_vulkan_check(expr) crd_assert((expr) == VK_SUCCESS, "VkResult was not VK_SUCCESS")
 #else
     #define crd_assert(expr, msg) \

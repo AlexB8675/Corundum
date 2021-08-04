@@ -26,7 +26,8 @@ namespace crd::detail {
 #if defined(crd_debug_logging)
         const auto clock     = std::chrono::system_clock::now();
         const auto time      = std::chrono::system_clock::to_time_t(clock);
-        const auto timestamp = std::stringstream() << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
+              auto timestamp = std::stringstream();
+                   timestamp << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
         const auto size      = std::snprintf(nullptr, 0, message, std::forward<Args>(args)...);
         std::string buffer(size + 1, '\0');
         std::snprintf(buffer.data(), buffer.size(), message, std::forward<Args>(args)...);

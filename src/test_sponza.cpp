@@ -35,7 +35,8 @@ struct Camera {
     void update(const crd::Window& window, double delta_time) noexcept {
         _process_keyboard(window, delta_time);
         perspective = glm::perspective(glm::radians(60.0f), window.width / (float)window.height, 0.1f, 100.0f);
-
+        perspective[1][1] *= -1;
+        
         const auto cos_pitch = std::cos(glm::radians(pitch));
         front = glm::normalize(glm::vec3{
             std::cos(glm::radians(yaw)) * cos_pitch,
@@ -74,16 +75,16 @@ private:
             position -= world_up * delta_movement;
         }
         if (window.key(crd::key_left) == crd::key_pressed) {
-            yaw -= 0.150f;
+            yaw -= 150 * delta_time;
         }
         if (window.key(crd::key_right) == crd::key_pressed) {
-            yaw += 0.150f;
+            yaw += 150 * delta_time;
         }
         if (window.key(crd::key_up) == crd::key_pressed) {
-            pitch += 0.150f;
+            pitch += 150 * delta_time;
         }
         if (window.key(crd::key_down) == crd::key_pressed) {
-            pitch -= 0.150f;
+            pitch -= 150 * delta_time;
         }
         if (pitch > 89.9f) {
             pitch = 89.9f;
@@ -127,7 +128,7 @@ static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, 
                     const auto emplace_descriptor = [&](const auto texture, std::uint32_t which) {
                         crd_likely_if(texture) {
                             auto& cached = texture_cache[texture];
-                            crd_likely_if(cached == 0 && texture->is_ready()) {
+                            crd_unlikely_if(cached == 0 && texture->is_ready()) {
                                 scene.descriptors.emplace_back((*texture)->info());
                                 cached = scene.descriptors.size() - 1;
                             }
@@ -253,6 +254,11 @@ int main() {
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
         fps += 1 / delta_time;
+	if (frames >= 1000) {
+            std::printf("Average FPS: %lf\n", fps / frames);
+            fps = 0;
+            frames = 0;
+	}
         model_buffer[index].resize(context, std::span(transforms).size_bytes());
         camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
         model_buffer[index].write(transforms.data(), 0);
@@ -291,7 +297,7 @@ int main() {
                 .level = 0,
                 .source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 .dest_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                .source_access = {},
+                .source_access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 .dest_access = VK_ACCESS_TRANSFER_WRITE_BIT,
                 .old_layout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL

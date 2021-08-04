@@ -54,14 +54,14 @@ namespace crd {
                     .transfer_ownership({
                         .buffer = &geometry,
                         .source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        .dest_stage = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                        .dest_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                         .source_access = VK_ACCESS_TRANSFER_WRITE_BIT,
                         .dest_access = {}
                     }, *context.transfer, *context.graphics)
                     .transfer_ownership({
                         .buffer = &indices,
                         .source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        .dest_stage = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                        .dest_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                         .source_access = VK_ACCESS_TRANSFER_WRITE_BIT,
                         .dest_access = {}
                     }, *context.transfer, *context.graphics)
@@ -82,14 +82,14 @@ namespace crd {
                     .begin()
                     .transfer_ownership({
                         .buffer = &geometry,
-                        .source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        .source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                         .dest_stage = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
                         .source_access = {},
                         .dest_access = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT
                     }, *context.transfer, *context.graphics)
                     .transfer_ownership({
                         .buffer = &indices,
-                        .source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        .source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                         .dest_stage = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
                         .source_access = {},
                         .dest_access = VK_ACCESS_INDEX_READ_BIT
