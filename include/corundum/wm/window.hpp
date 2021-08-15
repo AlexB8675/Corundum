@@ -55,8 +55,11 @@ namespace crd {
         std::uint32_t width;
         std::uint32_t height;
 
-        crd_nodiscard crd_module bool     is_closed() const noexcept;
-        crd_nodiscard crd_module KeyState key(Keys) const noexcept;
+        std::function<void()> on_resize;
+
+        crd_nodiscard crd_module bool       is_closed() const noexcept;
+        crd_nodiscard crd_module KeyState   key(Keys) const noexcept;
+        crd_nodiscard crd_module VkExtent2D viewport() noexcept;
     };
 
     crd_nodiscard crd_module Window       make_window(std::uint32_t, std::uint32_t, const char*) noexcept;

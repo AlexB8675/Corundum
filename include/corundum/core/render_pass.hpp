@@ -38,6 +38,12 @@ namespace crd {
         std::vector<std::uint32_t> input;
     };
 
+    struct ResizeAttachments {
+        VkExtent2D size;
+        std::uint32_t framebuffer;
+        std::vector<std::uint32_t> attachments;
+    };
+
     struct FramebufferInfo {
         std::vector<std::uint32_t> attachments;
     };
@@ -61,6 +67,7 @@ namespace crd {
         std::vector<AttachmentInfo> attachments;
 
         crd_nodiscard crd_module const Image& image(std::size_t) const noexcept;
+                      crd_module void         resize(const Context&, ResizeAttachments&&) noexcept;
     };
 
     crd_nodiscard crd_module RenderPass make_render_pass(const Context&, RenderPass::CreateInfo&&) noexcept;

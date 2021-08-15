@@ -7,9 +7,7 @@
 namespace crd {
     crd_nodiscard crd_module Window make_window(std::uint32_t width, std::uint32_t height, const char* title) noexcept {
         crd_assert(glfwInit(), "couldn't initialize GLFW");
-
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, false);
         const auto handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
         crd_assert(handle, "cannot create window");
 
@@ -45,5 +43,17 @@ namespace crd {
 
     crd_nodiscard crd_module KeyState Window::key(Keys key) const noexcept {
         return static_cast<KeyState>(glfwGetKey(handle, static_cast<int>(key)));
+    }
+
+    crd_nodiscard crd_module VkExtent2D Window::viewport() noexcept {
+        int new_width, new_height;
+        while (width == 0 || height == 0) {
+            glfwGetFramebufferSize(handle, &new_width, &new_height);
+            glfwWaitEvents();
+        }
+        return {
+            width  = new_width,
+            height = new_height
+        };
     }
 } // namespace crd

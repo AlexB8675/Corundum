@@ -10,11 +10,15 @@
 #include <vector>
 
 namespace crd {
-    crd_nodiscard crd_module Swapchain make_swapchain(const Context& context, const Window& window) noexcept {
+    crd_nodiscard crd_module Swapchain make_swapchain(const Context& context, Window& window, Swapchain* old) noexcept {
         Swapchain swapchain;
-        swapchain.surface = make_vulkan_surface(context, window);
+        if (!old) {
+            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Vulkan Surface requested");
+            swapchain.surface = make_vulkan_surface(context, window);
+        } else {
+            swapchain.surface = old->surface;
+        }
 
-        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Vulkan Surface requested");
         VkBool32 present_support;
         const auto family = context.families.graphics.family;
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceSupportKHR(context.gpu, family, swapchain.surface, &present_support));
@@ -31,11 +35,12 @@ namespace crd {
         detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Image Count: %d", image_count);
 
         crd_unlikely_if(capabilities.currentExtent.width != -1) {
-            swapchain.width  = capabilities.currentExtent.width;
-            swapchain.height = capabilities.currentExtent.height;
+            swapchain.width  = window.width = capabilities.currentExtent.width;
+            swapchain.height = window.height = capabilities.currentExtent.height;
         } else {
-            swapchain.width  = std::clamp(window.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-            swapchain.height = std::clamp(window.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+            const auto viewport = window.viewport();
+            swapchain.width  = std::clamp(viewport.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+            swapchain.height = std::clamp(viewport.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         }
         detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Swapchain Extent: { %d, %d }", swapchain.width, swapchain.height);
 
@@ -70,7 +75,7 @@ namespace crd {
         swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         swapchain_info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
         swapchain_info.clipped = true;
-        swapchain_info.oldSwapchain = nullptr;
+        swapchain_info.oldSwapchain = old ? old->handle : nullptr;
         crd_vulkan_check(vkCreateSwapchainKHR(context.device, &swapchain_info, nullptr, &swapchain.handle));
 
         std::vector<VkImage> images;
@@ -109,15 +114,20 @@ namespace crd {
             swapchain.images.emplace_back(image);
         }
         detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Swapchain created successfully");
+        if (old) {
+            destroy_swapchain(context, *old, false);
+        }
         return swapchain;
     }
 
-    crd_module void destroy_swapchain(const Context& context, Swapchain& swapchain) noexcept {
+    crd_module void destroy_swapchain(const Context& context, Swapchain& swapchain, bool surface) noexcept {
         for (const auto& image : swapchain.images) {
             vkDestroyImageView(context.device, image.view, nullptr);
         }
         vkDestroySwapchainKHR(context.device, swapchain.handle, nullptr);
-        vkDestroySurfaceKHR(context.instance, swapchain.surface, nullptr);
+        if (surface) {
+            vkDestroySurfaceKHR(context.instance, swapchain.surface, nullptr);
+        }
         swapchain = {};
     }
 } // namespace crd

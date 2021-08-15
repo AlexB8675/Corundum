@@ -99,7 +99,7 @@ target_compile_definitions(corundum PUBLIC
     GLM_FORCE_RADIANS)
 
 target_compile_options(corundum PUBLIC
-    $<$<NOT:$<BOOL:${WIN32}>>:-march=native -m64 -fvisibility=hidden>)
+    $<$<NOT:$<BOOL:${WIN32}>>:-march=native -fvisibility=hidden>)
 
 target_include_directories(corundum PUBLIC
     include

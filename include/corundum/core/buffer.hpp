@@ -32,12 +32,12 @@ namespace crd {
     struct Buffer<in_flight> {
         std::array<Buffer<1>, in_flight> handles;
 
-        crd_nodiscard crd_module Buffer<1>& operator [](std::size_t) noexcept;
                       crd_module void       write(const void*, std::size_t) noexcept;
                       crd_module void       write(const void*, std::size_t, std::size_t) noexcept;
                       crd_module void       resize(const Context&, std::size_t) noexcept;
 
-    };
+        crd_nodiscard crd_module Buffer<1>& operator [](std::size_t) noexcept;
+   };
 
     template <std::size_t N = in_flight> crd_nodiscard crd_module Buffer<N> make_buffer(const Context&, std::size_t, BufferType);
     template <std::size_t N = in_flight>               crd_module void      destroy_buffer(const Context&, Buffer<N>&);

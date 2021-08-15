@@ -18,6 +18,6 @@ namespace crd {
         std::vector<Image> images;
     };
 
-    crd_nodiscard crd_module Swapchain make_swapchain(const Context&, const Window&) noexcept;
-                  crd_module void      destroy_swapchain(const Context&, Swapchain&) noexcept;
+    crd_nodiscard crd_module Swapchain make_swapchain(const Context&, Window&, Swapchain* = nullptr) noexcept;
+                  crd_module void      destroy_swapchain(const Context&, Swapchain&, bool = true) noexcept;
 } // namespace crd

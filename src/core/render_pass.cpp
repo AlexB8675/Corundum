@@ -174,4 +174,39 @@ namespace crd {
     crd_nodiscard crd_module const Image& RenderPass::image(std::size_t index) const noexcept {
         return attachments[index].image;
     }
+
+    crd_module void RenderPass::resize(const Context& context, ResizeAttachments&& resize) noexcept {
+        auto& framebuffer = framebuffers[resize.framebuffer];
+        std::vector<VkImageView> image_references;
+        image_references.reserve(resize.attachments.size());
+        for (const auto attachment : resize.attachments) {
+            auto& current = attachments[attachment];
+            crd_assert(current.owning, "resizing a referenced attachment");
+                  auto& old_image = current.image;
+            const auto  new_image = make_image(context, {
+                .width   = resize.size.width,
+                .height  = resize.size.height,
+                .mips    = old_image.mips,
+                .format  = old_image.format,
+                .aspect  = old_image.aspect,
+                .samples = old_image.samples,
+                .usage   = old_image.usage
+            });
+            destroy_image(context, old_image);
+            image_references.emplace_back((old_image = new_image).view);
+        }
+        vkDestroyFramebuffer(context.device, framebuffer.handle, nullptr);
+        framebuffer.extent = resize.size;
+        VkFramebufferCreateInfo framebuffer_info;
+        framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebuffer_info.pNext = nullptr;
+        framebuffer_info.flags = {};
+        framebuffer_info.renderPass = handle;
+        framebuffer_info.attachmentCount = image_references.size();
+        framebuffer_info.pAttachments = image_references.data();
+        framebuffer_info.width = framebuffer.extent.width;
+        framebuffer_info.height = framebuffer.extent.height;
+        framebuffer_info.layers = 1; // TODO: Don't hardcode.
+        crd_vulkan_check(vkCreateFramebuffer(context.device, &framebuffer_info, nullptr, &framebuffer.handle));
+    }
 } // namespace crd

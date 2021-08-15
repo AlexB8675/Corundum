@@ -125,7 +125,7 @@ static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, 
             for (std::uint32_t j = 0; auto& submesh : model->submeshes) {
                 crd_likely_if(submesh.mesh.is_ready()) {
                     std::array<std::uint32_t, 3> indices = {};
-                    const auto emplace_descriptor = [&](const auto texture, std::uint32_t which) {
+                    const auto emplace_descriptor = [&](crd::Async<crd::StaticTexture>* texture, std::uint32_t which) {
                         crd_likely_if(texture) {
                             auto& cached = texture_cache[texture];
                             crd_unlikely_if(cached == 0 && texture->is_ready()) {
@@ -185,7 +185,7 @@ int main() {
                 .width   = 1280,
                 .height  = 720,
                 .mips    = 1,
-                .format  = VK_FORMAT_D32_SFLOAT_S8_UINT,
+                .format  = VK_FORMAT_D32_SFLOAT,
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
@@ -234,6 +234,13 @@ int main() {
         .subpass = 0,
         .depth = true
     });
+    window.on_resize = [&]() {
+        main_pass.resize(context, {
+            .size = { swapchain.width, swapchain.height },
+            .framebuffer = 0,
+            .attachments = { 0, 1 }
+        });
+    };
     auto black = crd::request_static_texture(context, "data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
     models.emplace_back(crd::request_static_model(context, "data/models/sponza/sponza.obj"));
@@ -241,24 +248,24 @@ int main() {
     std::vector transforms{
         glm::scale(glm::mat4(1.0f), glm::vec3(0.02f)),
     };
-    auto camera_buffer = crd::make_buffer<>(context, sizeof(glm::mat4), crd::uniform_buffer);
-    auto model_buffer = crd::make_buffer<>(context, sizeof(glm::mat4), crd::storage_buffer);
-    auto set = crd::make_descriptor_set<>(context, pipeline.descriptors[0]);
+    auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::uniform_buffer);
+    auto model_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
+    auto set = crd::make_descriptor_set(context, pipeline.descriptors[0]);
     std::size_t frames = 0;
     double delta_time = 0, last_frame = 0, fps = 0;
     while (!window.is_closed()) {
-        const auto [commands, image, index] = renderer.acquire_frame(context, swapchain);
+        const auto [commands, image, index] = renderer.acquire_frame(context, window, swapchain);
         const auto scene = build_scene(models, black->info());
         const auto current_frame = crd::time();
         ++frames;
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
         fps += 1 / delta_time;
-	if (frames >= 1000) {
+        if (frames >= 1000) {
             std::printf("Average FPS: %lf\n", fps / frames);
             fps = 0;
             frames = 0;
-	}
+        }
         model_buffer[index].resize(context, std::span(transforms).size_bytes());
         camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
         model_buffer[index].write(transforms.data(), 0);
@@ -315,7 +322,7 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, swapchain, commands, main_pass.stage);
+        renderer.present_frame(context, window, swapchain, commands, main_pass.stage);
         crd::poll_events();
         camera.update(window, delta_time);
     }

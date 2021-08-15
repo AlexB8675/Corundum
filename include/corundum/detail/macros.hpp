@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(_MSVC_LANG)
+#if defined(_MSC_VER)
     #define crd_cpp_version _MSVC_LANG
     #define crd_unreachable() __assume(false)
 #else
@@ -48,11 +48,7 @@
     #define crd_assert(expr, msg) assert((expr) && (msg))
     #define crd_vulkan_check(expr) crd_assert((expr) == VK_SUCCESS, "VkResult was not VK_SUCCESS")
 #else
-    #define crd_assert(expr, msg) \
-        do {                      \
-            (void)(expr);         \
-            (void)(msg);          \
-        } while (false)
+    #define crd_assert(expr, msg) (void)(expr)
     #define crd_vulkan_check(expr) crd_assert(expr, 0)
 #endif
 

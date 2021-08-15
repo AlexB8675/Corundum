@@ -3,7 +3,18 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/image.hpp>
 
+#include <corundum/detail/logger.hpp>
+
+#include <corundum/wm/window.hpp>
+
 namespace crd {
+    static inline void recreate_swapchain(const Context& context, Window& window, Swapchain& swapchain) noexcept {
+        vkDeviceWaitIdle(context.device);
+        detail::log("Vulkan", detail::Severity::eWarning, detail::Type::ePerformance,
+                    "Window resized, recreating swapchain");
+        swapchain = make_swapchain(context, window, &swapchain);
+    }
+
     crd_nodiscard crd_module Renderer make_renderer(const Context& context) noexcept {
         Renderer renderer;
         renderer.frame_idx = 0;
@@ -44,8 +55,12 @@ namespace crd {
         destroy_command_buffers(context, renderer.gfx_cmds);
     }
 
-    crd_nodiscard crd_module FrameInfo Renderer::acquire_frame(const Context& context, const Swapchain& swapchain) noexcept {
-        crd_vulkan_check(vkAcquireNextImageKHR(context.device, swapchain.handle, -1, img_ready[frame_idx], nullptr, &image_idx));
+    crd_nodiscard crd_module FrameInfo Renderer::acquire_frame(const Context& context, Window& window, Swapchain& swapchain) noexcept {
+        const auto result = vkAcquireNextImageKHR(context.device, swapchain.handle, -1, img_ready[frame_idx], nullptr, &image_idx);
+        crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+            recreate_swapchain(context, window, swapchain);
+            window.on_resize();
+        }
         crd_vulkan_check(vkWaitForFences(context.device, 1, &cmd_wait[frame_idx], true, -1));
         return {
             .commands = gfx_cmds[frame_idx],
@@ -54,10 +69,14 @@ namespace crd {
         };
     }
 
-    crd_module void Renderer::present_frame(const Context& context, const Swapchain& swapchain, const CommandBuffer& commands, VkPipelineStageFlags stage) noexcept {
+    crd_module void Renderer::present_frame(const Context& context, Window& window, Swapchain& swapchain, const CommandBuffer& commands, VkPipelineStageFlags stage) noexcept {
         crd_vulkan_check(vkResetFences(context.device, 1, &cmd_wait[frame_idx]));
         context.graphics->submit(commands, stage, img_ready[frame_idx], gfx_done[frame_idx], cmd_wait[frame_idx]);
-        context.graphics->present(swapchain, image_idx, gfx_done[frame_idx]);
+        const auto result = context.graphics->present(swapchain, image_idx, gfx_done[frame_idx]);
+        crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+            recreate_swapchain(context, window, swapchain);
+            window.on_resize();
+        }
 
         frame_idx = (frame_idx + 1) % in_flight;
     }
