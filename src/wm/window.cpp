@@ -47,7 +47,8 @@ namespace crd {
 
     crd_nodiscard crd_module VkExtent2D Window::viewport() noexcept {
         int new_width, new_height;
-        while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(handle, &new_width, &new_height);
+        while (new_width == 0 || new_height == 0) {
             glfwGetFramebufferSize(handle, &new_width, &new_height);
             glfwWaitEvents();
         }

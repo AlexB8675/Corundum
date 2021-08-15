@@ -34,11 +34,14 @@ namespace crd {
         }
         detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Image Count: %d", image_count);
 
+        const auto viewport = window.viewport();
         crd_unlikely_if(capabilities.currentExtent.width != -1) {
-            swapchain.width  = window.width = capabilities.currentExtent.width;
-            swapchain.height = window.height = capabilities.currentExtent.height;
+            crd_likely_if(capabilities.currentExtent.width == 0) {
+                crd_vulkan_check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.gpu, swapchain.surface, &capabilities));
+            }
+            swapchain.width  = capabilities.currentExtent.width;
+            swapchain.height = capabilities.currentExtent.height;
         } else {
-            const auto viewport = window.viewport();
             swapchain.width  = std::clamp(viewport.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
             swapchain.height = std::clamp(viewport.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         }
@@ -50,7 +53,7 @@ namespace crd {
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(context.gpu, swapchain.surface, &format_count, surface_formats.data()));
         auto format = surface_formats[0];
         for (const auto& each : surface_formats) {
-            crd_likely_if(each.format == VK_FORMAT_B8G8R8A8_SRGB && each.colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) {
+            crd_likely_if(each.format == VK_FORMAT_B8G8R8A8_SRGB && each.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
                 format = each;
                 break;
             }
