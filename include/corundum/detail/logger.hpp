@@ -9,16 +9,16 @@
 #include <cstdio>
 
 namespace crd::detail {
-    enum class Severity {
-        eInfo    = 1 << 0,
-        eWarning = 1 << 1,
-        eError   = 1 << 2,
+    enum Severity {
+        severity_info    = 1 << 0,
+        severity_warning = 1 << 1,
+        severity_error   = 1 << 2,
     };
 
-    enum class Type {
-        eGeneral     = 1 << 0,
-        eValidation  = 1 << 1,
-        ePerformance = 1 << 2,
+    enum Type {
+        type_general     = 1 << 0,
+        type_validation  = 1 << 1,
+        type_performance = 1 << 2,
     };
 
     template <typename... Args>
@@ -40,15 +40,15 @@ namespace crd::detail {
 #if defined(crd_debug_logging)
         const char* severity_string;
         switch (severity) {
-            case Severity::eInfo:    severity_string = "Info";    break;
-            case Severity::eWarning: severity_string = "Warning"; break;
-            case Severity::eError:   severity_string = "Error";   break;
+            case severity_info:    severity_string = "Info";    break;
+            case severity_warning: severity_string = "Warning"; break;
+            case severity_error:   severity_string = "Error";   break;
         }
         const char* type_string;
         switch (type) {
-            case Type::eGeneral:     type_string = "General";     break;
-            case Type::eValidation:  type_string = "Validation";  break;
-            case Type::ePerformance: type_string = "Performance"; break;
+            case type_general:     type_string = "General";     break;
+            case type_validation:  type_string = "Validation";  break;
+            case type_performance: type_string = "Performance"; break;
         }
         log(sender, severity_string, type_string, message, std::forward<Args>(args)...);
 #endif

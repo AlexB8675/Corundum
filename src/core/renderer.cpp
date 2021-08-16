@@ -10,7 +10,7 @@
 namespace crd {
     static inline void recreate_swapchain(const Context& context, Window& window, Swapchain& swapchain) noexcept {
         vkDeviceWaitIdle(context.device);
-        detail::log("Vulkan", detail::Severity::eWarning, detail::Type::ePerformance, "Window resized, recreating swapchain");
+        detail::log("Vulkan", detail::severity_warning, detail::type_performance, "Window resized, recreating swapchain");
         swapchain = make_swapchain(context, window, &swapchain);
     }
 

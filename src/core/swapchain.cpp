@@ -13,7 +13,7 @@ namespace crd {
     crd_nodiscard crd_module Swapchain make_swapchain(const Context& context, Window& window, Swapchain* old) noexcept {
         Swapchain swapchain;
         if (!old) {
-            detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Vulkan Surface requested");
+            detail::log("Vulkan", detail::severity_info, detail::type_general, "Vulkan Surface requested");
             swapchain.surface = make_vulkan_surface(context, window);
         } else {
             swapchain.surface = old->surface;
@@ -27,12 +27,12 @@ namespace crd {
         VkSurfaceCapabilitiesKHR capabilities;
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.gpu, swapchain.surface, &capabilities));
 
-        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "vkQueuePresentKHR: supported");
+        detail::log("Vulkan", detail::severity_info, detail::type_general, "vkQueuePresentKHR: supported");
         auto image_count = capabilities.minImageCount + 1;
         crd_unlikely_if(capabilities.maxImageCount > 0 && image_count > capabilities.maxImageCount) {
             image_count = capabilities.maxImageCount;
         }
-        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Image Count: %d", image_count);
+        detail::log("Vulkan", detail::severity_info, detail::type_general, "Image Count: %d", image_count);
 
         const auto viewport = window.viewport();
         crd_unlikely_if(capabilities.currentExtent.width != -1) {
@@ -45,7 +45,7 @@ namespace crd {
             swapchain.width  = std::clamp(viewport.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
             swapchain.height = std::clamp(viewport.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         }
-        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Swapchain Extent: { %d, %d }", swapchain.width, swapchain.height);
+        detail::log("Vulkan", detail::severity_info, detail::type_general, "Swapchain Extent: { %d, %d }", swapchain.width, swapchain.height);
 
         std::uint32_t format_count;
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(context.gpu, swapchain.surface, &format_count, nullptr));
@@ -116,7 +116,7 @@ namespace crd {
             crd_vulkan_check(vkCreateImageView(context.device, &image_view_info, nullptr, &image.view));
             swapchain.images.emplace_back(image);
         }
-        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral, "Swapchain created successfully");
+        detail::log("Vulkan", detail::severity_info, detail::type_general, "Swapchain created successfully");
         if (old) {
             destroy_swapchain(context, *old, false);
         }

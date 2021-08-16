@@ -1,10 +1,17 @@
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/context.hpp>
 
+#include <corundum/detail/logger.hpp>
+
 #include <optional>
 #include <utility>
 
 namespace crd {
+    crd_nodiscard static inline bool operator ==(VkExtent2D rhs, VkExtent2D lhs) noexcept {
+        return rhs.width  == lhs.width &&
+               rhs.height == lhs.height;
+    }
+
     crd_nodiscard static inline VkImageLayout deduce_reference_layout(const AttachmentInfo& attachment) noexcept {
         switch (attachment.image.format) {
             case VK_FORMAT_D16_UNORM:
@@ -177,6 +184,10 @@ namespace crd {
 
     crd_module void RenderPass::resize(const Context& context, ResizeAttachments&& resize) noexcept {
         auto& framebuffer = framebuffers[resize.framebuffer];
+        crd_likely_if(framebuffer.extent == resize.size) {
+            detail::log("Vulkan", detail::severity_info, detail::type_general, "Window extent is the same, not resizing");
+            return;
+        }
         std::vector<VkImageView> image_references;
         image_references.reserve(resize.attachments.size());
         for (const auto attachment : resize.attachments) {

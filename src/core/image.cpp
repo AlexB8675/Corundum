@@ -52,7 +52,7 @@ namespace crd {
 
         VkMemoryRequirements memory_requirements;
         vkGetImageMemoryRequirements(context.device, image.handle, &memory_requirements);
-        detail::log("Vulkan", detail::Severity::eInfo, detail::Type::eGeneral,
+        detail::log("Vulkan", detail::severity_info, detail::type_general,
                   "Image Allocated Successfully: Size: %llu bytes, Alignment: %llu bytes",
                   memory_requirements.size, memory_requirements.alignment);
         VkImageViewCreateInfo image_view_info;

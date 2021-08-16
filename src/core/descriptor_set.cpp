@@ -4,6 +4,7 @@
 #include <corundum/core/buffer.hpp>
 #include <corundum/core/image.hpp>
 
+#include <corundum/detail/logger.hpp>
 #include <corundum/detail/hash.hpp>
 
 namespace crd {
@@ -58,6 +59,8 @@ namespace crd {
         const auto  binding_hash     = detail::hash(0, binding);
               auto& bound_descriptor = bound[binding_hash];
         crd_unlikely_if(bound_descriptor != buffer_hash) {
+            detail::log("Vulkan", detail::severity_info, detail::type_performance,
+                        "Updating buffer descriptor with binding: %d, handle %p, range %llu", binding.index, buffer.buffer, buffer.range);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
@@ -80,6 +83,8 @@ namespace crd {
         const auto  binding_hash     = detail::hash(0, binding);
               auto& bound_descriptor = bound[binding_hash];
         crd_unlikely_if(bound_descriptor != image_hash) {
+            detail::log("Vulkan", detail::severity_info, detail::type_performance,
+                        "Updating image descriptor with binding: %d, handle %p", binding.index, image.imageView);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
@@ -102,6 +107,8 @@ namespace crd {
         const auto  binding_hash     = detail::hash(0, binding);
               auto& bound_descriptor = bound[binding_hash];
         crd_unlikely_if(bound_descriptor != images_hash) {
+            detail::log("Vulkan", detail::severity_info, detail::type_performance,
+                        "Updating image dynamic descriptor with binding: %d, images: %llu", binding.index, images.size());
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
