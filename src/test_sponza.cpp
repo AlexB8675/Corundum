@@ -262,7 +262,7 @@ int main() {
         last_frame = current_frame;
         fps += 1 / delta_time;
         if (frames >= 1000) {
-            //std::printf("Average FPS: %lf\n", fps / frames);
+            std::printf("Average FPS: %lf\n", fps / frames);
             fps = 0;
             frames = 0;
         }

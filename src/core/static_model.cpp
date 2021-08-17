@@ -3,6 +3,8 @@
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/context.hpp>
 
+#include <corundum/detail/logger.hpp>
+
 #include <assimp/postprocess.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -116,27 +118,27 @@ namespace crd {
     }
 
     crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context& context, const char* path) noexcept {
-        auto* task = new std::packaged_task<StaticModel()>(
-            [&context, path]() noexcept -> StaticModel {
-                Assimp::Importer importer;
-                const auto post_process =
-                    aiProcess_Triangulate |
-                    aiProcess_FlipUVs     |
-                    aiProcess_GenNormals  |
-                    aiProcess_CalcTangentSpace;
-                const auto scene = importer.ReadFile(path, post_process);
-                crd_assert(scene && !scene->mFlags && scene->mRootNode, "failed to load model");
-                TextureCache cache;
-                StaticModel model;
-                process_node(context, scene, scene->mRootNode, model, cache, fs::path(path).parent_path());
-                return model;
-            });
+        using task_type = std::packaged_task<StaticModel()>;
+        auto* task = new task_type([&context, path]() noexcept -> StaticModel {
+            Assimp::Importer importer;
+            const auto post_process =
+                aiProcess_Triangulate |
+                aiProcess_FlipUVs     |
+                aiProcess_GenNormals  |
+                aiProcess_CalcTangentSpace;
+            const auto scene = importer.ReadFile(path, post_process);
+            crd_assert(scene && !scene->mFlags && scene->mRootNode, "failed to load model");
+            TextureCache cache;
+            StaticModel model;
+            process_node(context, scene, scene->mRootNode, model, cache, fs::path(path).parent_path());
+            return model;
+        });
         Async<StaticModel> resource;
-        resource.future = task->get_future();
+        resource.task = task->get_future();
         context.scheduler->AddTask({
             .Function = [](ftl::TaskScheduler*, void* data) {
-                auto* task = static_cast<std::packaged_task<StaticModel()>*>(data);
-                (*task)();
+                auto* task = static_cast<task_type*>(data);
+                crd_benchmark("time took to upload StaticModel resource: %llu", *task);
                 delete task;
             },
             .ArgData = task

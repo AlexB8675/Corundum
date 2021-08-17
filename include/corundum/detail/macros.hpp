@@ -46,7 +46,7 @@
 #if defined(crd_debug)
     #include <cassert>
     #define crd_assert(expr, msg) assert((expr) && (msg))
-    #define crd_vulkan_check(expr) crd_assert((expr) == VK_SUCCESS, "VkResult was not VK_SUCCESS")
+    #define crd_vulkan_check(expr) crd_assert((expr) == VK_SUCCESS, "call did not return VK_SUCCESS")
 #else
     #define crd_assert(expr, msg) (void)(expr)
     #define crd_vulkan_check(expr) crd_assert(expr, 0)
@@ -65,3 +65,21 @@
             return crd::detail::hash(0, __VA_ARGS__);                    \
         }                                                                \
     }
+
+#if defined(crd_debug_benchmark)
+    #include <chrono>
+    #define crd_benchmark(msg, f, ...)                                                        \
+        do {                                                                                  \
+            const auto start = crd_benchmark_timestamp();                                     \
+            (f)(__VA_ARGS__);                                                                 \
+            const auto end = crd_benchmark_timestamp();                                       \
+            const auto milli = crd_benchmark_convert(std::chrono::milliseconds, start, end);  \
+            detail::log("Core", detail::severity_info, detail::type_performance, msg, milli); \
+        } while (false)
+    #define crd_benchmark_timestamp() std::chrono::high_resolution_clock::now()
+    #define crd_benchmark_convert(to, start, end) std::chrono::duration_cast<to>((end) - (start)).count()
+#else
+    #define crd_benchmark(msg, f, ...) (f)(__VA_ARGS__)
+    #define crd_benchmark_timestamp()
+    #define crd_benchmark_convert(...)
+#endif

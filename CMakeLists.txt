@@ -86,7 +86,7 @@ add_library(corundum STATIC
     src/wm/window.cpp)
 
 target_compile_definitions(corundum PUBLIC
-    $<$<CONFIG:Debug>:crd_debug crd_debug_logging>
+    $<$<CONFIG:Debug>:crd_debug crd_debug_logging crd_debug_benchmark>
 
     $<$<BOOL:${WIN32}>:
         _CRT_SECURE_NO_WARNINGS

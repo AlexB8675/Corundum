@@ -60,7 +60,7 @@ namespace crd {
               auto& bound_descriptor = bound[binding_hash];
         crd_unlikely_if(bound_descriptor != buffer_hash) {
             detail::log("Vulkan", detail::severity_info, detail::type_performance,
-                        "Updating buffer descriptor with binding: %d, handle %p, range %llu", binding.index, buffer.buffer, buffer.range);
+                        "updating buffer descriptor with binding: %d, handle %p, range %llu", binding.index, buffer.buffer, buffer.range);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
@@ -84,7 +84,7 @@ namespace crd {
               auto& bound_descriptor = bound[binding_hash];
         crd_unlikely_if(bound_descriptor != image_hash) {
             detail::log("Vulkan", detail::severity_info, detail::type_performance,
-                        "Updating image descriptor with binding: %d, handle %p", binding.index, image.imageView);
+                        "updating image descriptor with binding: %d, handle %p", binding.index, image.imageView);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
@@ -108,7 +108,7 @@ namespace crd {
               auto& bound_descriptor = bound[binding_hash];
         crd_unlikely_if(bound_descriptor != images_hash) {
             detail::log("Vulkan", detail::severity_info, detail::type_performance,
-                        "Updating image dynamic descriptor with binding: %d, images: %llu", binding.index, images.size());
+                        "updating image dynamic descriptor with binding: %d, images: %llu", binding.index, images.size());
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
