@@ -185,7 +185,7 @@ namespace crd {
     crd_module void RenderPass::resize(const Context& context, ResizeAttachments&& resize) noexcept {
         auto& framebuffer = framebuffers[resize.framebuffer];
         crd_likely_if(framebuffer.extent == resize.size) {
-            detail::log("Vulkan", detail::severity_info, detail::type_general, "window extent is the same, not resizing");
+            detail::log("Vulkan", detail::severity_info, detail::type_general, "window extent is the same, framebuffer will not be resized");
             return;
         }
         std::vector<VkImageView> image_references;

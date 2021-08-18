@@ -72,10 +72,10 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::begin_render_pass(const RenderPass& render_pass, std::size_t index) noexcept {
-        active_pass = &render_pass;
         const auto& clear_values = render_pass.clears;
-        const auto& framebuffer = render_pass.framebuffers[index];
-        
+        const auto& framebuffer  = render_pass.framebuffers[index];
+        active_framebuffer = &framebuffer;
+        active_pass = &render_pass;
         VkRenderPassBeginInfo begin_info;
         begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         begin_info.pNext = nullptr;
@@ -94,8 +94,8 @@ namespace crd {
         return *this;
     }
 
-    crd_module CommandBuffer& CommandBuffer::set_viewport(std::size_t index) noexcept {
-        const auto extent = active_pass->framebuffers[index].extent;
+    crd_module CommandBuffer& CommandBuffer::set_viewport() noexcept {
+        const auto extent = active_framebuffer->extent;
         VkViewport viewport;
         viewport.x = 0;
         viewport.y = 0;
@@ -111,8 +111,8 @@ namespace crd {
         return *this;
     }
 
-    crd_module CommandBuffer& CommandBuffer::set_scissor(std::size_t index) noexcept {
-        const auto extent = active_pass->framebuffers[index].extent;
+    crd_module CommandBuffer& CommandBuffer::set_scissor() noexcept {
+        const auto extent = active_framebuffer->extent;
         VkRect2D scissor;
         scissor.offset = {};
         scissor.extent = extent;

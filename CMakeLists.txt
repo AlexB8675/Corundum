@@ -53,6 +53,7 @@ add_library(corundum STATIC
     include/corundum/core/static_model.hpp
     include/corundum/core/static_texture.hpp
     include/corundum/core/swapchain.hpp
+    include/corundum/core/utilities.hpp
 
     include/corundum/detail/file_view.hpp
     include/corundum/detail/forward.hpp
@@ -86,7 +87,9 @@ add_library(corundum STATIC
     src/wm/window.cpp)
 
 target_compile_definitions(corundum PUBLIC
-    $<$<CONFIG:Debug>:crd_debug crd_debug_logging crd_debug_benchmark>
+    $<$<CONFIG:Debug>:crd_debug>
+    crd_debug_logging
+    crd_debug_benchmark
 
     $<$<BOOL:${WIN32}>:
         _CRT_SECURE_NO_WARNINGS

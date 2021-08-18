@@ -9,9 +9,10 @@
 
 namespace crd {
     static inline void recreate_swapchain(const Context& context, Window& window, Swapchain& swapchain) noexcept {
-        vkDeviceWaitIdle(context.device);
-        detail::log("vulkan", detail::severity_warning, detail::type_performance, "Window resized, recreating swapchain");
+        crd_vulkan_check(vkDeviceWaitIdle(context.device));
+        detail::log("vulkan", detail::severity_warning, detail::type_performance, "window resized, recreating swapchain");
         swapchain = make_swapchain(context, window, &swapchain);
+        window.on_resize();
     }
 
     crd_nodiscard crd_module Renderer make_renderer(const Context& context) noexcept {
@@ -58,7 +59,6 @@ namespace crd {
         const auto result = vkAcquireNextImageKHR(context.device, swapchain.handle, -1, img_ready[frame_idx], nullptr, &image_idx);
         crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
             recreate_swapchain(context, window, swapchain);
-            window.on_resize();
         }
         crd_vulkan_check(vkWaitForFences(context.device, 1, &cmd_wait[frame_idx], true, -1));
         return {
@@ -74,7 +74,6 @@ namespace crd {
         const auto result = context.graphics->present(swapchain, image_idx, gfx_done[frame_idx]);
         crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
             recreate_swapchain(context, window, swapchain);
-            window.on_resize();
         }
 
         frame_idx = (frame_idx + 1) % in_flight;

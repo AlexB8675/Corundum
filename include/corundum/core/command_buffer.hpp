@@ -45,6 +45,7 @@ namespace crd {
             VkCommandPool pool;
             VkCommandBufferLevel level;
         };
+        const Framebuffer* active_framebuffer;
         const RenderPass* active_pass;
         const Pipeline* active_pipeline;
         VkCommandBuffer handle;
@@ -53,9 +54,9 @@ namespace crd {
         crd_module CommandBuffer& begin() noexcept;
         crd_module CommandBuffer& begin_render_pass(const RenderPass&, std::size_t) noexcept;
         crd_module CommandBuffer& set_viewport(VkViewport) noexcept;
-        crd_module CommandBuffer& set_viewport(std::size_t) noexcept;
+        crd_module CommandBuffer& set_viewport() noexcept;
         crd_module CommandBuffer& set_scissor(VkRect2D) noexcept;
-        crd_module CommandBuffer& set_scissor(std::size_t) noexcept;
+        crd_module CommandBuffer& set_scissor() noexcept;
         crd_module CommandBuffer& bind_pipeline(const Pipeline&) noexcept;
         crd_module CommandBuffer& bind_descriptor_set(const DescriptorSet<1>&) noexcept;
         crd_module CommandBuffer& bind_vertex_buffer(const StaticBuffer&) noexcept;

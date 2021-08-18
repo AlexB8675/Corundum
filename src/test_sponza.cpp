@@ -3,6 +3,7 @@
 #include <corundum/core/static_model.hpp>
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/render_pass.hpp>
+#include <corundum/core/utilities.hpp>
 #include <corundum/core/swapchain.hpp>
 #include <corundum/core/constants.hpp>
 #include <corundum/core/renderer.hpp>
@@ -11,6 +12,8 @@
 #include <corundum/core/buffer.hpp>
 #include <corundum/core/clear.hpp>
 #include <corundum/core/async.hpp>
+
+#include <corundum/detail/logger.hpp>
 
 #include <corundum/wm/window.hpp>
 
@@ -262,11 +265,11 @@ int main() {
         last_frame = current_frame;
         fps += 1 / delta_time;
         if (frames >= 1000) {
-            std::printf("Average FPS: %lf\n", fps / frames);
+            crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf ", fps / frames);
             fps = 0;
             frames = 0;
         }
-        model_buffer[index].resize(context, std::span(transforms).size_bytes());
+        model_buffer[index].resize(context, crd::size_bytes(transforms));
         camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
         model_buffer[index].write(transforms.data(), 0);
         set[index].bind(context, pipeline.bindings["Camera"], camera_buffer[index].info());
@@ -276,8 +279,8 @@ int main() {
         commands
             .begin()
             .begin_render_pass(main_pass, 0)
-            .set_viewport(0)
-            .set_scissor(0)
+            .set_viewport()
+            .set_scissor()
             .bind_pipeline(pipeline)
             .bind_descriptor_set(set[index]);
         for (const auto& model : scene.models) {

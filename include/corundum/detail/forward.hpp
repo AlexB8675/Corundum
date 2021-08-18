@@ -14,6 +14,7 @@ namespace crd {
     struct Context;
     struct Swapchain;
     struct Image;
+    struct Framebuffer;
     struct RenderPass;
     struct Pipeline;
     struct Queue;

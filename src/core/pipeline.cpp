@@ -1,4 +1,5 @@
 #include <corundum/core/render_pass.hpp>
+#include <corundum/core/utilities.hpp>
 #include <corundum/core/pipeline.hpp>
 #include <corundum/core/renderer.hpp>
 #include <corundum/core/context.hpp>
@@ -55,7 +56,7 @@ namespace crd {
             module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
             module_create_info.pNext = nullptr;
             module_create_info.flags = {};
-            module_create_info.codeSize = binary.size() * sizeof(std::uint32_t);
+            module_create_info.codeSize = size_bytes(binary);
             module_create_info.pCode = binary.data();
             crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &pipeline_stages[0].module));
 
@@ -101,7 +102,7 @@ namespace crd {
             module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
             module_create_info.pNext = nullptr;
             module_create_info.flags = {};
-            module_create_info.codeSize = binary.size() * sizeof(std::uint32_t);
+            module_create_info.codeSize = size_bytes(binary);
             module_create_info.pCode = binary.data();
             crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &pipeline_stages[1].module));
 
