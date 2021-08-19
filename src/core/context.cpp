@@ -312,65 +312,14 @@ namespace crd {
             crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.shadow_sampler));
         }
         { // Creates a VmaAllocator.
-            VkAllocationCallbacks allocation_callbacks;
-            allocation_callbacks.pUserData = nullptr;
-            allocation_callbacks.pfnAllocation =
-                [](void*, std::size_t size, std::size_t align, VkSystemAllocationScope scope) noexcept {
-                    void* memory = std::malloc(size);
-                    detail::log("Vulkan", detail::severity_info, detail::type_validation,
-                              "CPU allocation requested, size: %zu bytes, alignment: %zu bytes, scope: %d, address: %p",
-                              size, align, scope, memory);
-                    return memory;
-                };
-            allocation_callbacks.pfnReallocation =
-                [](void*, void* old, std::size_t size, std::size_t align, VkSystemAllocationScope scope) noexcept {
-                    void* memory = std::realloc(old, size);
-                    detail::log("Vulkan", detail::severity_info, detail::type_validation,
-                              "CPU reallocation requested, size: %zu bytes, alignment: %zu bytes, scope: %d, address: %p",
-                              size, align, scope, memory);
-                    return memory;
-                };
-            allocation_callbacks.pfnFree =
-                [](void*, void* memory) noexcept {
-                    if (memory) {
-                        detail::log("Vulkan", detail::severity_info, detail::type_validation, "CPU free requested, address: %p", memory);
-                        std::free(memory);
-                    }
-                };
-            allocation_callbacks.pfnInternalAllocation =
-                [](void*, std::size_t size, VkInternalAllocationType type, VkSystemAllocationScope scope) noexcept {
-                    detail::log("Vulkan", detail::severity_info, detail::type_validation,
-                              "internal allocation requested, size: %zu bytes, type: %d, scope: %d",
-                              size, type, scope);
-                };
-            allocation_callbacks.pfnInternalFree =
-                [](void*, std::size_t size, VkInternalAllocationType type, VkSystemAllocationScope scope) noexcept {
-                    detail::log("Vulkan", detail::severity_info, detail::type_validation,
-                              "internal free requested, size: %zu bytes, type: %d, scope: %d",
-                              size, type, scope);
-                };
-            VmaDeviceMemoryCallbacks device_memory_callbacks;
-            device_memory_callbacks.pfnAllocate =
-                [](VmaAllocator allocator, std::uint32_t type, VkDeviceMemory memory, VkDeviceSize size, void*) noexcept {
-                    detail::log("Vulkan", detail::severity_info, detail::type_validation,
-                              "GPU allocation requested, Allocator: %p, size: %zu bytes, type: %d, address: %p",
-                              allocator, size, type, memory);
-                };
-            device_memory_callbacks.pfnFree =
-                [](VmaAllocator allocator, std::uint32_t type, VkDeviceMemory memory, VkDeviceSize size, void*) noexcept {
-                    detail::log("Vulkan", detail::severity_info, detail::type_validation,
-                              "GPU free requested, Allocator: %p, size: %zu bytes, type: %d, address: %p",
-                              allocator, size, type, memory);
-                };
-            device_memory_callbacks.pUserData = nullptr;
             detail::log("Vulkan", detail::severity_info, detail::type_general, "creating allocator");
             VmaAllocatorCreateInfo allocator_info;
             allocator_info.flags = {};
             allocator_info.physicalDevice = context.gpu;
             allocator_info.device = context.device;
             allocator_info.preferredLargeHeapBlockSize = 0;
-            allocator_info.pAllocationCallbacks = &allocation_callbacks;
-            allocator_info.pDeviceMemoryCallbacks = &device_memory_callbacks;
+            allocator_info.pAllocationCallbacks = nullptr;
+            allocator_info.pDeviceMemoryCallbacks = nullptr;
             allocator_info.frameInUseCount = 1;
             allocator_info.pHeapSizeLimit = nullptr;
             allocator_info.pVulkanFunctions = nullptr;

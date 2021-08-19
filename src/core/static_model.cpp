@@ -162,10 +162,9 @@ namespace crd {
             std::swap(to_destroy.back(), to_destroy.front());
             to_destroy.pop_back();
         }
-        for (const auto each : to_destroy) {
+        for (auto* each : to_destroy) {
             destroy_static_texture(context, **each);
             delete each;
         }
-        model.submeshes.clear();
     }
 } // namespace crd

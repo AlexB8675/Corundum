@@ -53,6 +53,7 @@ namespace crd {
 
         crd_module CommandBuffer& begin() noexcept;
         crd_module CommandBuffer& begin_render_pass(const RenderPass&, std::size_t) noexcept;
+        crd_module CommandBuffer& next_subpass() noexcept;
         crd_module CommandBuffer& set_viewport(VkViewport) noexcept;
         crd_module CommandBuffer& set_viewport() noexcept;
         crd_module CommandBuffer& set_scissor(VkRect2D) noexcept;

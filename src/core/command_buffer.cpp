@@ -89,6 +89,11 @@ namespace crd {
         return *this;
     }
 
+    crd_module CommandBuffer& CommandBuffer::next_subpass() noexcept {
+        vkCmdNextSubpass(handle, VK_SUBPASS_CONTENTS_INLINE);
+        return *this;
+    }
+
     crd_module CommandBuffer& CommandBuffer::set_viewport(VkViewport viewport) noexcept {
         vkCmdSetViewport(handle, 0, 1, &viewport);
         return *this;
@@ -170,6 +175,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::end_render_pass() noexcept {
+        active_framebuffer = nullptr;
         active_pipeline = nullptr;
         active_pass = nullptr;
         vkCmdEndRenderPass(handle);

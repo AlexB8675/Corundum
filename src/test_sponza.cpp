@@ -155,15 +155,15 @@ static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, 
 }
 
 int main() {
-    auto window      = crd::make_window(1280, 720, "Sorting Algos");
-    auto context     = crd::make_context();
-    auto renderer    = crd::make_renderer(context);
-    auto swapchain   = crd::make_swapchain(context, window);
-    auto main_pass   = crd::make_render_pass(context, {
+    auto window = crd::make_window(1280, 720, "Sorting Algos");
+    auto context = crd::make_context();
+    auto renderer = crd::make_renderer(context);
+    auto swapchain = crd::make_swapchain(context, window);
+    auto deferred_pass = crd::make_render_pass(context, {
         .attachments = { {
-            .image = crd::make_image(context, {
-                .width   = 1280,
-                .height  = 720,
+            .image = crd::make_image(context, { // Final Color.
+                .width   = window.width,
+                .height  = window.height,
                 .mips    = 1,
                 .format  = swapchain.format,
                 .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -184,9 +184,85 @@ int main() {
             .owning  = true,
             .discard = false
         }, {
-            .image = crd::make_image(context, {
-                .width   = 1280,
-                .height  = 720,
+            .image = crd::make_image(context, { // Position.
+                .width   = window.width,
+                .height  = window.height,
+                .mips    = 1,
+                .format  = VK_FORMAT_R16G16B16A16_SFLOAT,
+                .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .usage   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                           VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT |
+                           VK_IMAGE_USAGE_SAMPLED_BIT
+            }),
+            .layout = {
+                .initial = VK_IMAGE_LAYOUT_UNDEFINED,
+                .final   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            },
+            .clear   = crd::make_clear_color({}),
+            .owning  = true,
+            .discard = false
+        }, {
+            .image = crd::make_image(context, { // Normal.
+                .width   = window.width,
+                .height  = window.height,
+                .mips    = 1,
+                .format  = VK_FORMAT_R16G16B16A16_SFLOAT,
+                .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .usage   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                           VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT |
+                           VK_IMAGE_USAGE_SAMPLED_BIT
+            }),
+            .layout = {
+                .initial = VK_IMAGE_LAYOUT_UNDEFINED,
+                .final   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            },
+            .clear   = crd::make_clear_color({}),
+            .owning  = true,
+            .discard = false
+        }, {
+            .image = crd::make_image(context, { // Specular.
+                .width   = window.width,
+                .height  = window.height,
+                .mips    = 1,
+                .format  = VK_FORMAT_R8G8B8A8_UNORM,
+                .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .usage   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                           VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT |
+                           VK_IMAGE_USAGE_SAMPLED_BIT
+            }),
+            .layout = {
+                .initial = VK_IMAGE_LAYOUT_UNDEFINED,
+                .final   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            },
+            .clear   = crd::make_clear_color({}),
+            .owning  = true,
+            .discard = false
+        }, {
+            .image = crd::make_image(context, { // Albedo.
+                .width   = window.width,
+                .height  = window.height,
+                .mips    = 1,
+                .format  = VK_FORMAT_R8G8B8A8_UNORM,
+                .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .usage   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                           VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT |
+                           VK_IMAGE_USAGE_SAMPLED_BIT
+            }),
+            .layout = {
+                .initial = VK_IMAGE_LAYOUT_UNDEFINED,
+                .final   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            },
+            .clear   = crd::make_clear_color({}),
+            .owning  = true,
+            .discard = false
+        }, {
+            .image = crd::make_image(context, { // Depth.
+                .width   = window.width,
+                .height  = window.height,
                 .mips    = 1,
                 .format  = VK_FORMAT_D32_SFLOAT,
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
@@ -202,9 +278,13 @@ int main() {
             .discard = true
         } },
         .subpasses = { {
-            .attachments = { 0, 1 },
+            .attachments = { 1, 2, 3, 4, 5 },
             .preserve    = {},
             .input       = {}
+        }, {
+            .attachments = { 0 },
+            .preserve    = {},
+            .input       = { 1, 2, 3, 4 }
         } },
         .dependencies = { {
             .source_subpass = crd::external_subpass,
@@ -213,15 +293,22 @@ int main() {
             .dest_stage     = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
             .source_access  = {},
             .dest_access    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+        }, {
+            .source_subpass = 0,
+            .dest_subpass   = 1,
+            .source_stage   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .dest_stage     = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .source_access  = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+            .dest_access    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
         } },
         .framebuffers = {
-            { { 0, 1 } }
+            { { 0, 1, 2, 3, 4, 5 } }
         }
     });
-    auto pipeline = crd::make_pipeline(context, renderer, {
+    auto deferred_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "data/shaders/main.vert.spv",
         .fragment = "data/shaders/main.frag.spv",
-        .render_pass = &main_pass,
+        .render_pass = &deferred_pass,
         .attributes = {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3,
@@ -237,23 +324,37 @@ int main() {
         .subpass = 0,
         .depth = true
     });
+    auto combine_pipeline = crd::make_pipeline(context, renderer, {
+        .vertex = "data/shaders/combine.vert.spv",
+        .fragment = "data/shaders/combine.frag.spv",
+        .render_pass = &deferred_pass,
+        .attributes = {},
+        .states = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR,
+        },
+        .cull = VK_CULL_MODE_NONE,
+        .subpass = 1,
+        .depth = false
+    });
     window.on_resize = [&]() {
-        main_pass.resize(context, {
+        deferred_pass.resize(context, {
             .size = { swapchain.width, swapchain.height },
             .framebuffer = 0,
-            .attachments = { 0, 1 }
+            .attachments = { 0, 1, 2, 3, 4, 5 }
         });
     };
     auto black = crd::request_static_texture(context, "data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
-    models.emplace_back(crd::request_static_model(context, "data/models/sponza/sponza.obj"));
+    models.emplace_back(crd::request_static_model(context, "data/models/sponza/Sponza.gltf"));
     Camera camera;
     std::vector transforms{
         glm::scale(glm::mat4(1.0f), glm::vec3(0.02f)),
     };
     auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::uniform_buffer);
     auto model_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
-    auto set = crd::make_descriptor_set(context, pipeline.descriptors[0]);
+    auto main_set = crd::make_descriptor_set(context, deferred_pipeline.descriptors[0]);
+    auto gbuffer_set = crd::make_descriptor_set<1>(context, combine_pipeline.descriptors[0]);
     std::size_t frames = 0;
     double delta_time = 0, last_frame = 0, fps = 0;
     while (!window.is_closed()) {
@@ -263,26 +364,46 @@ int main() {
         ++frames;
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
-        fps += 1 / delta_time;
-        if (frames >= 1000) {
-            crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf ", fps / frames);
+        fps += delta_time;
+        if (fps >= 1.6) {
+            crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
             fps = 0;
             frames = 0;
         }
         model_buffer[index].resize(context, crd::size_bytes(transforms));
-        camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
         model_buffer[index].write(transforms.data(), 0);
-        set[index].bind(context, pipeline.bindings["Camera"], camera_buffer[index].info());
-        set[index].bind(context, pipeline.bindings["Models"], model_buffer[index].info());
-        set[index].bind(context, pipeline.bindings["textures"], scene.descriptors);
-
+        camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
+        main_set[index].bind(context, deferred_pipeline.bindings["Camera"], camera_buffer[index].info());
+        main_set[index].bind(context, deferred_pipeline.bindings["Models"], model_buffer[index].info());
+        main_set[index].bind(context, deferred_pipeline.bindings["textures"], scene.descriptors);
+        gbuffer_set
+            .bind(context, combine_pipeline.bindings["i_position"], {
+                .sampler = context.default_sampler,
+                .imageView = deferred_pass.image(1).view,
+                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            })
+            .bind(context, combine_pipeline.bindings["i_normal"], {
+                .sampler = context.default_sampler,
+                .imageView = deferred_pass.image(2).view,
+                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            })
+            .bind(context, combine_pipeline.bindings["i_specular"], {
+                .sampler = context.default_sampler,
+                .imageView = deferred_pass.image(3).view,
+                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            })
+            .bind(context, combine_pipeline.bindings["i_albedo"], {
+                .sampler = context.default_sampler,
+                .imageView = deferred_pass.image(4).view,
+                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            });
         commands
             .begin()
-            .begin_render_pass(main_pass, 0)
+            .begin_render_pass(deferred_pass, 0)
             .set_viewport()
             .set_scissor()
-            .bind_pipeline(pipeline)
-            .bind_descriptor_set(set[index]);
+            .bind_pipeline(deferred_pipeline)
+            .bind_descriptor_set(main_set[index]);
         for (const auto& model : scene.models) {
             auto& raw_model = *models[model.index];
             for (const auto& submesh : model.submeshes) {
@@ -300,6 +421,10 @@ int main() {
             }
         }
         commands
+            .next_subpass()
+            .bind_pipeline(combine_pipeline)
+            .bind_descriptor_set(gbuffer_set)
+            .draw(3, 1, 0, 0)
             .end_render_pass()
             .transition_layout({
                 .image = &image,
@@ -312,7 +437,7 @@ int main() {
                 .old_layout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             })
-            .copy_image(main_pass.image(0), image)
+            .copy_image(deferred_pass.image(0), image)
             .transition_layout({
                 .image = &image,
                 .mip = 0,
@@ -325,20 +450,22 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, window, swapchain, commands, main_pass.stage);
+        renderer.present_frame(context, window, swapchain, commands, deferred_pass.stage);
         crd::poll_events();
         camera.update(window, delta_time);
     }
     context.graphics->wait_idle();
-    crd::destroy_descriptor_set(context, set);
+    crd::destroy_descriptor_set(context, gbuffer_set);
+    crd::destroy_descriptor_set(context, main_set);
     crd::destroy_buffer(context, model_buffer);
     crd::destroy_buffer(context, camera_buffer);
     for (auto& each : models) {
         crd::destroy_static_model(context, *each);
     }
     crd::destroy_static_texture(context, *black);
-    crd::destroy_pipeline(context, pipeline);
-    crd::destroy_render_pass(context, main_pass);
+    crd::destroy_pipeline(context, combine_pipeline);
+    crd::destroy_pipeline(context, deferred_pipeline);
+    crd::destroy_render_pass(context, deferred_pass);
     crd::destroy_swapchain(context, swapchain);
     crd::destroy_renderer(context, renderer);
     crd::destroy_context(context);

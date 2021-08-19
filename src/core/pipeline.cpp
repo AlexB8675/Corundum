@@ -175,12 +175,12 @@ namespace crd {
                 }
             }
             for (const auto& textures : resources.sampled_images) {
-                const auto set          = compiler.get_decoration(textures.id, spv::DecorationDescriptorSet);
-                const auto binding      = compiler.get_decoration(textures.id, spv::DecorationBinding);
-                const auto& image_type  = compiler.get_type(textures.type_id);
-                const bool is_array     = !image_type.array.empty();
-                const bool is_dynamic   = is_array && image_type.array[0] == 0;
-                const auto max_samplers = max_bound_samplers(context);
+                const auto  set          = compiler.get_decoration(textures.id, spv::DecorationDescriptorSet);
+                const auto  binding      = compiler.get_decoration(textures.id, spv::DecorationBinding);
+                const auto& image_type   = compiler.get_type(textures.type_id);
+                const bool  is_array     = !image_type.array.empty();
+                const bool  is_dynamic   = is_array && image_type.array[0] == 0;
+                const auto  max_samplers = max_bound_samplers(context);
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[textures.name] = {
                         .dynamic = is_dynamic,
@@ -224,14 +224,16 @@ namespace crd {
             offset += static_cast<std::underlying_type_t<VertexAttribute>>(attribute);
         }
 
-        VkPipelineVertexInputStateCreateInfo vertex_input_state;
+        VkPipelineVertexInputStateCreateInfo vertex_input_state = {};
         vertex_input_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
         vertex_input_state.pNext = nullptr;
         vertex_input_state.flags = {};
-        vertex_input_state.vertexBindingDescriptionCount = 1;
-        vertex_input_state.pVertexBindingDescriptions = &vertex_binding_description;
-        vertex_input_state.vertexAttributeDescriptionCount = vertex_attribute_descriptions.size();
-        vertex_input_state.pVertexAttributeDescriptions = vertex_attribute_descriptions.data();
+        if (!vertex_attribute_descriptions.empty()) {
+            vertex_input_state.vertexBindingDescriptionCount = 1;
+            vertex_input_state.pVertexBindingDescriptions = &vertex_binding_description;
+            vertex_input_state.vertexAttributeDescriptionCount = vertex_attribute_descriptions.size();
+            vertex_input_state.pVertexAttributeDescriptions = vertex_attribute_descriptions.data();
+        }
 
         VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
         input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -318,7 +320,7 @@ namespace crd {
         set_layout_handles.reserve(pipeline_descriptor_layout.size());
         for (const auto& [index, descriptors] : pipeline_descriptor_layout) {
             bool dynamic = false;
-            const auto layout_hash = crd::detail::hash(0, descriptors);
+            const auto layout_hash = detail::hash(0, descriptors);
             auto& layout = renderer.set_layout_cache[layout_hash];
             crd_unlikely_if(!layout) {
                 std::vector<VkDescriptorBindingFlags> flags;

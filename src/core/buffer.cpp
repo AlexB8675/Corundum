@@ -69,21 +69,17 @@ namespace crd {
         crd_likely_if(new_size == size) {
             return;
         }
-        crd_likely_if(new_size < size) {
-            size = new_size;
-        } else {
-            crd_unlikely_if(new_size >= handle.capacity) {
-                auto old = handle;
-                handle = make_static_buffer(context, {
-                    .flags = old.flags,
-                    .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-                    .capacity = new_size
-                });
-                std::memcpy(handle.mapped, old.mapped, size);
-                destroy_static_buffer(context, old);
-            }
-            size = new_size;
+        crd_unlikely_if(new_size >= handle.capacity) {
+            auto old = handle;
+            handle = make_static_buffer(context, {
+                .flags = old.flags,
+                .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+                .capacity = new_size
+            });
+            std::memcpy(handle.mapped, old.mapped, size);
+            destroy_static_buffer(context, old);
         }
+        size = new_size;
     }
 
     crd_module Buffer<1>& Buffer<in_flight>::operator [](std::size_t index) noexcept {
