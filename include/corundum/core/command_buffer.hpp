@@ -59,7 +59,7 @@ namespace crd {
         crd_module CommandBuffer& set_scissor(VkRect2D) noexcept;
         crd_module CommandBuffer& set_scissor() noexcept;
         crd_module CommandBuffer& bind_pipeline(const Pipeline&) noexcept;
-        crd_module CommandBuffer& bind_descriptor_set(const DescriptorSet<1>&) noexcept;
+        crd_module CommandBuffer& bind_descriptor_set(std::uint32_t, const DescriptorSet<1>&) noexcept;
         crd_module CommandBuffer& bind_vertex_buffer(const StaticBuffer&) noexcept;
         crd_module CommandBuffer& bind_index_buffer(const StaticBuffer&) noexcept;
         crd_module CommandBuffer& bind_static_mesh(const StaticMesh&) noexcept;

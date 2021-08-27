@@ -361,7 +361,7 @@ namespace crd {
             set_layouts.push_back({ layout, dynamic });
             set_layout_handles.emplace_back(layout);
         }
-        pipeline.descriptors = std::move(set_layouts);
+        pipeline.layout.descriptor = std::move(set_layouts);
         pipeline.bindings = std::move(descriptor_layout_bindings);
         VkPipelineLayoutCreateInfo pipeline_layout_info;
         pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -371,7 +371,7 @@ namespace crd {
         pipeline_layout_info.pSetLayouts = set_layout_handles.data();
         pipeline_layout_info.pushConstantRangeCount = push_constant_range.size != 0;
         pipeline_layout_info.pPushConstantRanges = &push_constant_range;
-        crd_vulkan_check(vkCreatePipelineLayout(context.device, &pipeline_layout_info, nullptr, &pipeline.layout));
+        crd_vulkan_check(vkCreatePipelineLayout(context.device, &pipeline_layout_info, nullptr, &pipeline.layout.pipeline));
 
         VkGraphicsPipelineCreateInfo pipeline_info;
         pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -388,7 +388,7 @@ namespace crd {
         pipeline_info.pDepthStencilState = &depth_stencil_state;
         pipeline_info.pColorBlendState = &color_blend_state;
         pipeline_info.pDynamicState = &pipeline_dynamic_states;
-        pipeline_info.layout = pipeline.layout;
+        pipeline_info.layout = pipeline.layout.pipeline;
         pipeline_info.renderPass = info.render_pass->handle;
         pipeline_info.subpass = info.subpass;
         pipeline_info.basePipelineHandle = nullptr;
@@ -401,7 +401,7 @@ namespace crd {
     }
 
     crd_module void destroy_pipeline(const Context& context, Pipeline& pipeline) noexcept {
-        vkDestroyPipelineLayout(context.device, pipeline.layout, nullptr);
+        vkDestroyPipelineLayout(context.device, pipeline.layout.pipeline, nullptr);
         vkDestroyPipeline(context.device, pipeline.handle, nullptr);
         pipeline = {};
     }

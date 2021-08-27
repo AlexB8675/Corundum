@@ -130,8 +130,8 @@ namespace crd {
         return *this;
     }
 
-    crd_module CommandBuffer& CommandBuffer::bind_descriptor_set(const DescriptorSet<1>& set) noexcept {
-        vkCmdBindDescriptorSets(handle, VK_PIPELINE_BIND_POINT_GRAPHICS, active_pipeline->layout, 0, 1, &set.handle, 0, nullptr);
+    crd_module CommandBuffer& CommandBuffer::bind_descriptor_set(std::uint32_t index, const DescriptorSet<1>& set) noexcept {
+        vkCmdBindDescriptorSets(handle, VK_PIPELINE_BIND_POINT_GRAPHICS, active_pipeline->layout.pipeline, index, 1, &set.handle, 0, nullptr);
         return *this;
     }
 
@@ -153,7 +153,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::push_constants(VkPipelineStageFlags flags, const void* data, std::size_t size) noexcept {
-        vkCmdPushConstants(handle, active_pipeline->layout, flags, 0, size, data);
+        vkCmdPushConstants(handle, active_pipeline->layout.pipeline, flags, 0, size, data);
         return *this;
     }
 

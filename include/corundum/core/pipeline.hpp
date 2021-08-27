@@ -45,9 +45,11 @@ namespace crd {
             bool depth;
         };
         VkPipeline handle;
-        VkPipelineLayout layout;
-        DescriptorSetLayouts descriptors;
         DescriptorLayoutBindings bindings;
+        struct {
+            VkPipelineLayout pipeline;
+            DescriptorSetLayouts descriptor;
+        } layout;
     };
 
     crd_nodiscard crd_module Pipeline make_pipeline(const Context&, Renderer&, Pipeline::CreateInfo&&) noexcept;

@@ -80,4 +80,12 @@ namespace crd {
         vmaDestroyImage(context.allocator, image.handle, image.allocation);
         image = {};
     }
+
+    VkDescriptorImageInfo Image::sample(VkSampler sampler) const noexcept {
+        return {
+            .sampler = sampler,
+            .imageView = view,
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        };
+    }
 } // namespace crd

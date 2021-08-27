@@ -31,6 +31,8 @@ namespace crd {
         std::uint32_t mips;
         std::uint32_t width;
         std::uint32_t height;
+
+        crd_nodiscard crd_module VkDescriptorImageInfo sample(VkSampler) const noexcept;
     };
 
     crd_nodiscard crd_module Image make_image(const Context&, Image::CreateInfo&&) noexcept;

@@ -12,7 +12,7 @@ namespace crd {
             .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
             .capacity = size
         });
-        buffer.size = 0;
+        buffer.size = size;
         return buffer;
     }
 

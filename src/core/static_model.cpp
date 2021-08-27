@@ -12,6 +12,7 @@
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
 
+#include <unordered_set>
 #include <unordered_map>
 #include <filesystem>
 #include <algorithm>
@@ -22,11 +23,7 @@ namespace crd {
     using TextureCache = std::unordered_map<std::string, Async<StaticTexture>*>;
     namespace fs = std::filesystem;
 
-    crd_nodiscard static inline Async<StaticTexture>* import_texture(const Context& context,
-                                                                     const aiMaterial* material,
-                                                                     aiTextureType type,
-                                                                     TextureCache& cache,
-                                                                     const fs::path& path) noexcept {
+    crd_nodiscard static inline Async<StaticTexture>* import_texture(const Context& context, const aiMaterial* material, aiTextureType type, TextureCache& cache, const fs::path& path) noexcept {
         crd_unlikely_if(material->GetTextureCount(type) == 0) {
             return nullptr;
         }
@@ -42,11 +39,7 @@ namespace crd {
         return cached->second = new Async<StaticTexture>(request_static_texture(context, std::move(file_name), format));
     }
 
-    crd_nodiscard static inline TexturedMesh import_textured_mesh(const Context& context,
-                                                                  const aiScene* scene,
-                                                                  const aiMesh* mesh,
-                                                                  TextureCache& cache,
-                                                                  const fs::path& path) noexcept {
+    crd_nodiscard static inline TexturedMesh import_textured_mesh(const Context& context, const aiScene* scene, const aiMesh* mesh, TextureCache& cache, const fs::path& path) noexcept {
         constexpr auto components = 14;
         std::vector<float> geometry;
         geometry.resize(mesh->mNumVertices * components);
@@ -82,7 +75,7 @@ namespace crd {
         }
 
         std::vector<std::uint32_t> indices;
-        indices.reserve(mesh->mNumFaces * 3);
+        indices.reserve(mesh->mNumFaces * mesh->mFaces[0].mNumIndices);
         for (std::size_t i = 0; i < mesh->mNumFaces; i++) {
             auto& face = mesh->mFaces[i];
             for (std::size_t j = 0; j < face.mNumIndices; j++) {
@@ -95,19 +88,14 @@ namespace crd {
         return {
             .mesh = request_static_mesh(context, { std::move(geometry), std::move(indices) }),
             .diffuse = import_texture(context, material, aiTextureType_DIFFUSE, cache, path),
-            .normal = import_texture(context, material, aiTextureType_HEIGHT, cache, path),
+            .normal = import_texture(context, material, aiTextureType_NORMALS, cache, path),
             .specular = import_texture(context, material, aiTextureType_SPECULAR, cache, path),
             .vertices = static_cast<std::uint32_t>(vertex_size),
             .indices = static_cast<std::uint32_t>(index_size)
         };
     }
 
-    static inline void process_node(const Context& context,
-                                    const aiScene* scene,
-                                    const aiNode* node,
-                                    StaticModel& model,
-                                    TextureCache& cache,
-                                    const fs::path& path) noexcept {
+    static inline void process_node(const Context& context, const aiScene* scene, const aiNode* node, StaticModel& model, TextureCache& cache, const fs::path& path) noexcept {
         for (std::size_t i = 0; i < node->mNumMeshes; i++) {
             model.submeshes.emplace_back(import_textured_mesh(context, scene, scene->mMeshes[node->mMeshes[i]], cache, path));
         }
@@ -147,20 +135,17 @@ namespace crd {
     }
 
     crd_module void destroy_static_model(const Context& context, StaticModel& model) noexcept {
-        std::vector<Async<StaticTexture>*> to_destroy;
-        to_destroy.resize(model.submeshes.size() * 3);
-        for (std::size_t i = 0; auto& each : model.submeshes) {
+        std::unordered_set<Async<StaticTexture>*> to_destroy;
+        to_destroy.reserve(model.submeshes.size() * 3);
+        for (auto& each : model.submeshes) {
             destroy_static_mesh(context, *each.mesh);
-            to_destroy[i]     = each.diffuse;
-            to_destroy[i + 1] = each.normal;
-            to_destroy[i + 2] = each.specular;
-            i += 3;
+            to_destroy.emplace(each.diffuse);
+            to_destroy.emplace(each.normal);
+            to_destroy.emplace(each.specular);
         }
-        std::sort(to_destroy.begin(), to_destroy.end());
-        to_destroy.erase(std::unique(to_destroy.begin(), to_destroy.end()), to_destroy.end());
-        if (!to_destroy[0]) {
-            std::swap(to_destroy.back(), to_destroy.front());
-            to_destroy.pop_back();
+        auto empty = to_destroy.find(nullptr);
+        if (empty != to_destroy.end()) {
+            to_destroy.erase(empty);
         }
         for (auto* each : to_destroy) {
             destroy_static_texture(context, **each);

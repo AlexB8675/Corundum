@@ -7,21 +7,20 @@
 #include <utility>
 
 namespace crd {
-    crd_nodiscard static inline bool operator ==(VkExtent2D rhs, VkExtent2D lhs) noexcept {
+    crd_nodiscard static inline bool operator ==(VkExtent2D lhs, VkExtent2D rhs) noexcept {
         return rhs.width  == lhs.width &&
                rhs.height == lhs.height;
     }
 
     crd_nodiscard static inline VkImageLayout deduce_reference_layout(const AttachmentInfo& attachment) noexcept {
         switch (attachment.image.format) {
+            case VK_FORMAT_S8_UINT:
             case VK_FORMAT_D16_UNORM:
             case VK_FORMAT_D32_SFLOAT:
             case VK_FORMAT_D16_UNORM_S8_UINT:
             case VK_FORMAT_D24_UNORM_S8_UINT:
             case VK_FORMAT_D32_SFLOAT_S8_UINT:
                 return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            case VK_FORMAT_S8_UINT:
-                return VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
             default:
                 return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         }

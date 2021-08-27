@@ -27,7 +27,7 @@
 
 struct Camera {
     glm::mat4 perspective;
-    glm::vec3 position = { 1.2f, 0.4f,  0.0f };
+    glm::vec3 position = { 1.2f, 0.4f, -3.0f };
     glm::vec3 front =    { 0.0f, 0.0f, -1.0f };
     glm::vec3 up =       { 0.0f, 1.0f,  0.0f };
     glm::vec3 right =    { 0.0f, 0.0f,  0.0f };
@@ -98,6 +98,18 @@ private:
     }
 };
 
+struct DirectionalLight {
+    glm::vec4 direction;
+    glm::vec4 diffuse;
+    glm::vec4 specular;
+};
+
+struct PointLight {
+    glm::vec4 position;
+    glm::vec4 falloff;
+    glm::vec4 diffuse;
+    glm::vec4 specular;
+};
 
 struct Model {
     struct Submesh {
@@ -113,19 +125,19 @@ struct Scene {
     std::vector<Model> models;
 };
 
-static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, VkDescriptorImageInfo fallback) noexcept {
+static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>*> models, VkDescriptorImageInfo fallback) noexcept {
     Scene scene;
     scene.descriptors = { fallback };
     std::unordered_map<void*, std::uint32_t> texture_cache;
     for (std::uint32_t i = 0; auto& model : models) {
-        crd_likely_if(model.is_ready()) {
-            const auto submeshes_size = model->submeshes.size();
+        crd_likely_if(model->is_ready()) {
+            const auto submeshes_size = (*model)->submeshes.size();
             auto& handle = scene.models.emplace_back();
             scene.descriptors.reserve(scene.descriptors.size() + submeshes_size * 3);
             texture_cache.reserve(texture_cache.size() + submeshes_size * 3);
             handle.submeshes.reserve(submeshes_size);
             handle.index = i;
-            for (std::uint32_t j = 0; auto& submesh : model->submeshes) {
+            for (std::uint32_t j = 0; auto& submesh : (*model)->submeshes) {
                 crd_likely_if(submesh.mesh.is_ready()) {
                     std::array<std::uint32_t, 3> indices = {};
                     const auto emplace_descriptor = [&](crd::Async<crd::StaticTexture>* texture, std::uint32_t which) {
@@ -175,12 +187,7 @@ int main() {
                 .initial = VK_IMAGE_LAYOUT_UNDEFINED,
                 .final   = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
             },
-            .clear   = crd::make_clear_color({
-                24  / 255.0f,
-                154 / 255.0f,
-                207 / 255.0f,
-                1.0f
-            }),
+            .clear   = crd::make_clear_color({}),
             .owning  = true,
             .discard = false
         }, {
@@ -272,14 +279,14 @@ int main() {
             },
             .clear   = crd::make_clear_depth({ 1.0f, 0 }),
             .owning  = true,
-            .discard = true
+            .discard = false
         } },
         .subpasses = { {
             .attachments = { 1, 2, 3, 4, 5 },
             .preserve    = {},
             .input       = {}
         }, {
-            .attachments = { 0 },
+            .attachments = { 0, 5 },
             .preserve    = {},
             .input       = { 1, 2, 3, 4 }
         } },
@@ -302,7 +309,7 @@ int main() {
             { { 0, 1, 2, 3, 4, 5 } }
         }
     });
-    auto deferred_pipeline = crd::make_pipeline(context, renderer, {
+    auto main_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "data/shaders/main.vert.spv",
         .fragment = "data/shaders/main.frag.spv",
         .render_pass = &deferred_pass,
@@ -319,6 +326,25 @@ int main() {
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 0,
+        .depth = true
+    });
+    auto light_pipeline = crd::make_pipeline(context, renderer, {
+        .vertex = "data/shaders/light.vert.spv",
+        .fragment = "data/shaders/light.frag.spv",
+        .render_pass = &deferred_pass,
+        .attributes = {
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec2,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3
+        },
+        .states = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR,
+        },
+        .cull = VK_CULL_MODE_BACK_BIT,
+        .subpass = 1,
         .depth = true
     });
     auto combine_pipeline = crd::make_pipeline(context, renderer, {
@@ -341,22 +367,37 @@ int main() {
             .attachments = { 0, 1, 2, 3, 4, 5 }
         });
     };
+    PointLight light;
+    light.position = glm::vec4(0.7f, 0.2f, 2.0f, 0.0f);
+    light.falloff = glm::vec4(1.0f, 0.045f, 0.0075f, 0.0f);
+    light.diffuse = glm::vec4(0.8f);
+    light.specular = glm::vec4(1.0f);
     auto black = crd::request_static_texture(context, "data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
-    models.emplace_back(crd::request_static_model(context, "data/models/sponza/Sponza.gltf"));
+    models.emplace_back(crd::request_static_model(context, "data/models/cube/cube.obj"));
+    std::vector<crd::Async<crd::StaticModel>*> model_handles;
+    model_handles.emplace_back(&models[0]);
+    std::vector<crd::Async<crd::StaticModel>*> light_sources;
+    light_sources.emplace_back(&models[0]);
     Camera camera;
     std::vector transforms = {
-        glm::scale(glm::mat4(1.0f), glm::vec3(0.02f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.2f)),
+        glm::mat4(1.0f)
     };
     auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::uniform_buffer);
     auto model_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
-    auto main_set = crd::make_descriptor_set(context, deferred_pipeline.layout.descriptor[0]);
+    auto light_uniform_buffer = crd::make_buffer(context, sizeof(glm::vec4), crd::uniform_buffer);
+    auto point_light_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
+    auto directional_light_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
+    auto main_set = crd::make_descriptor_set(context, main_pipeline.layout.descriptor[0]);
+    auto light_set = crd::make_descriptor_set(context, light_pipeline.layout.descriptor[0]);
     auto gbuffer_set = crd::make_descriptor_set<1>(context, combine_pipeline.layout.descriptor[0]);
+    auto light_data_set = crd::make_descriptor_set(context, combine_pipeline.layout.descriptor[1]);
     std::size_t frames = 0;
     double delta_time = 0, last_frame = 0, fps = 0;
     while (!window.is_closed()) {
         const auto [commands, image, index] = renderer.acquire_frame(context, window, swapchain);
-        const auto scene = build_scene(models, black->info());
+        const auto scene = build_scene(model_handles, black->info());
         const auto current_frame = crd::time();
         ++frames;
         delta_time = current_frame - last_frame;
@@ -364,15 +405,31 @@ int main() {
         fps += delta_time;
         if (fps >= 1.6) {
             crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
-            fps = 0;
             frames = 0;
+            fps = 0;
         }
+        light.position = glm::vec4(
+            3   * std::cos(crd::time()),
+            1.5 * std::cos(crd::time()),
+            3   * std::sin(crd::time()),
+            0);
+        transforms[0] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.2f));
         model_buffer[index].resize(context, crd::size_bytes(transforms));
         model_buffer[index].write(transforms.data(), 0);
         camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
-        main_set[index].bind(context, deferred_pipeline.bindings["Uniforms"], camera_buffer[index].info());
-        main_set[index].bind(context, deferred_pipeline.bindings["Models"], model_buffer[index].info());
-        main_set[index].bind(context, deferred_pipeline.bindings["textures"], scene.descriptors);
+        point_light_buffer[index].write(&light, 0, sizeof light);
+        light_uniform_buffer[index].write(&camera.position, 0, sizeof camera.position);
+        main_set[index]
+            .bind(context, main_pipeline.bindings["Uniforms"], camera_buffer[index].info())
+            .bind(context, main_pipeline.bindings["Models"], model_buffer[index].info())
+            .bind(context, main_pipeline.bindings["textures"], scene.descriptors);
+        light_set[index]
+            .bind(context, main_pipeline.bindings["Uniforms"], camera_buffer[index].info())
+            .bind(context, main_pipeline.bindings["Models"], model_buffer[index].info());
+        light_data_set[index]
+            .bind(context, combine_pipeline.bindings["Uniforms"], light_uniform_buffer[index].info())
+            // .bind(context, combine_pipeline.bindings["DirectionalLights"], directional_light_buffer[index].info())
+            .bind(context, combine_pipeline.bindings["PointLights"], point_light_buffer[index].info());
         gbuffer_set
             .bind(context, combine_pipeline.bindings["i_position"], deferred_pass.image(1).sample(context.default_sampler))
             .bind(context, combine_pipeline.bindings["i_normal"], deferred_pass.image(2).sample(context.default_sampler))
@@ -383,14 +440,14 @@ int main() {
             .begin_render_pass(deferred_pass, 0)
             .set_viewport()
             .set_scissor()
-            .bind_pipeline(deferred_pipeline)
+            .bind_pipeline(main_pipeline)
             .bind_descriptor_set(0, main_set[index]);
         for (const auto& model : scene.models) {
-            auto& raw_model = *models[model.index];
+            auto& raw_model = **model_handles[model.index];
             for (const auto& submesh : model.submeshes) {
                 auto& raw_submesh = raw_model.submeshes[submesh.index];
                 const std::uint32_t indices[] = {
-                    model.index,
+                    model.index + (std::uint32_t)light_sources.size(),
                     submesh.textures[0],
                     submesh.textures[1],
                     submesh.textures[2]
@@ -405,7 +462,21 @@ int main() {
             .next_subpass()
             .bind_pipeline(combine_pipeline)
             .bind_descriptor_set(0, gbuffer_set)
-            .draw(3, 1, 0, 0)
+            .bind_descriptor_set(1, light_data_set[index])
+            .draw(3, 1, 0, 0);
+        commands
+            .bind_pipeline(light_pipeline)
+            .bind_descriptor_set(0, light_set[index]);
+        for (std::uint32_t i = 0; const auto& each : light_sources) {
+            for (auto& submesh : (*each)->submeshes) {
+                commands
+                    .push_constants(VK_SHADER_STAGE_VERTEX_BIT, &i, sizeof i)
+                    .bind_static_mesh(*submesh.mesh)
+                    .draw_indexed(submesh.indices, 1, 0, 0, 0);
+            }
+            ++i;
+        }
+        commands
             .end_render_pass()
             .transition_layout({
                 .image = &image,
@@ -437,7 +508,12 @@ int main() {
     }
     context.graphics->wait_idle();
     crd::destroy_descriptor_set(context, gbuffer_set);
+    crd::destroy_descriptor_set(context, light_data_set);
+    crd::destroy_descriptor_set(context, light_set);
     crd::destroy_descriptor_set(context, main_set);
+    crd::destroy_buffer(context, light_uniform_buffer);
+    crd::destroy_buffer(context, directional_light_buffer);
+    crd::destroy_buffer(context, point_light_buffer);
     crd::destroy_buffer(context, model_buffer);
     crd::destroy_buffer(context, camera_buffer);
     for (auto& each : models) {
@@ -445,7 +521,8 @@ int main() {
     }
     crd::destroy_static_texture(context, *black);
     crd::destroy_pipeline(context, combine_pipeline);
-    crd::destroy_pipeline(context, deferred_pipeline);
+    crd::destroy_pipeline(context, light_pipeline);
+    crd::destroy_pipeline(context, main_pipeline);
     crd::destroy_render_pass(context, deferred_pass);
     crd::destroy_swapchain(context, swapchain);
     crd::destroy_renderer(context, renderer);
