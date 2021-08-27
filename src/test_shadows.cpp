@@ -21,6 +21,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
 
+#include <random>
 #include <vector>
 #include <array>
 #include <span>
@@ -164,6 +165,12 @@ static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>*> models,
         i++;
     }
     return scene;
+}
+
+static inline float random(float min, float max) {
+    static std::random_device device;
+    static std::mt19937 engine(device());
+    return std::uniform_real_distribution<float>(min, max)(engine);
 }
 
 int main() {
@@ -367,27 +374,45 @@ int main() {
             .attachments = { 0, 1, 2, 3, 4, 5 }
         });
     };
-    PointLight light;
-    light.position = glm::vec4(0.7f, 0.2f, 2.0f, 0.0f);
-    light.falloff = glm::vec4(1.0f, 0.045f, 0.0075f, 0.0f);
-    light.diffuse = glm::vec4(0.8f);
-    light.specular = glm::vec4(1.0f);
+    const auto nlights = 256;
+    std::vector<PointLight> lights = {};
+    lights.reserve(nlights);
+    for (int i = 0; i < nlights; ++i) {
+        lights.push_back({
+            .position = glm::vec4(random(-15, 15), random(-0.5f, 0.25f), random(-15, 15), 0.0f),
+            .falloff = glm::vec4(1.0f, 0.7f, 1.8f, 0.0f),
+            .diffuse = glm::vec4(random(0.5f, 1), random(0.5f, 1), random(0.5f, 1), 0.0f),
+            .specular = glm::vec4(1.0f)
+        });
+    }
+    std::vector<glm::vec4> light_colors;
+    light_colors.reserve(lights.size());
+    for (const auto& light : lights) {
+        light_colors.emplace_back(light.diffuse);
+    }
     auto black = crd::request_static_texture(context, "data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
     models.emplace_back(crd::request_static_model(context, "data/models/cube/cube.obj"));
+    models.emplace_back(crd::request_static_model(context, "data/models/plane/plane.obj"));
     std::vector<crd::Async<crd::StaticModel>*> model_handles;
     model_handles.emplace_back(&models[0]);
+    model_handles.emplace_back(&models[1]);
     std::vector<crd::Async<crd::StaticModel>*> light_sources;
-    light_sources.emplace_back(&models[0]);
+    light_sources.reserve(nlights);
     Camera camera;
-    std::vector transforms = {
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.2f)),
-        glm::mat4(1.0f)
-    };
+    std::vector<glm::mat4> transforms;
+    transforms.reserve(nlights + 6);
+    for (const auto& light : lights) {
+        light_sources.emplace_back(&models[0]);
+        transforms.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
+    }
+    transforms.emplace_back(glm::mat4(1.0f));
+    transforms.emplace_back(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.5f, 0.0f)));
     auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::uniform_buffer);
-    auto model_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
+    auto model_buffer = crd::make_buffer(context, crd::size_bytes(transforms), crd::storage_buffer);
+    auto light_color_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
     auto light_uniform_buffer = crd::make_buffer(context, sizeof(glm::vec4), crd::uniform_buffer);
-    auto point_light_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
+    auto point_light_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
     auto directional_light_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
     auto main_set = crd::make_descriptor_set(context, main_pipeline.layout.descriptor[0]);
     auto light_set = crd::make_descriptor_set(context, light_pipeline.layout.descriptor[0]);
@@ -408,24 +433,21 @@ int main() {
             frames = 0;
             fps = 0;
         }
-        light.position = glm::vec4(
-            3   * std::cos(crd::time()),
-            1.5 * std::cos(crd::time()),
-            3   * std::sin(crd::time()),
-            0);
-        transforms[0] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.2f));
         model_buffer[index].resize(context, crd::size_bytes(transforms));
+        point_light_buffer[index].resize(context, crd::size_bytes(lights));
         model_buffer[index].write(transforms.data(), 0);
         camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
-        point_light_buffer[index].write(&light, 0, sizeof light);
+        point_light_buffer[index].write(lights.data(), 0, crd::size_bytes(lights));
+        light_color_buffer[index].write(light_colors.data(), 0, crd::size_bytes(light_colors));
         light_uniform_buffer[index].write(&camera.position, 0, sizeof camera.position);
         main_set[index]
             .bind(context, main_pipeline.bindings["Uniforms"], camera_buffer[index].info())
             .bind(context, main_pipeline.bindings["Models"], model_buffer[index].info())
             .bind(context, main_pipeline.bindings["textures"], scene.descriptors);
         light_set[index]
-            .bind(context, main_pipeline.bindings["Uniforms"], camera_buffer[index].info())
-            .bind(context, main_pipeline.bindings["Models"], model_buffer[index].info());
+            .bind(context, light_pipeline.bindings["Uniforms"], camera_buffer[index].info())
+            .bind(context, light_pipeline.bindings["Models"], model_buffer[index].info())
+            .bind(context, light_pipeline.bindings["Colors"], light_color_buffer[index].info());
         light_data_set[index]
             .bind(context, combine_pipeline.bindings["Uniforms"], light_uniform_buffer[index].info())
             // .bind(context, combine_pipeline.bindings["DirectionalLights"], directional_light_buffer[index].info())
@@ -470,7 +492,7 @@ int main() {
         for (std::uint32_t i = 0; const auto& each : light_sources) {
             for (auto& submesh : (*each)->submeshes) {
                 commands
-                    .push_constants(VK_SHADER_STAGE_VERTEX_BIT, &i, sizeof i)
+                    .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &i, sizeof i)
                     .bind_static_mesh(*submesh.mesh)
                     .draw_indexed(submesh.indices, 1, 0, 0, 0);
             }
@@ -512,6 +534,7 @@ int main() {
     crd::destroy_descriptor_set(context, light_set);
     crd::destroy_descriptor_set(context, main_set);
     crd::destroy_buffer(context, light_uniform_buffer);
+    crd::destroy_buffer(context, light_color_buffer);
     crd::destroy_buffer(context, directional_light_buffer);
     crd::destroy_buffer(context, point_light_buffer);
     crd::destroy_buffer(context, model_buffer);
