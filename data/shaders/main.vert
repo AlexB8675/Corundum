@@ -7,6 +7,7 @@ layout (location = 3) in vec3 i_tangent;
 layout (location = 4) in vec3 i_bitangent;
 
 layout (location = 0) out VertexData {
+    mat3 TBN;
     vec3 frag_pos;
     vec3 normal;
     vec2 uvs;
@@ -28,8 +29,13 @@ layout (push_constant) uniform Constants {
 };
 
 void main() {
+    vec3 T = normalize(vec3(model[model_index] * vec4(i_tangent, 0.0)));
+    vec3 N = normalize(vec3(model[model_index] * vec4(i_normal, 0.0)));
+    T = normalize(T - dot(T, N) * N);
+    vec3 B = cross(N, T);
+    TBN = mat3(T, B, N);
     frag_pos = vec3(model[model_index] * vec4(i_vertex, 1.0));
-    normal = mat3(transpose(inverse(model[model_index]))) * i_normal;
+    normal = i_normal;
     uvs = i_uvs;
     gl_Position = proj_view * vec4(frag_pos, 1.0);
 }

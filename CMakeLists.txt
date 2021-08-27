@@ -27,6 +27,7 @@ set(ASSIMP_BUILD_GLTF_IMPORTER ON CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_3DS_IMPORTER ON CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(ext/assimp)
+
 if(MSVC)
     target_compile_options(assimp PUBLIC /w)
 endif()
@@ -122,7 +123,7 @@ file(GLOB CORUNDUM_DATA data)
 file(COPY ${CORUNDUM_DATA} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(test-sponza src/test_sponza.cpp)
-add_executable(test-shadows src/test_shadows.cpp)
+add_executable(test-lights src/test_lights.cpp)
 
 target_link_libraries(test-sponza PRIVATE corundum)
-target_link_libraries(test-shadows PRIVATE corundum)
+target_link_libraries(test-lights PRIVATE corundum)

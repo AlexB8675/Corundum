@@ -49,8 +49,8 @@ namespace crd {
         int new_width, new_height;
         glfwGetFramebufferSize(handle, &new_width, &new_height);
         while (new_width == 0 || new_height == 0) {
-            glfwGetFramebufferSize(handle, &new_width, &new_height);
             glfwWaitEvents();
+            glfwGetFramebufferSize(handle, &new_width, &new_height);
         }
         return {
             width  = new_width,

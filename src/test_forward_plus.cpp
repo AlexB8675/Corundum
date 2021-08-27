@@ -379,9 +379,9 @@ int main() {
     lights.reserve(nlights);
     for (int i = 0; i < nlights; ++i) {
         lights.push_back({
-            .position = glm::vec4(random(-15, 15), random(-0.5f, 0.25f), random(-15, 15), 0.0f),
-            .falloff = glm::vec4(1.0f, 0.7f, 1.8f, 0.0f),
-            .diffuse = glm::vec4(random(0.5f, 1), random(0.5f, 1), random(0.5f, 1), 0.0f),
+            .position = glm::vec4(random(-24, 24), -0.4f, random(-24, 24), 0.0f),
+            .falloff = glm::vec4(1.0f, 0.34f, 0.44f, 0.0f),
+            .diffuse = glm::vec4(random(0, 1), random(0, 1), random(0, 1), 0.0f),
             .specular = glm::vec4(1.0f)
         });
     }
@@ -397,13 +397,10 @@ int main() {
     std::vector<crd::Async<crd::StaticModel>*> model_handles;
     model_handles.emplace_back(&models[0]);
     model_handles.emplace_back(&models[1]);
-    std::vector<crd::Async<crd::StaticModel>*> light_sources;
-    light_sources.reserve(nlights);
     Camera camera;
     std::vector<glm::mat4> transforms;
-    transforms.reserve(nlights + 6);
+    transforms.reserve(nlights + 2);
     for (const auto& light : lights) {
-        light_sources.emplace_back(&models[0]);
         transforms.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
     }
     transforms.emplace_back(glm::mat4(1.0f));
@@ -435,6 +432,7 @@ int main() {
         }
         model_buffer[index].resize(context, crd::size_bytes(transforms));
         point_light_buffer[index].resize(context, crd::size_bytes(lights));
+        light_color_buffer[index].resize(context, crd::size_bytes(light_colors));
         model_buffer[index].write(transforms.data(), 0);
         camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
         point_light_buffer[index].write(lights.data(), 0, crd::size_bytes(lights));
@@ -469,7 +467,7 @@ int main() {
             for (const auto& submesh : model.submeshes) {
                 auto& raw_submesh = raw_model.submeshes[submesh.index];
                 const std::uint32_t indices[] = {
-                    model.index + (std::uint32_t)light_sources.size(),
+                    model.index + nlights,
                     submesh.textures[0],
                     submesh.textures[1],
                     submesh.textures[2]
@@ -480,24 +478,17 @@ int main() {
                     .draw_indexed(raw_submesh.indices, 1, 0, 0, 0);
             }
         }
+        auto& light_cube = models[0]->submeshes[0];
         commands
             .next_subpass()
             .bind_pipeline(combine_pipeline)
             .bind_descriptor_set(0, gbuffer_set)
             .bind_descriptor_set(1, light_data_set[index])
-            .draw(3, 1, 0, 0);
-        commands
+            .draw(3, 1, 0, 0)
             .bind_pipeline(light_pipeline)
-            .bind_descriptor_set(0, light_set[index]);
-        for (std::uint32_t i = 0; const auto& each : light_sources) {
-            for (auto& submesh : (*each)->submeshes) {
-                commands
-                    .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &i, sizeof i)
-                    .bind_static_mesh(*submesh.mesh)
-                    .draw_indexed(submesh.indices, 1, 0, 0, 0);
-            }
-            ++i;
-        }
+            .bind_descriptor_set(0, light_set[index])
+            .bind_static_mesh(*light_cube.mesh)
+            .draw_indexed(light_cube.indices, nlights, 0, 0, 0);
         commands
             .end_render_pass()
             .transition_layout({

@@ -24,6 +24,9 @@ namespace crd {
     namespace fs = std::filesystem;
 
     crd_nodiscard static inline Async<StaticTexture>* import_texture(const Context& context, const aiMaterial* material, aiTextureType type, TextureCache& cache, const fs::path& path) noexcept {
+        crd_unlikely_if(type == aiTextureType_HEIGHT && material->GetTextureCount(type) == 0) {
+            type = aiTextureType_NORMALS;
+        }
         crd_unlikely_if(material->GetTextureCount(type) == 0) {
             return nullptr;
         }
@@ -88,7 +91,7 @@ namespace crd {
         return {
             .mesh = request_static_mesh(context, { std::move(geometry), std::move(indices) }),
             .diffuse = import_texture(context, material, aiTextureType_DIFFUSE, cache, path),
-            .normal = import_texture(context, material, aiTextureType_NORMALS, cache, path),
+            .normal = import_texture(context, material, aiTextureType_HEIGHT, cache, path),
             .specular = import_texture(context, material, aiTextureType_SPECULAR, cache, path),
             .vertices = static_cast<std::uint32_t>(vertex_size),
             .indices = static_cast<std::uint32_t>(index_size)

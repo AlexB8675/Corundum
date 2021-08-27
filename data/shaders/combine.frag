@@ -33,35 +33,36 @@ layout (std430, set = 1, binding = 2) buffer readonly PointLights {
     PointLight[] point_lights;
 };
 
-vec3 calculate_point_light(PointLight, vec3, vec3, vec3);
+vec3 calculate_point_light(PointLight, vec3, vec3, vec3, vec3);
 
 void main() {
     const vec3 frag_pos = subpassLoad(i_position).rgb;
     const vec3 normal = subpassLoad(i_normal).rgb;
     const vec3 view_dir = normalize(view_pos - frag_pos);
+    const vec3 albedo = subpassLoad(i_albedo).rgb;
 
     vec3 color = subpassLoad(i_albedo).rgb * ambient_factor;
     for (uint i = 0; i < point_lights.length(); ++i) {
-        color += calculate_point_light(point_lights[i], normal, frag_pos, view_dir);
+        color += calculate_point_light(point_lights[i], albedo, normal, frag_pos, view_dir);
     }
     pixel = vec4(color, 1.0);
 }
 
-vec3 calculate_point_light(PointLight light, vec3 normal, vec3 frag_pos, vec3 view_dir) {
-    const vec3 light_dir = normalize(light.position - frag_pos);
-    // diffuse shading.
-    const float diffuse_component = max(dot(normal, light_dir), 0.0);
-    // specular shading.
-    const float specular_component = pow(max(dot(view_dir, reflect(-light_dir, normal)), 0.0), 32);
-    // attenuation.
-    const float distance = length(light.position - frag_pos);
-    const float attenuation = 1.0 / (light.falloff.x + light.falloff.y * distance + light.falloff.z * (distance * distance));
-    // combine.
-    vec3 color = ambient_factor * subpassLoad(i_albedo).rgb;
-    vec3 diffuse = light.diffuse * diffuse_component * subpassLoad(i_albedo).rgb;
-    vec3 specular = light.specular * specular_component * vec3(subpassLoad(i_specular).r);
-    color *= attenuation;
-    diffuse *= attenuation;
-    specular *= attenuation;
-    return color + diffuse + specular;
+vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 frag_pos, vec3 view_dir) {
+    vec3 light_dir = normalize(vec3(light.position) - frag_pos);
+    // Diffuse.
+    float diffuse_comp = max(dot(normal, light_dir), 0.0);
+    // Specular.
+    vec3 halfway_dir = normalize(light_dir + view_dir);
+    float specular_comp = pow(max(dot(normal, halfway_dir), 0.0), 32);
+
+    // Attenuation
+    float distance = length(vec3(light.position) - frag_pos);
+    float attenuation = 1.0 / (light.falloff.x + (light.falloff.y * distance) + (light.falloff.z * (distance * distance)));
+
+    // Combine
+    vec3 result_diffuse = vec3(light.diffuse) * diffuse_comp * color;
+    vec3 result_specular = vec3(light.specular) * specular_comp * (subpassLoad(i_specular).rgb * color);
+
+    return (result_diffuse + result_specular) * attenuation;
 }

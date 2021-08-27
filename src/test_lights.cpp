@@ -28,7 +28,7 @@
 
 struct Camera {
     glm::mat4 perspective;
-    glm::vec3 position = { 1.2f, 0.4f,  0.0f };
+    glm::vec3 position = { 1.2f, 0.4f, -3.0f };
     glm::vec3 front =    { 0.0f, 0.0f, -1.0f };
     glm::vec3 up =       { 0.0f, 1.0f,  0.0f };
     glm::vec3 right =    { 0.0f, 0.0f,  0.0f };
@@ -99,6 +99,18 @@ private:
     }
 };
 
+struct DirectionalLight {
+    glm::vec4 direction;
+    glm::vec4 diffuse;
+    glm::vec4 specular;
+};
+
+struct PointLight {
+    glm::vec4 position;
+    glm::vec4 falloff;
+    glm::vec4 diffuse;
+    glm::vec4 specular;
+};
 
 struct Model {
     struct Submesh {
@@ -114,38 +126,19 @@ struct Scene {
     std::vector<Model> models;
 };
 
-struct DirectionalLight {
-    glm::vec4 direction;
-    glm::vec4 diffuse;
-    glm::vec4 specular;
-};
-
-struct PointLight {
-    glm::vec4 position;
-    glm::vec4 falloff;
-    glm::vec4 diffuse;
-    glm::vec4 specular;
-};
-
-static inline float random(float min, float max) {
-    static std::random_device device;
-    static std::mt19937 engine(device());
-    return std::uniform_real_distribution<float>(min, max)(engine);
-}
-
-static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, VkDescriptorImageInfo fallback) noexcept {
+static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>*> models, VkDescriptorImageInfo fallback) noexcept {
     Scene scene;
     scene.descriptors = { fallback };
     std::unordered_map<void*, std::uint32_t> texture_cache;
     for (std::uint32_t i = 0; auto& model : models) {
-        crd_likely_if(model.is_ready()) {
-            const auto submeshes_size = model->submeshes.size();
+        crd_likely_if(model->is_ready()) {
+            const auto submeshes_size = (*model)->submeshes.size();
             auto& handle = scene.models.emplace_back();
             scene.descriptors.reserve(scene.descriptors.size() + submeshes_size * 3);
             texture_cache.reserve(texture_cache.size() + submeshes_size * 3);
             handle.submeshes.reserve(submeshes_size);
             handle.index = i;
-            for (std::uint32_t j = 0; auto& submesh : model->submeshes) {
+            for (std::uint32_t j = 0; auto& submesh : (*model)->submeshes) {
                 crd_likely_if(submesh.mesh.is_ready()) {
                     std::array<std::uint32_t, 3> indices = {};
                     const auto emplace_descriptor = [&](crd::Async<crd::StaticTexture>* texture, std::uint32_t which) {
@@ -174,6 +167,12 @@ static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, 
     return scene;
 }
 
+static inline float random(float min, float max) {
+    static std::random_device device;
+    static std::mt19937 engine(device());
+    return std::uniform_real_distribution<float>(min, max)(engine);
+}
+
 int main() {
     auto window = crd::make_window(1280, 720, "Sorting Algos");
     auto context = crd::make_context();
@@ -195,12 +194,7 @@ int main() {
                 .initial = VK_IMAGE_LAYOUT_UNDEFINED,
                 .final   = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
             },
-            .clear   = crd::make_clear_color({
-                24  / 255.0f,
-                154 / 255.0f,
-                207 / 255.0f,
-                1.0f
-            }),
+            .clear   = crd::make_clear_color({}),
             .owning  = true,
             .discard = false
         }, {
@@ -292,7 +286,7 @@ int main() {
             },
             .clear   = crd::make_clear_depth({ 1.0f, 0 }),
             .owning  = true,
-            .discard = true
+            .discard = false
         } },
         .subpasses = { {
             .attachments = { 1, 2, 3, 4, 5 },
@@ -332,14 +326,14 @@ int main() {
             crd::vertex_attribute_vec2,
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
-            },
-            .states = {
+        },
+        .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
-            },
-            .cull = VK_CULL_MODE_BACK_BIT,
-            .subpass = 0,
-            .depth = true
+        },
+        .cull = VK_CULL_MODE_BACK_BIT,
+        .subpass = 0,
+        .depth = true
     });
     auto light_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "data/shaders/light.vert.spv",
@@ -351,14 +345,14 @@ int main() {
             crd::vertex_attribute_vec2,
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
-            },
-            .states = {
+        },
+        .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
-            },
-            .cull = VK_CULL_MODE_BACK_BIT,
-            .subpass = 1,
-            .depth = true
+        },
+        .cull = VK_CULL_MODE_BACK_BIT,
+        .subpass = 1,
+        .depth = true
     });
     auto combine_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "data/shaders/combine.vert.spv",
@@ -368,10 +362,10 @@ int main() {
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
-            },
-            .cull = VK_CULL_MODE_NONE,
-            .subpass = 1,
-            .depth = false
+        },
+        .cull = VK_CULL_MODE_NONE,
+        .subpass = 1,
+        .depth = false
     });
     window.on_resize = [&]() {
         deferred_pass.resize(context, {
@@ -385,7 +379,7 @@ int main() {
     lights.reserve(nlights);
     for (int i = 0; i < nlights; ++i) {
         lights.push_back({
-            .position = glm::vec4(random(-24, 24), random(1, 4), random(-10, 10), 0.0f),
+            .position = glm::vec4(random(-24, 24), -0.2f, random(-24, 24), 0.0f),
             .falloff = glm::vec4(1.0f, 0.22f, 0.20f, 0.0f),
             .diffuse = glm::vec4(random(0, 1), random(0, 1), random(0, 1), 0.0f),
             .specular = glm::vec4(1.0f)
@@ -399,7 +393,10 @@ int main() {
     auto black = crd::request_static_texture(context, "data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
     models.emplace_back(crd::request_static_model(context, "data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, "data/models/sponza/Sponza.gltf"));
+    models.emplace_back(crd::request_static_model(context, "data/models/plane/plane.obj"));
+    std::vector<crd::Async<crd::StaticModel>*> model_handles;
+    model_handles.emplace_back(&models[0]);
+    model_handles.emplace_back(&models[1]);
     Camera camera;
     std::vector<glm::mat4> transforms;
     transforms.reserve(nlights + 2);
@@ -407,7 +404,7 @@ int main() {
         transforms.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
     }
     transforms.emplace_back(glm::mat4(1.0f));
-    transforms.emplace_back(glm::scale(glm::mat4(1.0f), glm::vec3(0.02f)));
+    transforms.emplace_back(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.5f, 0.0f)));
     auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::uniform_buffer);
     auto model_buffer = crd::make_buffer(context, crd::size_bytes(transforms), crd::storage_buffer);
     auto light_color_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
@@ -422,7 +419,7 @@ int main() {
     double delta_time = 0, last_frame = 0, fps = 0;
     while (!window.is_closed()) {
         const auto [commands, image, index] = renderer.acquire_frame(context, window, swapchain);
-        const auto scene = build_scene(models, black->info());
+        const auto scene = build_scene(model_handles, black->info());
         const auto current_frame = crd::time();
         ++frames;
         delta_time = current_frame - last_frame;
@@ -430,8 +427,8 @@ int main() {
         fps += delta_time;
         if (fps >= 1.6) {
             crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
-            fps = 0;
             frames = 0;
+            fps = 0;
         }
         model_buffer[index].resize(context, crd::size_bytes(transforms));
         point_light_buffer[index].resize(context, crd::size_bytes(lights));
@@ -466,7 +463,7 @@ int main() {
             .bind_pipeline(main_pipeline)
             .bind_descriptor_set(0, main_set[index]);
         for (const auto& model : scene.models) {
-            auto& raw_model = *models[model.index];
+            auto& raw_model = **model_handles[model.index];
             for (const auto& submesh : model.submeshes) {
                 auto& raw_submesh = raw_model.submeshes[submesh.index];
                 const std::uint32_t indices[] = {
