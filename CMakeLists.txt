@@ -124,6 +124,8 @@ file(COPY ${CORUNDUM_DATA} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(test-sponza src/test_sponza.cpp)
 add_executable(test-lights src/test_lights.cpp)
+add_executable(test-forward-plus src/test_forward_plus.cpp)
 
 target_link_libraries(test-sponza PRIVATE corundum)
 target_link_libraries(test-lights PRIVATE corundum)
+target_link_libraries(test-forward-plus PRIVATE corundum)

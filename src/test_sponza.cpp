@@ -28,7 +28,7 @@
 
 struct Camera {
     glm::mat4 perspective;
-    glm::vec3 position = { 1.2f, 0.4f,  0.0f };
+    glm::vec3 position = { 3.5f, 3.5f,  0.0f };
     glm::vec3 front =    { 0.0f, 0.0f, -1.0f };
     glm::vec3 up =       { 0.0f, 1.0f,  0.0f };
     glm::vec3 right =    { 0.0f, 0.0f,  0.0f };
@@ -380,13 +380,13 @@ int main() {
             .attachments = { 0, 1, 2, 3, 4, 5 }
         });
     };
-    const auto nlights = 64;
+    const auto nlights = 128;
     std::vector<PointLight> lights = {};
     lights.reserve(nlights);
     for (int i = 0; i < nlights; ++i) {
         lights.push_back({
-            .position = glm::vec4(random(-24, 24), random(1, 4), random(-10, 10), 0.0f),
-            .falloff = glm::vec4(1.0f, 0.22f, 0.20f, 0.0f),
+            .position = glm::vec4(random(-24, 24), random(0, 4), random(-16, 16), 0.0f),
+            .falloff = glm::vec4(1.0f, 0.18f, 0.16f, 0.0f),
             .diffuse = glm::vec4(random(0, 1), random(0, 1), random(0, 1), 0.0f),
             .specular = glm::vec4(1.0f)
         });
@@ -399,14 +399,14 @@ int main() {
     auto black = crd::request_static_texture(context, "data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
     models.emplace_back(crd::request_static_model(context, "data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, "data/models/sponza/Sponza.gltf"));
+    models.emplace_back(crd::request_static_model(context, "data/models/sponza/sponza.obj"));
     Camera camera;
     std::vector<glm::mat4> transforms;
     transforms.reserve(nlights + 2);
     for (const auto& light : lights) {
         transforms.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
     }
-    transforms.emplace_back(glm::mat4(1.0f));
+    transforms.emplace_back(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
     transforms.emplace_back(glm::scale(glm::mat4(1.0f), glm::vec3(0.02f)));
     auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::uniform_buffer);
     auto model_buffer = crd::make_buffer(context, crd::size_bytes(transforms), crd::storage_buffer);

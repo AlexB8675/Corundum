@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <numeric>
 #include <cstring>
+#include <map>
 
 namespace crd {
     crd_nodiscard static inline std::vector<std::uint32_t> import_spirv(const char* path) noexcept {
@@ -46,7 +47,7 @@ namespace crd {
         push_constant_range.size = 0;
         std::vector<std::uint32_t> vertex_input_locations;
         DescriptorLayoutBindings descriptor_layout_bindings;
-        std::unordered_map<std::size_t, std::vector<DescriptorBinding>> pipeline_descriptor_layout;
+        std::map<std::size_t, std::vector<DescriptorBinding>> pipeline_descriptor_layout;
         { // Vertex shader.
             const auto binary    = import_spirv(info.vertex);
             const auto compiler  = spirv_cross::CompilerGLSL(binary.data(), binary.size());
@@ -60,7 +61,6 @@ namespace crd {
             module_create_info.pCode = binary.data();
             crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &pipeline_stages[0].module));
 
-            pipeline_descriptor_layout.reserve(resources.uniform_buffers.size());
             for (const auto& uniform_buffer : resources.uniform_buffers) {
                 const auto set     = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);

@@ -1,5 +1,5 @@
 #version 460
-#define ambient_factor 0.15
+#define ambient_factor 0.05
 
 layout (location = 0) out vec4 pixel;
 
@@ -41,7 +41,7 @@ void main() {
     const vec3 view_dir = normalize(view_pos - frag_pos);
     const vec3 albedo = subpassLoad(i_albedo).rgb;
 
-    vec3 color = subpassLoad(i_albedo).rgb * ambient_factor;
+    vec3 color = albedo * ambient_factor;
     for (uint i = 0; i < point_lights.length(); ++i) {
         color += calculate_point_light(point_lights[i], albedo, normal, frag_pos, view_dir);
     }
@@ -49,20 +49,20 @@ void main() {
 }
 
 vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 frag_pos, vec3 view_dir) {
-    vec3 light_dir = normalize(vec3(light.position) - frag_pos);
+    const vec3 light_dir = normalize(vec3(light.position) - frag_pos);
     // Diffuse.
-    float diffuse_comp = max(dot(normal, light_dir), 0.0);
+    const float diffuse_comp = max(dot(light_dir, normal), 0.0);
     // Specular.
-    vec3 halfway_dir = normalize(light_dir + view_dir);
-    float specular_comp = pow(max(dot(normal, halfway_dir), 0.0), 32);
+    const vec3 halfway_dir = normalize(light_dir + view_dir);
+    const float specular_comp = pow(max(dot(halfway_dir, normal), 0.0), 32);
 
     // Attenuation
-    float distance = length(vec3(light.position) - frag_pos);
-    float attenuation = 1.0 / (light.falloff.x + (light.falloff.y * distance) + (light.falloff.z * (distance * distance)));
+    const float distance = length(vec3(light.position) - frag_pos);
+    const float attenuation = 1.0 / (light.falloff.x + (light.falloff.y * distance) + (light.falloff.z * (distance * distance)));
 
     // Combine
-    vec3 result_diffuse = vec3(light.diffuse) * diffuse_comp * color;
-    vec3 result_specular = vec3(light.specular) * specular_comp * (subpassLoad(i_specular).rgb * color);
+    const vec3 result_diffuse = vec3(light.diffuse) * diffuse_comp * color;
+    const vec3 result_specular = vec3(light.specular) * specular_comp * (subpassLoad(i_specular).rgb * color);
 
     return (result_diffuse + result_specular) * attenuation;
 }

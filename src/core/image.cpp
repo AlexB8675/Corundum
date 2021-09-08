@@ -3,8 +3,6 @@
 
 #include <corundum/detail/logger.hpp>
 
-#include <vulkan/vulkan.hpp>
-
 namespace crd {
     crd_nodiscard crd_module Image make_image(const Context& context, Image::CreateInfo&& info) noexcept {
         Image image;
@@ -53,8 +51,8 @@ namespace crd {
         VkMemoryRequirements memory_requirements;
         vkGetImageMemoryRequirements(context.device, image.handle, &memory_requirements);
         detail::log("Vulkan", detail::severity_info, detail::type_general,
-                  "image allocated successfully: size: %llu bytes, alignment: %llu bytes",
-                  memory_requirements.size, memory_requirements.alignment);
+                    "image allocated successfully: size: %llu bytes, alignment: %llu bytes",
+                    memory_requirements.size, memory_requirements.alignment);
         VkImageViewCreateInfo image_view_info;
         image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         image_view_info.pNext = nullptr;

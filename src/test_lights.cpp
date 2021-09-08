@@ -374,13 +374,13 @@ int main() {
             .attachments = { 0, 1, 2, 3, 4, 5 }
         });
     };
-    const auto nlights = 64;
+    const auto nlights = 128;
     std::vector<PointLight> lights = {};
     lights.reserve(nlights);
     for (int i = 0; i < nlights; ++i) {
         lights.push_back({
             .position = glm::vec4(random(-24, 24), -0.2f, random(-24, 24), 0.0f),
-            .falloff = glm::vec4(1.0f, 0.22f, 0.20f, 0.0f),
+            .falloff = glm::vec4(1.0f, 0.20f, 0.18f, 0.0f),
             .diffuse = glm::vec4(random(0, 1), random(0, 1), random(0, 1), 0.0f),
             .specular = glm::vec4(1.0f)
         });
