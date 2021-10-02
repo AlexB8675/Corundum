@@ -10,9 +10,10 @@
 
 namespace crd::detail {
     enum Severity {
-        severity_info    = 1 << 0,
-        severity_warning = 1 << 1,
-        severity_error   = 1 << 2,
+        severity_verbose = 1 << 0,
+        severity_info    = 1 << 1,
+        severity_warning = 1 << 2,
+        severity_error   = 1 << 3,
     };
 
     enum Type {
@@ -40,6 +41,7 @@ namespace crd::detail {
 #if defined(crd_debug_logging)
         const char* severity_string;
         switch (severity) {
+            case severity_verbose: severity_string = "Verbose"; break;
             case severity_info:    severity_string = "Info";    break;
             case severity_warning: severity_string = "Warning"; break;
             case severity_error:   severity_string = "Error";   break;
@@ -50,7 +52,9 @@ namespace crd::detail {
             case type_validation:  type_string = "Validation";  break;
             case type_performance: type_string = "Performance"; break;
         }
-        log(sender, severity_string, type_string, message, std::forward<Args>(args)...);
+        if (severity >= crd_log_level) {
+            log(sender, severity_string, type_string, message, std::forward<Args>(args)...);
+        }
 #endif
     }
 } // namespace crd::detail

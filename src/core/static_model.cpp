@@ -3,9 +3,14 @@
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/context.hpp>
 
+#include <corundum/detail/file_view.hpp>
 #include <corundum/detail/logger.hpp>
 
+#include <assimp/DefaultIOStream.h>
+#include <assimp/DefaultIOSystem.h>
 #include <assimp/postprocess.h>
+#include <assimp/IOSystem.hpp>
+#include <assimp/IOStream.hpp>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 
@@ -16,12 +21,80 @@
 #include <unordered_map>
 #include <filesystem>
 #include <algorithm>
+#include <fstream>
 #include <string>
 #include <vector>
 
 namespace crd {
     using TextureCache = std::unordered_map<std::string, Async<StaticTexture>*>;
     namespace fs = std::filesystem;
+
+    struct FileViewStream : Assimp::IOStream {
+        detail::FileView handle;
+        std::size_t ptr;
+
+        FileViewStream() noexcept = default;
+        explicit FileViewStream(detail::FileView handle) noexcept
+            : handle(handle),
+              ptr() {}
+        ~FileViewStream() noexcept override {
+            detail::destroy_file_view(handle);
+        }
+
+        crd_nodiscard std::size_t Read(void* buffer, std::size_t size, std::size_t count) noexcept override {
+            crd_unlikely_if(ptr == handle.size) {
+                return 0;
+            }
+            auto bytes = size * count;
+            crd_unlikely_if(ptr + bytes >= handle.size) {
+                bytes = handle.size - ptr;
+            }
+            std::memcpy(buffer, static_cast<const char*>(handle.data) + ptr, bytes);
+            ptr += bytes;
+            return bytes;
+        }
+
+        crd_nodiscard std::size_t Write(const void*, std::size_t size, std::size_t count) noexcept override {
+            return size * count;
+        }
+
+        crd_nodiscard aiReturn Seek(std::size_t offset, aiOrigin origin) noexcept override {
+            switch (origin) {
+                case aiOrigin_SET: { ptr  = offset; } break;
+                case aiOrigin_CUR: { ptr += offset; } break;
+                case aiOrigin_END: { ptr -= offset; } break;
+            }
+            return aiReturn_SUCCESS;
+        }
+
+        crd_nodiscard std::size_t Tell() const noexcept override {
+            return ptr;
+        }
+
+        crd_nodiscard std::size_t FileSize() const noexcept override {
+            return handle.size;
+        }
+
+        void Flush() noexcept override {}
+    };
+
+    struct FileViewSystem : Assimp::IOSystem {
+        crd_nodiscard bool Exists(const char* path) const noexcept override {
+            return std::ifstream(path).is_open();
+        }
+
+        crd_nodiscard char getOsSeparator() const noexcept override {
+            return Assimp::DefaultIOSystem().getOsSeparator();
+        }
+
+        crd_nodiscard Assimp::IOStream* Open(const char* path, const char* mode) noexcept override {
+            return new FileViewStream(detail::make_file_view(path));
+        }
+
+        void Close(Assimp::IOStream* stream) noexcept override {
+            delete stream;
+        }
+    };
 
     crd_nodiscard static inline Async<StaticTexture>* import_texture(const Context& context, const aiMaterial* material, aiTextureType type, TextureCache& cache, const fs::path& path) noexcept {
         crd_unlikely_if(type == aiTextureType_HEIGHT && material->GetTextureCount(type) == 0) {
@@ -117,9 +190,11 @@ namespace crd {
                 aiProcess_FlipUVs     |
                 aiProcess_GenNormals  |
                 aiProcess_CalcTangentSpace;
+            importer.SetIOHandler(new FileViewSystem());
             const auto scene = importer.ReadFile(path, post_process);
             crd_assert(scene && !scene->mFlags && scene->mRootNode, "failed to load model");
             TextureCache cache;
+            cache.reserve(32);
             StaticModel model;
             process_node(context, scene, scene->mRootNode, model, cache, fs::path(path).parent_path());
             return model;

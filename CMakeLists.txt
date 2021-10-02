@@ -91,6 +91,7 @@ target_compile_definitions(corundum PUBLIC
     $<$<CONFIG:Debug>:crd_debug>
     crd_debug_logging
     crd_debug_benchmark
+    crd_log_level=2
 
     $<$<BOOL:${WIN32}>:
         _CRT_SECURE_NO_WARNINGS

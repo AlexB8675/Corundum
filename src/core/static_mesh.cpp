@@ -18,7 +18,7 @@ namespace crd {
             const auto transfer_pool = context.transfer->transient[thread_index];
             const auto vertex_bytes  = size_bytes(info.geometry);
             const auto index_bytes   = size_bytes(info.indices);
-            detail::log("Vulkan", detail::severity_info, detail::type_general,
+            detail::log("Vulkan", detail::severity_verbose, detail::type_general,
                       "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", vertex_bytes * index_bytes);
             auto vertex_staging = make_static_buffer(context, {
                 .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,

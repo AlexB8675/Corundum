@@ -47,7 +47,7 @@ namespace crd {
         };
         const Framebuffer* active_framebuffer;
         const RenderPass* active_pass;
-        const Pipeline* active_pipeline;
+        const GraphicsPipeline* active_pipeline;
         VkCommandBuffer handle;
         VkCommandPool pool;
 
@@ -58,13 +58,14 @@ namespace crd {
         crd_module CommandBuffer& set_viewport() noexcept;
         crd_module CommandBuffer& set_scissor(VkRect2D) noexcept;
         crd_module CommandBuffer& set_scissor() noexcept;
-        crd_module CommandBuffer& bind_pipeline(const Pipeline&) noexcept;
+        crd_module CommandBuffer& bind_pipeline(const GraphicsPipeline&) noexcept;
         crd_module CommandBuffer& bind_descriptor_set(std::uint32_t, const DescriptorSet<1>&) noexcept;
         crd_module CommandBuffer& bind_vertex_buffer(const StaticBuffer&) noexcept;
         crd_module CommandBuffer& bind_index_buffer(const StaticBuffer&) noexcept;
         crd_module CommandBuffer& bind_static_mesh(const StaticMesh&) noexcept;
         crd_module CommandBuffer& push_constants(VkPipelineStageFlags, const void*, std::size_t) noexcept;
         crd_module CommandBuffer& draw(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) noexcept;
+        crd_module CommandBuffer& dispatch(std::uint32_t, std::uint32_t, std::uint32_t) noexcept;
         crd_module CommandBuffer& draw_indexed(std::uint32_t, std::uint32_t, std::uint32_t, std::int32_t, std::uint32_t) noexcept;
         crd_module CommandBuffer& end_render_pass() noexcept;
         crd_module CommandBuffer& copy_image(const Image&, const Image&) noexcept;

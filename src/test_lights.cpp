@@ -174,7 +174,7 @@ static inline float random(float min, float max) {
 }
 
 int main() {
-    auto window = crd::make_window(1280, 720, "Sorting Algos");
+    auto window = crd::make_window(1280, 720, "Test");
     auto context = crd::make_context();
     auto renderer = crd::make_renderer(context);
     auto swapchain = crd::make_swapchain(context, window);
@@ -316,7 +316,7 @@ int main() {
             { { 0, 1, 2, 3, 4, 5 } }
         }
     });
-    auto main_pipeline = crd::make_pipeline(context, renderer, {
+    auto main_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "data/shaders/main.vert.spv",
         .fragment = "data/shaders/main.frag.spv",
         .render_pass = &deferred_pass,
@@ -335,7 +335,7 @@ int main() {
         .subpass = 0,
         .depth = true
     });
-    auto light_pipeline = crd::make_pipeline(context, renderer, {
+    auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "data/shaders/light.vert.spv",
         .fragment = "data/shaders/light.frag.spv",
         .render_pass = &deferred_pass,
@@ -354,7 +354,7 @@ int main() {
         .subpass = 1,
         .depth = true
     });
-    auto combine_pipeline = crd::make_pipeline(context, renderer, {
+    auto combine_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "data/shaders/combine.vert.spv",
         .fragment = "data/shaders/combine.frag.spv",
         .render_pass = &deferred_pass,

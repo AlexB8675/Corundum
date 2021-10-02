@@ -24,8 +24,8 @@ namespace crd {
         return code;
     }
 
-    crd_nodiscard crd_module Pipeline make_pipeline(const Context& context, Renderer& renderer, Pipeline::CreateInfo&& info) noexcept {
-        Pipeline pipeline;
+    crd_nodiscard crd_module GraphicsPipeline make_graphics_pipeline(const Context& context, Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
+        GraphicsPipeline pipeline;
         VkPipelineShaderStageCreateInfo pipeline_stages[2];
         pipeline_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         pipeline_stages[0].pNext = nullptr;
@@ -400,7 +400,152 @@ namespace crd {
         return pipeline;
     }
 
-    crd_module void destroy_pipeline(const Context& context, Pipeline& pipeline) noexcept {
+    crd_nodiscard crd_module ComputePipeline make_compute_pipeline(const Context& context, Renderer& renderer, ComputePipeline::CreateInfo&& info) noexcept {
+        ComputePipeline pipeline;
+        const auto binary = import_spirv(info.compute);
+        VkShaderModuleCreateInfo compute_module;
+        compute_module.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        compute_module.pNext = nullptr;
+        compute_module.flags = {};
+        compute_module.codeSize = size_bytes(binary);
+        compute_module.pCode = binary.data();
+
+        VkPipelineShaderStageCreateInfo compute_stage;
+        compute_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        compute_stage.pNext = nullptr;
+        compute_stage.flags = {};
+        compute_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+        compute_stage.pName = "main";
+        compute_stage.pSpecializationInfo = nullptr;
+        crd_vulkan_check(vkCreateShaderModule(context.device, &compute_module, nullptr, &compute_stage.module));
+
+        VkPushConstantRange push_constant_range;
+        push_constant_range.stageFlags = {};
+        push_constant_range.offset = 0;
+        push_constant_range.size = 0;
+        DescriptorLayoutBindings descriptor_layout_bindings;
+        std::map<std::size_t, std::vector<DescriptorBinding>> pipeline_descriptor_layout;
+        { // Compute shader.
+            const auto compiler  = spirv_cross::CompilerGLSL(binary.data(), binary.size());
+            const auto resources = compiler.get_shader_resources();
+            for (const auto& uniform_buffer : resources.uniform_buffers) {
+                const auto set     = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
+                const auto binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
+                pipeline_descriptor_layout[set].emplace_back(
+                    descriptor_layout_bindings[uniform_buffer.name] = {
+                        .dynamic = false,
+                        .index = binding,
+                        .count = 1,
+                        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                        .stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                    });
+            }
+            for (const auto& storage_buffer : resources.storage_buffers) {
+                const auto set     = compiler.get_decoration(storage_buffer.id, spv::DecorationDescriptorSet);
+                const auto binding = compiler.get_decoration(storage_buffer.id, spv::DecorationBinding);
+                pipeline_descriptor_layout[set].emplace_back(
+                    descriptor_layout_bindings[storage_buffer.name] = {
+                        .dynamic = false,
+                        .index = binding,
+                        .count = 1,
+                        .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                        .stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                    });
+            }
+            for (const auto& textures : resources.sampled_images) {
+                const auto  set          = compiler.get_decoration(textures.id, spv::DecorationDescriptorSet);
+                const auto  binding      = compiler.get_decoration(textures.id, spv::DecorationBinding);
+                const auto& image_type   = compiler.get_type(textures.type_id);
+                const bool  is_array     = !image_type.array.empty();
+                const bool  is_dynamic   = is_array && image_type.array[0] == 0;
+                const auto  max_samplers = max_bound_samplers(context);
+                pipeline_descriptor_layout[set].emplace_back(
+                    descriptor_layout_bindings[textures.name] = {
+                        .dynamic = is_dynamic,
+                        .index   = binding,
+                        .count   = !is_array ? 1 : (is_dynamic ? max_samplers : image_type.array[0]),
+                        .type    = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stage   = VK_SHADER_STAGE_COMPUTE_BIT
+                    });
+            }
+            for (const auto& push_constant : resources.push_constant_buffers) {
+                const auto& type = compiler.get_type(push_constant.type_id);
+                push_constant_range.size = compiler.get_declared_struct_size(type);
+                push_constant_range.stageFlags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            }
+        }
+        DescriptorSetLayouts set_layouts;
+        set_layouts.reserve(pipeline_descriptor_layout.size());
+        std::vector<VkDescriptorSetLayout> set_layout_handles;
+        set_layout_handles.reserve(pipeline_descriptor_layout.size());
+        for (const auto& [index, descriptors] : pipeline_descriptor_layout) {
+            bool dynamic = false;
+            const auto layout_hash = detail::hash(0, descriptors);
+            auto& layout = renderer.set_layout_cache[layout_hash];
+            crd_unlikely_if(!layout) {
+                std::vector<VkDescriptorBindingFlags> flags;
+                flags.reserve(descriptors.size());
+                std::vector<VkDescriptorSetLayoutBinding> bindings;
+                bindings.reserve(descriptors.size());
+                for (const auto& binding : descriptors) {
+                    flags.emplace_back();
+                    if (binding.dynamic) {
+                        dynamic = true;
+                        flags.back() =
+                            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+                            VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
+                    }
+                    bindings.push_back({
+                        .binding = binding.index,
+                        .descriptorType = binding.type,
+                        .descriptorCount = binding.count,
+                        .stageFlags = binding.stage,
+                        .pImmutableSamplers = nullptr
+                    });
+                }
+
+                VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags;
+                binding_flags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+                binding_flags.pNext = nullptr;
+                binding_flags.bindingCount = flags.size();
+                binding_flags.pBindingFlags = flags.data();
+
+                VkDescriptorSetLayoutCreateInfo layout_info;
+                layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+                layout_info.pNext = &binding_flags;
+                layout_info.flags = {};
+                layout_info.bindingCount = bindings.size();
+                layout_info.pBindings = bindings.data();
+                crd_vulkan_check(vkCreateDescriptorSetLayout(context.device, &layout_info, nullptr, &layout));
+            }
+            set_layouts.push_back({ layout, dynamic });
+            set_layout_handles.emplace_back(layout);
+        }
+        pipeline.layout.descriptor = std::move(set_layouts);
+        pipeline.bindings = std::move(descriptor_layout_bindings);
+        VkPipelineLayoutCreateInfo pipeline_layout_info;
+        pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipeline_layout_info.pNext = nullptr;
+        pipeline_layout_info.flags = {};
+        pipeline_layout_info.setLayoutCount = set_layout_handles.size();
+        pipeline_layout_info.pSetLayouts = set_layout_handles.data();
+        pipeline_layout_info.pushConstantRangeCount = push_constant_range.size != 0;
+        pipeline_layout_info.pPushConstantRanges = &push_constant_range;
+        crd_vulkan_check(vkCreatePipelineLayout(context.device, &pipeline_layout_info, nullptr, &pipeline.layout.pipeline));
+
+        VkComputePipelineCreateInfo pipeline_info;
+        pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        pipeline_info.pNext = nullptr;
+        pipeline_info.flags = {};
+        pipeline_info.stage = compute_stage;
+        pipeline_info.layout = pipeline.layout.pipeline;
+        pipeline_info.basePipelineHandle = nullptr;
+        pipeline_info.basePipelineIndex = -1;
+        crd_vulkan_check(vkCreateComputePipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
+        return pipeline;
+    }
+
+    crd_module void destroy_pipeline(const Context& context, GraphicsPipeline& pipeline) noexcept {
         vkDestroyPipelineLayout(context.device, pipeline.layout.pipeline, nullptr);
         vkDestroyPipeline(context.device, pipeline.handle, nullptr);
         pipeline = {};

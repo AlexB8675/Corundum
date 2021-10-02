@@ -16,7 +16,7 @@ namespace crd {
     struct Image;
     struct Framebuffer;
     struct RenderPass;
-    struct Pipeline;
+    struct GraphicsPipeline;
     struct Queue;
     struct CommandBuffer;
     struct Renderer;

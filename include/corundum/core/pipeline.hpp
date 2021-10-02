@@ -33,7 +33,7 @@ namespace crd {
     using DescriptorSetLayouts     = std::vector<DescriptorSetLayout>;
     using DescriptorLayoutBindings = std::unordered_map<std::string, DescriptorBinding>;
 
-    struct Pipeline {
+    struct GraphicsPipeline {
         struct CreateInfo {
             const char* vertex;
             const char* fragment;
@@ -52,6 +52,20 @@ namespace crd {
         } layout;
     };
 
-    crd_nodiscard crd_module Pipeline make_pipeline(const Context&, Renderer&, Pipeline::CreateInfo&&) noexcept;
-                  crd_module void     destroy_pipeline(const Context&, Pipeline&) noexcept;
+    struct ComputePipeline : GraphicsPipeline {
+        struct CreateInfo {
+            const char* compute;
+            // TODO:
+        };
+        VkPipeline handle;
+        DescriptorLayoutBindings bindings;
+        struct {
+            VkPipelineLayout pipeline;
+            DescriptorSetLayouts descriptor;
+        } layout;
+    };
+
+    crd_nodiscard crd_module GraphicsPipeline make_graphics_pipeline(const Context&, Renderer&, GraphicsPipeline::CreateInfo&&) noexcept;
+    crd_nodiscard crd_module ComputePipeline  make_compute_pipeline(const Context&, Renderer&, ComputePipeline::CreateInfo&&) noexcept;
+                  crd_module void             destroy_pipeline(const Context&, GraphicsPipeline&) noexcept;
 } // namespace crd

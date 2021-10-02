@@ -37,7 +37,7 @@ namespace crd {
         buffer.flags = info.flags;
         buffer.capacity = info.capacity;
         buffer.mapped = extra_info.pMappedData;
-        detail::log("Vulkan", detail::severity_info, detail::type_general,
+        detail::log("Vulkan", detail::severity_verbose, detail::type_general,
                   "successfully allocated StaticBuffer, size: %zu bytes, address: %p",
                   buffer.capacity, buffer.mapped);
         return buffer;

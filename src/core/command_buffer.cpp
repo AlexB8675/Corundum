@@ -124,7 +124,7 @@ namespace crd {
         return set_scissor(scissor);
     }
 
-    crd_module CommandBuffer& CommandBuffer::bind_pipeline(const Pipeline& pipeline) noexcept {
+    crd_module CommandBuffer& CommandBuffer::bind_pipeline(const GraphicsPipeline& pipeline) noexcept {
         vkCmdBindPipeline(handle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
         active_pipeline = &pipeline;
         return *this;
@@ -162,6 +162,11 @@ namespace crd {
                                                   std::uint32_t first_vertex,
                                                   std::uint32_t first_instance) noexcept {
         vkCmdDraw(handle, vertices, instances, first_vertex, first_instance);
+        return *this;
+    }
+
+    crd_module CommandBuffer& CommandBuffer::dispatch(std::uint32_t x, std::uint32_t y, std::uint32_t z) noexcept {
+        vkCmdDispatch(handle, x, y, z);
         return *this;
     }
 

@@ -27,7 +27,7 @@ namespace crd {
             application_info.engineVersion = VK_API_VERSION_1_2;
             application_info.apiVersion = VK_API_VERSION_1_2;
 
-            detail::log("Vulkan", detail::severity_info, detail::type_general, "enumerating extensions:");
+            detail::log("Vulkan", detail::severity_verbose, detail::type_general, "enumerating extensions:");
             std::uint32_t extension_count;
             vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
             std::vector<VkExtensionProperties> extensions_props(extension_count);
@@ -39,7 +39,7 @@ namespace crd {
 #endif
             for (const auto& [name, _] : extensions_props) {
                 crd_likely_if(std::string_view(name).find("debug") == std::string::npos) {
-                    detail::log("Vulkan", detail::severity_info, detail::type_general, "  - %s", name);
+                    detail::log("Vulkan", detail::severity_verbose, detail::type_general, "  - %s", name);
                     extension_names.emplace_back(name);
                 }
             }
@@ -261,6 +261,7 @@ namespace crd {
             detail::log("Vulkan", detail::severity_info, detail::type_general, "device queues initialized");
         }
         { // Creates the Task Scheduler.
+            detail::log("Vulkan", detail::severity_info, detail::type_general, "initializing task scheduler");
             (context.scheduler = new ftl::TaskScheduler())->Init({
                 .Behavior = ftl::EmptyQueueBehavior::Sleep
             });
@@ -351,8 +352,7 @@ namespace crd {
 #endif
         vkDestroyInstance(context.instance, nullptr);
         context = {};
-
-        detail::log("Vulkan", detail::severity_info, detail::type_general, "core context terminated successfully");
+        detail::log("Vulkan", detail::severity_info, detail::type_general, "termination complete");
     }
 
     crd_nodiscard crd_module std::uint32_t max_bound_samplers(const Context& context) noexcept {
