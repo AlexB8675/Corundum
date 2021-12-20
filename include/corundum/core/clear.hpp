@@ -31,7 +31,7 @@ namespace crd {
         ClearValueType tag;
     };
 
-    crd_nodiscard crd_module VkClearValue as_vulkan(ClearValue clear) noexcept;
+    crd_nodiscard crd_module VkClearValue as_vulkan(ClearValue) noexcept;
     crd_nodiscard crd_module ClearValue   make_clear_color(ClearColor) noexcept;
     crd_nodiscard crd_module ClearValue   make_clear_depth(ClearDepth) noexcept;
 } // namespace crd

@@ -29,7 +29,7 @@ set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(ext/assimp)
 
 if(MSVC)
-    target_compile_options(assimp PUBLIC /w)
+    target_compile_options(assimp PUBLIC /w /EHsc)
 endif()
 
 add_subdirectory(ext/glm)
@@ -123,10 +123,12 @@ target_link_libraries(corundum PUBLIC
 file(GLOB CORUNDUM_DATA data)
 file(COPY ${CORUNDUM_DATA} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-add_executable(test-sponza src/test_sponza.cpp)
-add_executable(test-lights src/test_lights.cpp)
-add_executable(test-forward-plus src/test_forward_plus.cpp)
+add_executable(test-sponza tests/test_sponza.cpp)
+add_executable(test-lights tests/test_lights.cpp)
+add_executable(test-shadows tests/test_shadows.cpp)
+add_executable(test-forward-plus tests/test_forward_plus.cpp)
 
 target_link_libraries(test-sponza PRIVATE corundum)
 target_link_libraries(test-lights PRIVATE corundum)
+target_link_libraries(test-shadows PRIVATE corundum)
 target_link_libraries(test-forward-plus PRIVATE corundum)

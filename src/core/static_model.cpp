@@ -34,9 +34,11 @@ namespace crd {
         std::size_t ptr;
 
         FileViewStream() noexcept = default;
+
         explicit FileViewStream(detail::FileView handle) noexcept
             : handle(handle),
               ptr() {}
+
         ~FileViewStream() noexcept override {
             detail::destroy_file_view(handle);
         }
@@ -200,7 +202,7 @@ namespace crd {
             return model;
         });
         Async<StaticModel> resource;
-        resource.task = task->get_future();
+        resource.import(task->get_future());
         context.scheduler->AddTask({
             .Function = [](ftl::TaskScheduler*, void* data) {
                 auto* task = static_cast<task_type*>(data);

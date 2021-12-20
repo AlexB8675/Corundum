@@ -8,11 +8,29 @@
 
 namespace crd {
     template <typename T>
-    crd_nodiscard crd_module T& Async<T>::get() noexcept {
-        crd_unlikely_if(!result) {
-            result = std::move(task.get());
+    Async<T>::~Async() noexcept {
+        crd_likely_if(tag == TaskTag::completed) {
+            object()->~T();
         }
-        return *result;
+    }
+
+    template <typename T>
+    crd_module void Async<T>::import(std::future<T>&& future) noexcept {
+        crd_assert(tag == TaskTag::none, "reuse of Async<T> not permitted");
+        new (&storage) std::future<T>(std::move(future));
+        tag = TaskTag::running;
+    }
+
+    template <typename T>
+    crd_nodiscard crd_module T& Async<T>::get() noexcept {
+        crd_unlikely_if(tag == TaskTag::running) {
+            auto task = future();
+            auto result = task->get();
+            task->~future();
+            tag = TaskTag::completed;
+            new (&storage) T(std::move(result));
+        }
+        return *object();
     }
 
     template <typename T>
@@ -26,17 +44,19 @@ namespace crd {
     }
 
     template <typename T>
-    crd_nodiscard crd_module bool Async<T>::is_ready() const noexcept {
+    crd_nodiscard crd_module bool Async<T>::is_ready() noexcept {
         using namespace std::literals;
-        crd_likely_if(result) {
-            return true;
-        }
-        return task.wait_for(0ms) == std::future_status::ready;
+        return tag == TaskTag::completed || future()->wait_for(0ms) == std::future_status::ready;
     }
 
     template <typename T>
-    crd_nodiscard crd_module bool Async<T>::valid() const noexcept {
-        return task.valid() || result;
+    crd_nodiscard std::future<T>* Async<T>::future() noexcept {
+        return static_cast<std::future<T>*>(static_cast<void*>(&storage));
+    }
+
+    template <typename T>
+    crd_nodiscard T* Async<T>::object() noexcept {
+        return static_cast<T*>(static_cast<void*>(&storage));
     }
 
     template struct Async<StaticMesh>;

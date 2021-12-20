@@ -7,7 +7,6 @@
 
 #include <cstdint>
 #include <vector>
-#include <span>
 
 namespace crd {
     struct BufferMemoryBarrier {
@@ -80,6 +79,6 @@ namespace crd {
 
     crd_nodiscard crd_module std::vector<CommandBuffer> make_command_buffers(const Context&, CommandBuffer::CreateInfo&&) noexcept;
     crd_nodiscard crd_module CommandBuffer              make_command_buffer(const Context&, CommandBuffer::CreateInfo&&) noexcept;
-                  crd_module void                       destroy_command_buffers(const Context&, std::span<CommandBuffer>) noexcept;
-                  crd_module void                       destroy_command_buffer(const Context&, CommandBuffer) noexcept;
+                  crd_module void                       destroy_command_buffers(const Context&, std::vector<CommandBuffer>&&) noexcept;
+                  crd_module void                       destroy_command_buffer(const Context&, CommandBuffer&) noexcept;
 } // namespace crd

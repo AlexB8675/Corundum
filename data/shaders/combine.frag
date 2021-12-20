@@ -38,8 +38,8 @@ vec3 calculate_point_light(PointLight, vec3, vec3, vec3, vec3);
 void main() {
     const vec3 frag_pos = subpassLoad(i_position).rgb;
     const vec3 normal = subpassLoad(i_normal).rgb;
-    const vec3 view_dir = normalize(view_pos - frag_pos);
     const vec3 albedo = subpassLoad(i_albedo).rgb;
+    const vec3 view_dir = normalize(view_pos - frag_pos);
 
     vec3 color = albedo * ambient_factor;
     for (uint i = 0; i < point_lights.length(); ++i) {
@@ -56,11 +56,11 @@ vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 frag_
     const vec3 halfway_dir = normalize(light_dir + view_dir);
     const float specular_comp = pow(max(dot(halfway_dir, normal), 0.0), 32);
 
-    // Attenuation
+    // Attenuation.
     const float distance = length(vec3(light.position) - frag_pos);
     const float attenuation = 1.0 / (light.falloff.x + (light.falloff.y * distance) + (light.falloff.z * (distance * distance)));
 
-    // Combine
+    // Combine.
     const vec3 result_diffuse = vec3(light.diffuse) * diffuse_comp * color;
     const vec3 result_specular = vec3(light.specular) * specular_comp * (subpassLoad(i_specular).rgb * color);
 

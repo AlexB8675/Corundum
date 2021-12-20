@@ -47,7 +47,7 @@ namespace crd {
         return command_buffer;
     }
 
-    crd_module void destroy_command_buffers(const Context& context, std::span<CommandBuffer> commands) noexcept {
+    crd_module void destroy_command_buffers(const Context& context, std::vector<CommandBuffer>&& commands) noexcept {
         const auto pool = commands[0].pool;
         std::vector<VkCommandBuffer> handles;
         handles.reserve(commands.size());
@@ -57,8 +57,9 @@ namespace crd {
         vkFreeCommandBuffers(context.device, pool, handles.size(), handles.data());
     }
 
-    crd_module void destroy_command_buffer(const Context& context, CommandBuffer command) noexcept {
+    crd_module void destroy_command_buffer(const Context& context, CommandBuffer& command) noexcept {
         vkFreeCommandBuffers(context.device, command.pool, 1, &command.handle);
+        command = {};
     }
 
     crd_module CommandBuffer& CommandBuffer::begin() noexcept {
@@ -72,7 +73,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::begin_render_pass(const RenderPass& render_pass, std::size_t index) noexcept {
-        const auto& clear_values = render_pass.clears;
+        const auto& clear_values = render_pass.clears();
         const auto& framebuffer  = render_pass.framebuffers[index];
         active_framebuffer = &framebuffer;
         active_pass = &render_pass;
@@ -173,7 +174,7 @@ namespace crd {
     crd_module CommandBuffer& CommandBuffer::draw_indexed(std::uint32_t indices,
                                                           std::uint32_t instances,
                                                           std::uint32_t first_index,
-                                                          std::int32_t vertex_offset,
+                                                          std::int32_t  vertex_offset,
                                                           std::uint32_t first_instance) noexcept {
         vkCmdDrawIndexed(handle, indices, instances, first_index, vertex_offset, first_instance);
         return *this;

@@ -61,7 +61,6 @@ namespace crd {
             description.initialLayout = attachment.layout.initial;
             description.finalLayout = attachment.layout.final;
             attachments.emplace_back(description);
-            render_pass.clears.emplace_back(as_vulkan(attachment.clear));
         }
         render_pass.attachments = std::move(info.attachments);
         std::vector<VkSubpassDescription> subpasses;
@@ -181,6 +180,15 @@ namespace crd {
         return attachments[index].image;
     }
 
+    crd_nodiscard crd_module std::vector<VkClearValue> RenderPass::clears() const noexcept {
+        std::vector<VkClearValue> result;
+        result.reserve(attachments.size());
+        for (const auto& each : attachments) {
+            result.emplace_back(as_vulkan(each.clear));
+        }
+        return result;
+    }
+
     crd_module void RenderPass::resize(const Context& context, ResizeAttachments&& resize) noexcept {
         auto& framebuffer = framebuffers[resize.framebuffer];
         crd_likely_if(framebuffer.extent == resize.size) {
@@ -191,7 +199,7 @@ namespace crd {
         image_references.reserve(resize.attachments.size());
         for (const auto attachment : resize.attachments) {
             auto& current = attachments[attachment];
-            crd_assert(current.owning, "resizing a referenced attachment");
+            crd_assert(current.owning, "resizing a handle to attachment");
                   auto& old_image = current.image;
             const auto  new_image = make_image(context, {
                 .width   = resize.size.width,

@@ -190,7 +190,7 @@ namespace crd {
             };
         });
         Async<StaticTexture> resource;
-        resource.task = task->get_future();
+        resource.import(task->get_future());
         context.scheduler->AddTask({
             .Function = [](ftl::TaskScheduler* scheduler, void* data) {
                 auto* task = static_cast<task_type*>(data);

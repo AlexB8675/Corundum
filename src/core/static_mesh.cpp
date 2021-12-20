@@ -19,18 +19,18 @@ namespace crd {
             const auto vertex_bytes  = size_bytes(info.geometry);
             const auto index_bytes   = size_bytes(info.indices);
             detail::log("Vulkan", detail::severity_verbose, detail::type_general,
-                      "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", vertex_bytes * index_bytes);
+                        "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", vertex_bytes * index_bytes);
             auto vertex_staging = make_static_buffer(context, {
                 .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 .usage = VMA_MEMORY_USAGE_CPU_ONLY,
                 .capacity = vertex_bytes
             });
-            std::memcpy(vertex_staging.mapped, info.geometry.data(), vertex_staging.capacity);
             auto index_staging = make_static_buffer(context, {
                 .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 .usage = VMA_MEMORY_USAGE_CPU_ONLY,
                 .capacity = index_bytes
             });
+            std::memcpy(vertex_staging.mapped, info.geometry.data(), vertex_staging.capacity);
             std::memcpy(index_staging.mapped, info.indices.data(), index_staging.capacity);
             auto geometry = make_static_buffer(context, {
                 .flags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
@@ -74,7 +74,6 @@ namespace crd {
             VkSemaphore transfer_done;
             crd_vulkan_check(vkCreateSemaphore(context.device, &transfer_semaphore_info, nullptr, &transfer_done));
             context.transfer->submit(transfer_cmd, {}, nullptr, transfer_done, nullptr);
-
             auto ownership_cmd = make_command_buffer(context, {
                 .pool = graphics_pool,
                 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
@@ -116,7 +115,7 @@ namespace crd {
             };
         });
         Async<StaticMesh> resource;
-        resource.task = task->get_future();
+        resource.import(task->get_future());
         context.scheduler->AddTask({
             .Function = [](ftl::TaskScheduler* scheduler, void* data) {
                 auto* task = static_cast<task_type*>(data);

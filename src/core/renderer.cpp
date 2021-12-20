@@ -10,7 +10,7 @@
 namespace crd {
     static inline void recreate_swapchain(const Context& context, Window& window, Swapchain& swapchain) noexcept {
         crd_vulkan_check(vkDeviceWaitIdle(context.device));
-        detail::log("vulkan", detail::severity_warning, detail::type_performance, "window resized, recreating swapchain");
+        detail::log("Vulkan", detail::severity_warning, detail::type_performance, "window resized, recreating swapchain");
         swapchain = make_swapchain(context, window, &swapchain);
         window.on_resize();
     }
@@ -52,7 +52,7 @@ namespace crd {
         for (const auto [_, layout] : renderer.set_layout_cache) {
             vkDestroyDescriptorSetLayout(context.device, layout, nullptr);
         }
-        destroy_command_buffers(context, renderer.gfx_cmds);
+        destroy_command_buffers(context, std::move(renderer.gfx_cmds));
     }
 
     crd_nodiscard crd_module FrameInfo Renderer::acquire_frame(const Context& context, Window& window, Swapchain& swapchain) noexcept {

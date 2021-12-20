@@ -62,12 +62,13 @@ namespace crd {
         };
         VkRenderPass handle;
         VkPipelineStageFlags stage;
-        std::vector<VkClearValue> clears;
+
         std::vector<Framebuffer> framebuffers;
         std::vector<AttachmentInfo> attachments;
 
-        crd_nodiscard crd_module const Image& image(std::size_t) const noexcept;
-                      crd_module void         resize(const Context&, ResizeAttachments&&) noexcept;
+        crd_nodiscard crd_module const Image&              image(std::size_t) const noexcept;
+        crd_nodiscard crd_module std::vector<VkClearValue> clears() const noexcept;
+                      crd_module void                      resize(const Context&, ResizeAttachments&&) noexcept;
     };
 
     crd_nodiscard crd_module RenderPass make_render_pass(const Context&, RenderPass::CreateInfo&&) noexcept;

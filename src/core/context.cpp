@@ -133,9 +133,9 @@ namespace crd {
                     const auto driver_major = VK_VERSION_MAJOR(properties.driverVersion);
                     const auto driver_minor = VK_VERSION_MINOR(properties.driverVersion);
                     const auto driver_patch = VK_VERSION_PATCH(properties.driverVersion);
-                    const auto vulkan_major = VK_VERSION_MAJOR(properties.apiVersion);
-                    const auto vulkan_minor = VK_VERSION_MINOR(properties.apiVersion);
-                    const auto vulkan_patch = VK_VERSION_PATCH(properties.apiVersion);
+                    const auto vulkan_major = VK_API_VERSION_MAJOR(properties.apiVersion);
+                    const auto vulkan_minor = VK_API_VERSION_MINOR(properties.apiVersion);
+                    const auto vulkan_patch = VK_API_VERSION_PATCH(properties.apiVersion);
                     detail::log("Vulkan", detail::severity_info, detail::type_general, "  - driver version: %d.%d.%d", driver_major, driver_minor, driver_patch);
                     detail::log("Vulkan", detail::severity_info, detail::type_general, "  - vulkan version: %d.%d.%d", vulkan_major, vulkan_minor, vulkan_patch);
                     context.gpu_properties = properties;

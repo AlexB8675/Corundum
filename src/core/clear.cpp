@@ -29,6 +29,7 @@ namespace crd {
         new (&value.color) ClearColor(color);
         return value;
     }
+
     crd_nodiscard crd_module ClearValue make_clear_depth(ClearDepth depth) noexcept {
         ClearValue value;
         value.tag = clear_value_depth;
