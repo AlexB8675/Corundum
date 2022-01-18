@@ -233,12 +233,6 @@ int main() {
         fps += delta_time;
         ++frames;
         if (fps >= 1.6) {
-            main_pass.attachments[0].clear = crd::make_clear_color({
-                (float)rand() / RAND_MAX,
-                (float)rand() / RAND_MAX,
-                (float)rand() / RAND_MAX,
-                1.0f
-            });
             crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
             frames = 0;
             fps = 0;

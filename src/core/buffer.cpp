@@ -18,7 +18,7 @@ namespace crd {
 
     template <>
     crd_nodiscard crd_module Buffer<in_flight> make_buffer(const Context& context, std::size_t size, BufferType type) {
-        Buffer buffer;
+        Buffer<in_flight> buffer;
         for (auto& handle : buffer.handles) {
             handle = make_buffer<1>(context, size, type);
         }

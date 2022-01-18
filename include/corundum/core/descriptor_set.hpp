@@ -30,8 +30,8 @@ namespace crd {
                       crd_module DescriptorSet<in_flight>& bind(const Context&, const DescriptorBinding&, VkDescriptorImageInfo) noexcept;
                       crd_module DescriptorSet<in_flight>& bind(const Context&, const DescriptorBinding&, const std::vector<VkDescriptorImageInfo>&) noexcept;
 
-        crd_nodiscard crd_module DescriptorSet<1>&       operator [](std::size_t) noexcept;
-        crd_nodiscard crd_module const DescriptorSet<1>& operator [](std::size_t) const noexcept;
+        crd_nodiscard crd_module DescriptorSet<1>&         operator [](std::size_t) noexcept;
+        crd_nodiscard crd_module const DescriptorSet<1>&   operator [](std::size_t) const noexcept;
     };
 
     template <std::size_t N = in_flight> crd_nodiscard crd_module DescriptorSet<N> make_descriptor_set(const Context&, DescriptorSetLayout) noexcept;

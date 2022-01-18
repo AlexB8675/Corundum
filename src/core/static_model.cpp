@@ -204,9 +204,9 @@ namespace crd {
         Async<StaticModel> resource;
         resource.import(task->get_future());
         context.scheduler->AddTask({
-            .Function = [](ftl::TaskScheduler*, void* data) {
+            .Function = +[](ftl::TaskScheduler*, void* data) {
                 auto* task = static_cast<task_type*>(data);
-                crd_benchmark("time took to upload StaticModel resource: %llu", *task);
+                crd_benchmark("time took to upload StaticModel resource: %llums", *task);
                 delete task;
             },
             .ArgData = task

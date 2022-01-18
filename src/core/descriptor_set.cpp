@@ -35,7 +35,7 @@ namespace crd {
 
     template <>
     crd_nodiscard crd_module DescriptorSet<in_flight> make_descriptor_set(const Context& context, DescriptorSetLayout layout) noexcept {
-        DescriptorSet sets;
+        DescriptorSet<in_flight> sets;
         for (auto& each : sets.handles) {
             each = make_descriptor_set<1>(context, layout);
         }
@@ -60,7 +60,7 @@ namespace crd {
               auto& bound_descriptor = bound[binding_hash];
         crd_unlikely_if(bound_descriptor != buffer_hash) {
             detail::log("Vulkan", detail::severity_info, detail::type_performance,
-                        "updating buffer descriptor with binding: %d, handle %p, range %llu", binding.index, buffer.buffer, buffer.range);
+                        "updating buffer descriptor with binding: %d, handle: %p, range: %llu", binding.index, buffer.buffer, buffer.range);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
@@ -84,7 +84,7 @@ namespace crd {
               auto& bound_descriptor = bound[binding_hash];
         crd_unlikely_if(bound_descriptor != image_hash) {
             detail::log("Vulkan", detail::severity_info, detail::type_performance,
-                        "updating image descriptor with binding: %d, handle %p", binding.index, image.imageView);
+                        "updating image descriptor with binding: %d, handle: %p", binding.index, image.imageView);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;

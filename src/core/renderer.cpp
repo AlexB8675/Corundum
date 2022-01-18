@@ -75,7 +75,6 @@ namespace crd {
         crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
             recreate_swapchain(context, window, swapchain);
         }
-
         frame_idx = (frame_idx + 1) % in_flight;
     }
 } // namespace crd

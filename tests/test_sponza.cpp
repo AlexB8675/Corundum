@@ -314,9 +314,9 @@ int main() {
             .source_subpass = 0,
             .dest_subpass   = 1,
             .source_stage   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .dest_stage     = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .source_access  = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
-            .dest_access    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+            .dest_stage     = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            .source_access  = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dest_access    = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT
         } },
         .framebuffers = {
             { { 0, 1, 2, 3, 4, 5 } }

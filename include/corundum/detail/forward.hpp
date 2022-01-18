@@ -1,7 +1,5 @@
 #pragma once
 
-#include <corundum/core/constants.hpp>
-
 #include <cstddef>
 
 struct GLFWwindow;
@@ -25,9 +23,9 @@ namespace crd {
     struct StaticTexture;
     struct DescriptorBinding;
     struct DescriptorSetLayout;
-    template <std::size_t = in_flight>
+    template <std::size_t>
     struct Buffer;
-    template <std::size_t = in_flight>
+    template <std::size_t>
     struct DescriptorSet;
     template <typename T>
     struct Async;

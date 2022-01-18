@@ -7,18 +7,23 @@
 #include <future>
 
 namespace crd {
-    enum class TaskTag {
-        none,
-        running,
-        completed
+    enum TaskTag {
+        task_tag_none,
+        task_tag_running,
+        task_tag_completed
     };
 
     template <typename T>
     struct Async {
         std::aligned_union_t<0, std::future<T>, T> storage;
-        TaskTag tag = TaskTag::none;
+        TaskTag tag = task_tag_none;
 
         Async() noexcept = default;
+        Async(const Async&) noexcept = delete;
+        Async& operator =(const Async&) noexcept = delete;
+        Async(Async&&) noexcept;
+        Async& operator =(Async&&) noexcept;
+
         ~Async() noexcept;
 
                       crd_module void            import(std::future<T>&&) noexcept;

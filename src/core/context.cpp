@@ -202,7 +202,8 @@ namespace crd {
             }
 
             context.families = families;
-            detail::log("Vulkan", detail::severity_info, detail::type_general, "chosen families: %d, %d, %d", families.graphics.family, families.transfer.family, families.compute.family);
+            detail::log("Vulkan", detail::severity_info, detail::type_general, "chosen families: %d, %d, %d",
+                        families.graphics.family, families.transfer.family, families.compute.family);
             std::vector<VkDeviceQueueCreateInfo> queue_infos;
             for (std::uint32_t family = 0; family < families_count; family++) {
                 crd_unlikely_if(queue_sizes[family] == 0) {
@@ -283,7 +284,7 @@ namespace crd {
             descriptor_pool_info.pPoolSizes = descriptor_sizes.data();
             crd_vulkan_check(vkCreateDescriptorPool(context.device, &descriptor_pool_info, nullptr, &context.descriptor_pool));
         }
-        { // Creates a VkSampler (default).
+        { // Creates a VkSampler (default and shadow).
             VkSamplerCreateInfo sampler_info;
             sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
             sampler_info.pNext = nullptr;
