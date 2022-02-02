@@ -48,7 +48,7 @@ namespace crd {
         DescriptorLayoutBindings bindings;
         struct {
             VkPipelineLayout pipeline;
-            DescriptorSetLayouts descriptor;
+            DescriptorSetLayouts sets;
         } layout;
     };
 

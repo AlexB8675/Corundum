@@ -133,6 +133,25 @@ static inline float random(float min, float max) {
     return std::uniform_real_distribution<float>(min, max)(engine);
 }
 
+static inline bool should_rebuild(std::span<crd::Async<crd::StaticModel>> models) {
+    for (auto& model : models) {
+        crd_unlikely_if(!model.is_ready()) {
+            return true;
+        }
+        for (auto& submesh : model->submeshes) {
+            const auto done =
+                submesh.mesh.is_ready() &&
+                (!submesh.diffuse || submesh.diffuse->is_ready()) &&
+                (!submesh.normal || submesh.normal->is_ready()) &&
+                (!submesh.specular || submesh.specular->is_ready());
+            if (!done) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, VkDescriptorImageInfo fallback) noexcept {
     Scene scene;
     scene.descriptors = { fallback };
@@ -414,24 +433,27 @@ int main() {
     auto light_uniform_buffer = crd::make_buffer(context, sizeof(glm::vec4), crd::uniform_buffer);
     auto point_light_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
     auto directional_light_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
-    auto main_set = crd::make_descriptor_set(context, main_pipeline.layout.descriptor[0]);
-    auto light_set = crd::make_descriptor_set(context, light_pipeline.layout.descriptor[0]);
-    auto gbuffer_set = crd::make_descriptor_set<1>(context, combine_pipeline.layout.descriptor[0]);
-    auto light_data_set = crd::make_descriptor_set(context, combine_pipeline.layout.descriptor[1]);
+    auto main_set = crd::make_descriptor_set(context, main_pipeline.layout.sets[0]);
+    auto light_set = crd::make_descriptor_set(context, light_pipeline.layout.sets[0]);
+    auto gbuffer_set = crd::make_descriptor_set<1>(context, combine_pipeline.layout.sets[0]);
+    auto light_data_set = crd::make_descriptor_set(context, combine_pipeline.layout.sets[1]);
     std::size_t frames = 0;
     double delta_time = 0, last_frame = 0, fps = 0;
+    auto scene = Scene();
     while (!window.is_closed()) {
         const auto [commands, image, index] = renderer.acquire_frame(context, window, swapchain);
-        const auto scene = build_scene(models, black->info());
+        if (should_rebuild(models)) {
+            scene = build_scene(models, black->info());
+        }
         const auto current_frame = crd::time();
         ++frames;
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
         fps += delta_time;
         if (fps >= 1.6) {
-            crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
-            fps = 0;
+            crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf", 1 / (fps / frames));
             frames = 0;
+            fps = 0;
         }
         model_buffer[index].resize(context, crd::size_bytes(transforms));
         point_light_buffer[index].resize(context, crd::size_bytes(lights));

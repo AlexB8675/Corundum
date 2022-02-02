@@ -361,7 +361,7 @@ namespace crd {
             set_layouts.push_back({ layout, dynamic });
             set_layout_handles.emplace_back(layout);
         }
-        pipeline.layout.descriptor = std::move(set_layouts);
+        pipeline.layout.sets = std::move(set_layouts);
         pipeline.bindings = std::move(descriptor_layout_bindings);
         VkPipelineLayoutCreateInfo pipeline_layout_info;
         pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

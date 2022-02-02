@@ -29,7 +29,7 @@ namespace crd {
             } break;
 
             case task_tag_completed: {
-                new(&storage) T(std::move(*other.object()));
+                new (&storage) T(std::move(*other.object()));
             } break;
         }
         return *this;

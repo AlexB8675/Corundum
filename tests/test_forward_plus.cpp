@@ -411,10 +411,10 @@ int main() {
     auto light_uniform_buffer = crd::make_buffer(context, sizeof(glm::vec4), crd::uniform_buffer);
     auto point_light_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
     auto directional_light_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
-    auto main_set = crd::make_descriptor_set(context, main_pipeline.layout.descriptor[0]);
-    auto light_set = crd::make_descriptor_set(context, light_pipeline.layout.descriptor[0]);
-    auto gbuffer_set = crd::make_descriptor_set<1>(context, combine_pipeline.layout.descriptor[0]);
-    auto light_data_set = crd::make_descriptor_set(context, combine_pipeline.layout.descriptor[1]);
+    auto main_set = crd::make_descriptor_set(context, main_pipeline.layout.sets[0]);
+    auto light_set = crd::make_descriptor_set(context, light_pipeline.layout.sets[0]);
+    auto gbuffer_set = crd::make_descriptor_set<1>(context, combine_pipeline.layout.sets[0]);
+    auto light_data_set = crd::make_descriptor_set(context, combine_pipeline.layout.sets[1]);
     std::size_t frames = 0;
     double delta_time = 0, last_frame = 0, fps = 0;
     while (!window.is_closed()) {

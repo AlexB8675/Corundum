@@ -19,12 +19,11 @@ namespace crd {
         TaskTag tag = task_tag_none;
 
         Async() noexcept = default;
+        ~Async() noexcept;
         Async(const Async&) noexcept = delete;
         Async& operator =(const Async&) noexcept = delete;
         Async(Async&&) noexcept;
         Async& operator =(Async&&) noexcept;
-
-        ~Async() noexcept;
 
                       crd_module void            import(std::future<T>&&) noexcept;
         crd_nodiscard crd_module T&              get() noexcept;
