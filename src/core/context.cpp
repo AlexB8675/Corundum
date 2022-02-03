@@ -175,7 +175,7 @@ namespace crd {
             if (auto queue = fetch_family(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0, 0.5f)) {
                 families.graphics = *queue;
             } else {
-                crd_force_assert("no suitable Graphics queue found");
+                crd_force_assert("no suitable graphics queue found");
             }
 
             if (auto queue = fetch_family(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0, 1.0f)) {
@@ -270,19 +270,24 @@ namespace crd {
         { // Creates a Descriptor Pool.
             const auto max_samplers = max_bound_samplers(context);
             const auto descriptor_sizes = std::to_array<VkDescriptorPoolSize>({
-                { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         2048         },
-                { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         2048         },
-                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, max_samplers },
+                { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         128           },
+                { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         128           },
+                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, max_samplers  },
             });
+            auto total_size = 0;
+            for (auto size : descriptor_sizes) {
+                total_size += size.descriptorCount;
+            }
 
             VkDescriptorPoolCreateInfo descriptor_pool_info;
             descriptor_pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
             descriptor_pool_info.pNext = nullptr;
             descriptor_pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-            descriptor_pool_info.maxSets = 4096 + max_samplers;
+            descriptor_pool_info.maxSets = total_size;
             descriptor_pool_info.poolSizeCount = descriptor_sizes.size();
             descriptor_pool_info.pPoolSizes = descriptor_sizes.data();
-            crd_vulkan_check(vkCreateDescriptorPool(context.device, &descriptor_pool_info, nullptr, &context.descriptor_pool));
+
+           crd_vulkan_check(vkCreateDescriptorPool(context.device, &descriptor_pool_info, nullptr, &context.descriptor_pool));
         }
         { // Creates a VkSampler (default and shadow).
             VkSamplerCreateInfo sampler_info;
@@ -357,6 +362,6 @@ namespace crd {
     }
 
     crd_nodiscard crd_module std::uint32_t max_bound_samplers(const Context& context) noexcept {
-        return std::min(context.gpu_properties.limits.maxPerStageDescriptorSampledImages, 32768u);
+        return std::min(context.gpu_properties.limits.maxPerStageDescriptorSampledImages, 16384u);
     }
 } //namespace crd

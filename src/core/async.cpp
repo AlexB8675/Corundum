@@ -8,11 +8,25 @@
 
 namespace crd {
     template <typename T>
-    Async<T>::~Async() noexcept {
-        switch (tag) {
-            case task_tag_running:   future()->~future(); break;
-            case task_tag_completed: object()->~T();      break;
+    static inline void destroy_async(Async<T>* async) noexcept {
+        switch (async->tag) {
+            case task_tag_running: {
+                auto task = async->future();
+                crd_unlikely_if(task->valid()) {
+                    task->get();
+                }
+                task->~future();
+            } break;
+
+            case task_tag_completed: {
+                async->object()->~T();
+            } break;
         }
+    }
+
+    template <typename T>
+    Async<T>::~Async() noexcept {
+        destroy_async(this);
     }
 
     template <typename T>
@@ -22,6 +36,7 @@ namespace crd {
 
     template <typename T>
     Async<T>& Async<T>::operator =(Async&& other) noexcept {
+        destroy_async(this);
         tag = other.tag;
         switch (tag) {
             case task_tag_running: {

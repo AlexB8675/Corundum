@@ -99,18 +99,20 @@ private:
     }
 };
 
-
 struct Model {
     struct Submesh {
         std::array<std::uint32_t, 3> textures;
         std::uint32_t index;
     };
     std::vector<Submesh> submeshes;
+    std::uint32_t transform;
+    std::uint32_t instances;
     std::uint32_t index;
 };
 
 struct Scene {
     std::vector<VkDescriptorImageInfo> descriptors;
+    std::vector<glm::mat4> transforms;
     std::vector<Model> models;
 };
 
@@ -127,30 +129,43 @@ struct PointLight {
     glm::vec4 specular;
 };
 
+struct Draw {
+    crd::Async<crd::StaticModel>* model;
+    std::vector<glm::mat4> transforms;
+};
+
 static inline float random(float min, float max) {
     static std::random_device device;
     static std::mt19937 engine(device());
     return std::uniform_real_distribution<float>(min, max)(engine);
 }
 
-static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, VkDescriptorImageInfo fallback) noexcept {
+static inline Scene build_scene(std::span<Draw> models, VkDescriptorImageInfo fallback) noexcept {
     Scene scene;
     scene.descriptors = { fallback };
-    std::unordered_map<void*, std::uint32_t> texture_cache;
-    for (std::uint32_t i = 0; auto& model : models) {
-        crd_likely_if(model.is_ready()) {
-            const auto submeshes_size = model->submeshes.size();
+    std::unordered_map<void*, std::uint32_t> cache;
+    std::size_t t_size = 0;
+    for (const auto& [_, transforms] : models) {
+        t_size += transforms.size();
+    }
+    scene.transforms.reserve(t_size);
+    std::size_t offset = 0;
+    for (std::uint32_t i = 0; auto [model, transforms] : models) {
+        crd_likely_if(model->is_ready()) {
+            const auto submeshes_size = (*model)->submeshes.size();
             auto& handle = scene.models.emplace_back();
             scene.descriptors.reserve(scene.descriptors.size() + submeshes_size * 3);
-            texture_cache.reserve(texture_cache.size() + submeshes_size * 3);
-            handle.submeshes.reserve(submeshes_size);
+            cache.reserve(cache.size() + submeshes_size * 3);
             handle.index = i;
-            for (std::uint32_t j = 0; auto& submesh : model->submeshes) {
+            handle.transform = offset;
+            handle.instances = transforms.size();
+            handle.submeshes.reserve(submeshes_size);
+            for (std::uint32_t j = 0; auto& submesh : (*model)->submeshes) {
                 crd_likely_if(submesh.mesh.is_ready()) {
                     std::array<std::uint32_t, 3> indices = {};
                     const auto emplace_descriptor = [&](crd::Async<crd::StaticTexture>* texture, std::uint32_t which) {
                         crd_likely_if(texture) {
-                            auto& cached = texture_cache[texture];
+                            auto& cached = cache[texture];
                             crd_unlikely_if(cached == 0 && texture->is_ready()) {
                                 scene.descriptors.emplace_back((*texture)->info());
                                 cached = scene.descriptors.size() - 1;
@@ -162,13 +177,15 @@ static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>> models, 
                     emplace_descriptor(submesh.normal, 1);
                     emplace_descriptor(submesh.specular, 2);
                     handle.submeshes.push_back({
-                        .textures = indices,
-                        .index = j
-                    });
+                                                   .textures = indices,
+                                                   .index = j
+                                               });
                 }
                 j++;
             }
         }
+        scene.transforms.insert(scene.transforms.end(), transforms.begin(), transforms.end());
+        offset += transforms.size();
         i++;
     }
     return scene;
@@ -195,7 +212,7 @@ int main() {
                 .initial = VK_IMAGE_LAYOUT_UNDEFINED,
                 .final   = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
             },
-            .clear   = crd::make_clear_color({ 0.5f, 0.5f, 0.0f, 1.0f }),
+            .clear   = crd::make_clear_color({ 0.0f, 0.0f, 0.0f, 1.0f }),
             .owning  = true,
             .discard = false
         } },
@@ -223,10 +240,18 @@ int main() {
             .attachments = { 0 }
         });
     };
+    auto black = crd::request_static_texture(context, "data/textures/black.png", crd::texture_srgb);
+    auto models = std::vector<crd::Async<crd::StaticModel>>();
+    models.emplace_back(crd::request_static_model(context, "data/models/cube/cube.obj"));
+    auto draw_cmds = std::to_array<Draw>({ {
+        .model = &models[0],
+        .transforms = { glm::mat4(1.0f) }
+    } });
     std::size_t frames = 0;
     double last_frame = 0, fps = 0;
     while (!window.is_closed()) {
         const auto [commands, image, index] = renderer.acquire_frame(context, window, swapchain);
+        const auto scene = build_scene(draw_cmds, black->info());
         const auto current_frame = crd::time();
         const auto delta_time = current_frame - last_frame;
         last_frame = current_frame;
@@ -239,7 +264,24 @@ int main() {
         }
         commands
             .begin()
-            .begin_render_pass(main_pass, 0)
+            .begin_render_pass(main_pass, 0);
+        for (const auto& model : scene.models) {
+            auto& raw_model = *models[model.index];
+            for (const auto& submesh : model.submeshes) {
+                auto& raw_submesh = raw_model.submeshes[submesh.index];
+                const std::uint32_t indices[] = {
+                    model.transform,
+                    submesh.textures[0],
+                    submesh.textures[1],
+                    submesh.textures[2]
+                };
+                commands
+                    .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, indices, sizeof(indices))
+                    .bind_static_mesh(*raw_submesh.mesh)
+                    .draw_indexed(raw_submesh.indices, model.instances, 0, 0, 0);
+            }
+        }
+        commands
             .end_render_pass()
             .transition_layout({
                 .image = &image,
@@ -265,7 +307,7 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, window, swapchain, commands, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+        renderer.present_frame(context, window, swapchain, commands, VK_PIPELINE_STAGE_TRANSFER_BIT);
         crd::poll_events();
     }
     context.graphics->wait_idle();

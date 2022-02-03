@@ -8,6 +8,31 @@
 #include <corundum/wm/window.hpp>
 
 namespace crd {
+    static inline void sync_renderer(const Context& context, Renderer& renderer) noexcept {
+        context.graphics->wait_idle();
+        renderer.frame_idx = 0;
+        renderer.image_idx = 0;
+        for (std::size_t i = 0; i < in_flight; ++i) {
+            vkDestroySemaphore(context.device, renderer.img_ready[i], nullptr);
+            vkDestroySemaphore(context.device, renderer.gfx_done[i], nullptr);
+            vkDestroyFence(context.device, renderer.cmd_wait[i], nullptr);
+        }
+
+        VkFenceCreateInfo fence_info;
+        fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fence_info.pNext = nullptr;
+        fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        VkSemaphoreCreateInfo semaphore_info;
+        semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        semaphore_info.pNext = nullptr;
+        semaphore_info.flags = {};
+        for (std::size_t i = 0; i < in_flight; ++i) {
+            crd_vulkan_check(vkCreateSemaphore(context.device, &semaphore_info, nullptr, &renderer.img_ready[i]));
+            crd_vulkan_check(vkCreateSemaphore(context.device, &semaphore_info, nullptr, &renderer.gfx_done[i]));
+            crd_vulkan_check(vkCreateFence(context.device, &fence_info, nullptr, &renderer.cmd_wait[i]));
+        }
+    }
+
     static inline void recreate_swapchain(const Context& context, Window& window, Swapchain& swapchain) noexcept {
         crd_vulkan_check(vkDeviceWaitIdle(context.device));
         detail::log("Vulkan", detail::severity_warning, detail::type_performance, "window resized, recreating swapchain");
@@ -56,8 +81,10 @@ namespace crd {
     }
 
     crd_nodiscard crd_module FrameInfo Renderer::acquire_frame(const Context& context, Window& window, Swapchain& swapchain) noexcept {
+        // FIXME: Handling of resizing has undefined behaviour
         const auto result = vkAcquireNextImageKHR(context.device, swapchain.handle, -1, img_ready[frame_idx], nullptr, &image_idx);
         crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+            sync_renderer(context, *this);
             recreate_swapchain(context, window, swapchain);
         }
         crd_vulkan_check(vkWaitForFences(context.device, 1, &cmd_wait[frame_idx], true, -1));
@@ -73,6 +100,7 @@ namespace crd {
         context.graphics->submit(commands, stage, img_ready[frame_idx], gfx_done[frame_idx], cmd_wait[frame_idx]);
         const auto result = context.graphics->present(swapchain, image_idx, gfx_done[frame_idx]);
         crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+            sync_renderer(context, *this);
             recreate_swapchain(context, window, swapchain);
         }
         frame_idx = (frame_idx + 1) % in_flight;

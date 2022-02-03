@@ -62,7 +62,7 @@ namespace crd {
         crd_module CommandBuffer& bind_vertex_buffer(const StaticBuffer&) noexcept;
         crd_module CommandBuffer& bind_index_buffer(const StaticBuffer&) noexcept;
         crd_module CommandBuffer& bind_static_mesh(const StaticMesh&) noexcept;
-        crd_module CommandBuffer& push_constants(VkPipelineStageFlags, const void*, std::size_t) noexcept;
+        crd_module CommandBuffer& push_constants(VkShaderStageFlags, const void*, std::size_t) noexcept;
         crd_module CommandBuffer& draw(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) noexcept;
         crd_module CommandBuffer& dispatch(std::uint32_t, std::uint32_t, std::uint32_t) noexcept;
         crd_module CommandBuffer& draw_indexed(std::uint32_t, std::uint32_t, std::uint32_t, std::int32_t, std::uint32_t) noexcept;

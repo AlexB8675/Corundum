@@ -101,7 +101,7 @@ namespace crd {
             done_fence_info.flags = {};
             VkFence request_done;
             crd_vulkan_check(vkCreateFence(context.device, &done_fence_info, nullptr, &request_done));
-            context.graphics->submit(ownership_cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, transfer_done, nullptr, request_done);
+            context.graphics->submit(ownership_cmd, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, transfer_done, nullptr, request_done);
             vkWaitForFences(context.device, 1, &request_done, true, -1);
             vkDestroySemaphore(context.device, transfer_done, nullptr);
             vkDestroyFence(context.device, request_done, nullptr);

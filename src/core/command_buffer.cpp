@@ -153,7 +153,7 @@ namespace crd {
         return *this;
     }
 
-    crd_module CommandBuffer& CommandBuffer::push_constants(VkPipelineStageFlags flags, const void* data, std::size_t size) noexcept {
+    crd_module CommandBuffer& CommandBuffer::push_constants(VkShaderStageFlags flags, const void* data, std::size_t size) noexcept {
         vkCmdPushConstants(handle, active_pipeline->layout.pipeline, flags, 0, size, data);
         return *this;
     }

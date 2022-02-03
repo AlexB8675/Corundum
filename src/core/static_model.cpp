@@ -231,5 +231,6 @@ namespace crd {
             destroy_static_texture(context, **each);
             delete each;
         }
+        model = {};
     }
 } // namespace crd

@@ -16,8 +16,7 @@ namespace crd {
         allocate_info.descriptorPool = context.descriptor_pool;
         allocate_info.descriptorSetCount = 1;
         allocate_info.pSetLayouts = &layout.handle;
-
-        const auto max_samplers = max_bound_samplers(context);
+        const auto max_samplers = max_bound_samplers(context) / 8;
         VkDescriptorSetVariableDescriptorCountAllocateInfo variable_count;
         if (layout.dynamic) {
             variable_count.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
@@ -26,7 +25,6 @@ namespace crd {
             variable_count.pDescriptorCounts = &max_samplers;
             allocate_info.pNext = &variable_count;
         }
-
         DescriptorSet<1> set;
         set.bound.reserve(32);
         crd_vulkan_check(vkAllocateDescriptorSets(context.device, &allocate_info, &set.handle));

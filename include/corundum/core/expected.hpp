@@ -10,10 +10,10 @@ namespace crd {
     crd_noreturn void panic(const char*);
 
     template <typename E>
-    struct Error;
+    struct Error {
+        E value;
+    };
 
-    template <typename E>
-    crd_nodiscard Error<E> make_error(E) noexcept;
     template <typename E>
     crd_nodiscard constexpr const char* stringify_error(Error<E>) noexcept;
     template <typename E>
@@ -21,7 +21,7 @@ namespace crd {
 
     template <typename T, typename E>
     struct Expected {
-        static_assert(std::is_enum<E>()(), "E in Expected<T, E> is not an enum.");
+        static_assert(std::is_enum_v<E>, "E in Expected<T, E> is not an enum.");
         std::aligned_union_t<0, T, Error<E>> storage;
         enum Tag {
             tag_value,
@@ -77,7 +77,7 @@ namespace crd {
     template <typename T, typename E>
     crd_nodiscard constexpr Expected<T, E> make_expected(E error) noexcept {
         Expected<T, E> expected;
-        new (&expected.storage) Error<E>(make_error(error));
+        new (&expected.storage) Error<E>{ error };
         expected.tag = Expected<T, E>::tag_error;
         return expected;
     }
@@ -181,6 +181,6 @@ namespace crd {
 
     template <typename T, typename E>
     crd_nodiscard constexpr bool Expected<T, E>::operator !() const noexcept {
-        return tag != tag_value;
+        return !bool(*this);
     }
 } // namespace crd

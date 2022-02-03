@@ -29,13 +29,12 @@ layout (push_constant) uniform Constants {
 };
 
 void main() {
-    const mat4 t_model = model[model_index + gl_InstanceIndex];
-    vec3 T = normalize(vec3(t_model * vec4(i_tangent, 0.0)));
-    vec3 N = normalize(vec3(t_model * vec4(i_normal, 0.0)));
+    vec3 T = normalize(vec3(model[model_index] * vec4(i_tangent, 0.0)));
+    vec3 N = normalize(vec3(model[model_index] * vec4(i_normal, 0.0)));
     T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T);
     TBN = mat3(T, B, N);
-    frag_pos = vec3(t_model * vec4(i_vertex, 1.0));
+    frag_pos = vec3(model[model_index] * vec4(i_vertex, 1.0));
     normal = i_normal;
     uvs = i_uvs;
     gl_Position = proj_view * vec4(frag_pos, 1.0);

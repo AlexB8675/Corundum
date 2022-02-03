@@ -126,6 +126,7 @@ struct Scene {
     std::vector<Model> models;
 };
 
+// Old
 static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>*> models, VkDescriptorImageInfo fallback) noexcept {
     Scene scene;
     scene.descriptors = { fallback };
@@ -514,7 +515,7 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, window, swapchain, commands, deferred_pass.stage);
+        renderer.present_frame(context, window, swapchain, commands, VK_PIPELINE_STAGE_TRANSFER_BIT);
         crd::poll_events();
         camera.update(window, delta_time);
     }
