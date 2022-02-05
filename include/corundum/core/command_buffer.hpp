@@ -1,5 +1,7 @@
 #pragma once
 
+#include <corundum/core/constants.hpp>
+
 #include <corundum/detail/forward.hpp>
 #include <corundum/detail/macros.hpp>
 
@@ -53,6 +55,7 @@ namespace crd {
         crd_module CommandBuffer& begin() noexcept;
         crd_module CommandBuffer& begin_render_pass(const RenderPass&, std::size_t) noexcept;
         crd_module CommandBuffer& next_subpass() noexcept;
+        crd_module CommandBuffer& set_viewport(inverted_viewport_tag_t) noexcept;
         crd_module CommandBuffer& set_viewport(VkViewport) noexcept;
         crd_module CommandBuffer& set_viewport() noexcept;
         crd_module CommandBuffer& set_scissor(VkRect2D) noexcept;

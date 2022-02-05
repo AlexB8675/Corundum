@@ -8,6 +8,7 @@ layout (location = 4) in vec3 i_bitangent;
 
 layout (location = 0) out VertexData {
     mat3 TBN;
+    vec4 light_frag_pos;
     vec3 frag_pos;
     vec3 normal;
     vec2 uvs;
@@ -15,6 +16,7 @@ layout (location = 0) out VertexData {
 
 layout (set = 0, binding = 0) uniform Uniforms {
     mat4 proj_view;
+    mat4 light_proj_view;
 };
 
 layout (set = 0, binding = 1) buffer readonly Models {
@@ -29,12 +31,14 @@ layout (push_constant) uniform Constants {
 };
 
 void main() {
-    vec3 T = normalize(vec3(model[model_index] * vec4(i_tangent, 0.0)));
-    vec3 N = normalize(vec3(model[model_index] * vec4(i_normal, 0.0)));
+    const mat4 t_model = model[model_index + gl_InstanceIndex];
+    vec3 T = normalize(vec3(t_model * vec4(i_tangent, 0.0)));
+    vec3 N = normalize(vec3(t_model * vec4(i_normal, 0.0)));
     T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T);
     TBN = mat3(T, B, N);
-    frag_pos = vec3(model[model_index] * vec4(i_vertex, 1.0));
+    frag_pos = vec3(t_model * vec4(i_vertex, 1.0));
+    light_frag_pos = light_proj_view * vec4(frag_pos, 1.0);
     normal = i_normal;
     uvs = i_uvs;
     gl_Position = proj_view * vec4(frag_pos, 1.0);

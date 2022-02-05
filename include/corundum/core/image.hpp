@@ -17,7 +17,7 @@ namespace crd {
             std::uint32_t height;
             std::uint32_t mips;
             VkFormat format;
-            VkImageAspectFlagBits aspect;
+            VkImageAspectFlags aspect;
             VkSampleCountFlagBits samples;
             VkImageUsageFlags usage;
         };
@@ -25,7 +25,7 @@ namespace crd {
         VkImageView view;
         VmaAllocation allocation;
         VkSampleCountFlagBits samples;
-        VkImageAspectFlagBits aspect;
+        VkImageAspectFlags aspect;
         VkImageUsageFlags usage;
         VkFormat format;
         std::uint32_t mips;

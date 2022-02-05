@@ -34,12 +34,14 @@ namespace crd {
         pipeline_stages[0].pName = "main";
         pipeline_stages[0].pSpecializationInfo = nullptr;
 
-        pipeline_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        pipeline_stages[1].pNext = nullptr;
-        pipeline_stages[1].flags = {};
-        pipeline_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        pipeline_stages[1].pName = "main";
-        pipeline_stages[1].pSpecializationInfo = nullptr;
+        if (info.fragment != nullptr) {
+            pipeline_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            pipeline_stages[1].pNext = nullptr;
+            pipeline_stages[1].flags = {};
+            pipeline_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+            pipeline_stages[1].pName = "main";
+            pipeline_stages[1].pSpecializationInfo = nullptr;
+        }
 
         VkPushConstantRange push_constant_range;
         push_constant_range.stageFlags = {};
@@ -93,7 +95,7 @@ namespace crd {
         }
 
         std::vector<VkPipelineColorBlendAttachmentState> attachment_outputs;
-        { // Fragment shader.
+        if (info.fragment != nullptr) {
             const auto binary    = import_spirv(info.fragment);
             const auto compiler  = spirv_cross::CompilerGLSL(binary.data(), binary.size());
             const auto resources = compiler.get_shader_resources();
@@ -377,7 +379,7 @@ namespace crd {
         pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipeline_info.pNext = nullptr;
         pipeline_info.flags = {};
-        pipeline_info.stageCount = 2;
+        pipeline_info.stageCount = 2 - (info.fragment == nullptr);
         pipeline_info.pStages = pipeline_stages;
         pipeline_info.pVertexInputState = &vertex_input_state;
         pipeline_info.pInputAssemblyState = &input_assembly_state;
@@ -396,7 +398,9 @@ namespace crd {
 
         crd_vulkan_check(vkCreateGraphicsPipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
         vkDestroyShaderModule(context.device, pipeline_stages[0].module, nullptr);
-        vkDestroyShaderModule(context.device, pipeline_stages[1].module, nullptr);
+        if (info.fragment != nullptr) {
+            vkDestroyShaderModule(context.device, pipeline_stages[1].module, nullptr);
+        }
         return pipeline;
     }
 

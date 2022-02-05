@@ -95,6 +95,18 @@ namespace crd {
         return *this;
     }
 
+    crd_module CommandBuffer& CommandBuffer::set_viewport(inverted_viewport_tag_t) noexcept {
+        const auto extent = active_framebuffer->extent;
+        VkViewport viewport;
+        viewport.x = 0;
+        viewport.y = extent.height;
+        viewport.width = extent.width;
+        viewport.height = -(float)extent.height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        return set_viewport(viewport);
+    }
+
     crd_module CommandBuffer& CommandBuffer::set_viewport(VkViewport viewport) noexcept {
         vkCmdSetViewport(handle, 0, 1, &viewport);
         return *this;
