@@ -5,6 +5,7 @@
 #include <corundum/core/context.hpp>
 
 #include <corundum/detail/file_view.hpp>
+#include <corundum/detail/logger.hpp>
 #include <corundum/detail/hash.hpp>
 
 #include <spirv_glsl.hpp>
@@ -25,6 +26,10 @@ namespace crd {
     }
 
     crd_nodiscard crd_module GraphicsPipeline make_graphics_pipeline(const Context& context, Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
+        crd::detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading vertex shader: %s", info.vertex);
+        if (info.fragment) {
+            crd::detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading fragment shader: %s", info.fragment);
+        }
         GraphicsPipeline pipeline;
         VkPipelineShaderStageCreateInfo pipeline_stages[2];
         pipeline_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -546,6 +551,7 @@ namespace crd {
         pipeline_info.basePipelineHandle = nullptr;
         pipeline_info.basePipelineIndex = -1;
         crd_vulkan_check(vkCreateComputePipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
+        crd::detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "pipeline created successfully");
         return pipeline;
     }
 

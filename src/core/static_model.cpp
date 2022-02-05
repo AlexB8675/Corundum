@@ -184,6 +184,7 @@ namespace crd {
     }
 
     crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context& context, const char* path) noexcept {
+        crd::detail::log("Core", crd::detail::severity_info, crd::detail::type_general, "loading model: %s", path);
         using task_type = std::packaged_task<StaticModel()>;
         auto* task = new task_type([&context, path]() noexcept -> StaticModel {
             Assimp::Importer importer;
