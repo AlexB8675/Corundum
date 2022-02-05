@@ -2,3 +2,6 @@
 /cmake-build-debug/
 /cmake-build-release/
 /cmake-build-relwithdebinfo/
+data/models/*
+data/shaders/*.spv
+data/shaders/*/*.spv

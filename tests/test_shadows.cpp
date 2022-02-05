@@ -153,8 +153,12 @@ static inline Scene build_scene(std::span<Draw> models, VkDescriptorImageInfo fa
             const auto submeshes_size = (*model)->submeshes.size();
             auto& handle = scene.models.emplace_back();
             scene.descriptors.reserve(scene.descriptors.size() + submeshes_size * 3);
-            cache.reserve(cache.size() + submeshes_size * 3);
-            handle.index = i;
+            cache.reserve(cache.size() + submeshes_size * 3 + transforms.size());
+            auto [value, miss] = cache.try_emplace(model);
+            crd_unlikely_if(miss) {
+                value->second = i;
+            }
+            handle.index = value->second;
             handle.transform = offset;
             handle.instances = transforms.size();
             handle.submeshes.reserve(submeshes_size);
@@ -200,7 +204,7 @@ int main() {
                 .width   = 2048,
                 .height  = 2048,
                 .mips    = 1,
-                .format  = VK_FORMAT_D16_UNORM,
+                .format  = VK_FORMAT_D32_SFLOAT,
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
@@ -363,19 +367,27 @@ int main() {
     auto models = std::vector<crd::Async<crd::StaticModel>>();
     models.emplace_back(crd::request_static_model(context, "data/models/cube/cube.obj"));
     models.emplace_back(crd::request_static_model(context, "data/models/plane/plane.obj"));
+    models.emplace_back(crd::request_static_model(context, "data/models/dragon/dragon.obj"));
+    models.emplace_back(crd::request_static_model(context, "data/models/suzanne/suzanne.obj"));
     auto draw_cmds = std::to_array<Draw>({ {
         .model = &models[0],
         .transforms = {
-            glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.5f, 0.0)), glm::vec3(0.5f)),
-            glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 1.0)), glm::vec3(0.5f)),
-            glm::scale(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 2.0)), glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))), glm::vec3(0.25))
+            glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.5f, 0.0f)), glm::vec3(0.5f)),
+            glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 1.0f)), glm::vec3(0.5f)),
+            glm::scale(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 2.0f)), glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f))), glm::vec3(0.25))
         }
     }, {
         .model = &models[1],
         .transforms = { glm::mat4(1.0f) }
+    }, {
+        .model = &models[2],
+        .transforms = { glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-4.0f, 1.0f, 0.0f)), glm::vec3(2.0f)) }
+    }, {
+        .model = &models[3],
+        .transforms = { glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(4.0f, 1.0f, 0.0f)), glm::vec3(0.5f)) }
     } });
     std::vector<PointLight> lights = { {
-        .position = glm::vec4(-2.0f, 5.0f, -1.0f, 0.0f),
+        .position = glm::vec4(0.0f),
         .falloff = glm::vec4(1.0f, 0.078f, 0.096f, 0.0f),
         .diffuse = glm::vec4(1.0f),
         .specular = glm::vec4(1.0f)
@@ -418,19 +430,19 @@ int main() {
             frames = 0;
             fps = 0;
         }
-        lights[0].position = glm::vec4(4.0f * std::sin(crd::time()), 5.0f, 4.0f * std::cos(crd::time()), 0.0f);
+        lights[0].position = glm::vec4(
+            6.0f * std::sin(crd::time() / 4),
+            5.0f,
+            6.0f * std::cos(crd::time() / 4),
+            0.0f);
         for (std::size_t i = 0; const auto& light : lights) {
             light_ts[i++] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f));
         }
-        glm::mat4 shadow_camera;
-        {
-            auto perspective = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 10.0f);
-            shadow_camera =
-                perspective *
-                glm::lookAt(glm::vec3(lights[0].position),
-                            glm::vec3(0.0f, 0.0f, 0.0f),
-                            glm::vec3(0.0f, 1.0f, 0.0f));
-        }
+        glm::mat4 shadow_camera =
+            glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 1.0f, 20.0f) *
+            glm::lookAt(glm::vec3(lights[0].position),
+                        glm::vec3(0.0f, 0.0f, 0.0f),
+                        glm::vec3(0.0f, 1.0f, 0.0f));
         model_buffer[index].resize(context, crd::size_bytes(scene.transforms));
         point_light_buffer[index].resize(context, crd::size_bytes(lights));
         light_color_buffer[index].resize(context, crd::size_bytes(light_colors));

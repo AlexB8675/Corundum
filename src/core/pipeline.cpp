@@ -265,7 +265,7 @@ namespace crd {
         rasterizer_state.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer_state.cullMode = info.cull;
         rasterizer_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        rasterizer_state.depthBiasEnable = false;
+        rasterizer_state.depthBiasEnable = true;
         rasterizer_state.depthBiasConstantFactor = 1.25f;
         rasterizer_state.depthBiasClamp = 0.0f;
         rasterizer_state.depthBiasSlopeFactor = 1.75f;
