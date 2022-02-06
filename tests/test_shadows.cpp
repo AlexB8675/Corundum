@@ -363,12 +363,12 @@ int main() {
             .attachments = { 0, 1 }
         });
     };
-    auto black = crd::request_static_texture(context, "data/textures/black.png", crd::texture_srgb);
+    auto black = crd::request_static_texture(context, "../data/textures/black.png", crd::texture_srgb);
     auto models = std::vector<crd::Async<crd::StaticModel>>();
-    models.emplace_back(crd::request_static_model(context, "data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, "data/models/plane/plane.obj"));
-    models.emplace_back(crd::request_static_model(context, "data/models/dragon/dragon.obj"));
-    models.emplace_back(crd::request_static_model(context, "data/models/suzanne/suzanne.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/plane/plane.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
     auto draw_cmds = std::to_array<Draw>({ {
         .model = &models[0],
         .transforms = {

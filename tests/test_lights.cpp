@@ -318,8 +318,8 @@ int main() {
         }
     });
     auto main_pipeline = crd::make_graphics_pipeline(context, renderer, {
-        .vertex = "data/shaders/main.vert.spv",
-        .fragment = "data/shaders/main.frag.spv",
+        .vertex = "../data/shaders/main.vert.spv",
+        .fragment = "../data/shaders/main.frag.spv",
         .render_pass = &deferred_pass,
         .attributes = {
             crd::vertex_attribute_vec3,
@@ -337,8 +337,8 @@ int main() {
         .depth = true
     });
     auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
-        .vertex = "data/shaders/light.vert.spv",
-        .fragment = "data/shaders/light.frag.spv",
+        .vertex = "../data/shaders/light.vert.spv",
+        .fragment = "../data/shaders/light.frag.spv",
         .render_pass = &deferred_pass,
         .attributes = {
             crd::vertex_attribute_vec3,
@@ -356,8 +356,8 @@ int main() {
         .depth = true
     });
     auto combine_pipeline = crd::make_graphics_pipeline(context, renderer, {
-        .vertex = "data/shaders/combine.vert.spv",
-        .fragment = "data/shaders/combine.frag.spv",
+        .vertex = "../data/shaders/combine.vert.spv",
+        .fragment = "../data/shaders/combine.frag.spv",
         .render_pass = &deferred_pass,
         .attributes = {},
         .states = {
@@ -391,10 +391,10 @@ int main() {
     for (const auto& light : lights) {
         light_colors.emplace_back(light.diffuse);
     }
-    auto black = crd::request_static_texture(context, "data/textures/black.png", crd::texture_srgb);
+    auto black = crd::request_static_texture(context, "../data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
-    models.emplace_back(crd::request_static_model(context, "data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, "data/models/plane/plane.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/plane/plane.obj"));
     std::vector<crd::Async<crd::StaticModel>*> model_handles;
     model_handles.emplace_back(&models[0]);
     model_handles.emplace_back(&models[1]);

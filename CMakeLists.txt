@@ -120,9 +120,6 @@ target_link_libraries(corundum PUBLIC
     spirv-cross-glsl
     $<$<BOOL:${UNIX}>:pthread>)
 
-file(GLOB CORUNDUM_DATA data)
-file(COPY ${CORUNDUM_DATA} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-
 add_executable(test-sponza tests/test_sponza.cpp)
 add_executable(test-lights tests/test_lights.cpp)
 add_executable(test-shadows tests/test_shadows.cpp)
