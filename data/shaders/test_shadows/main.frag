@@ -2,6 +2,12 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 #define ambient_factor 0.01
 
+const mat4 shadow_bias = mat4(
+    0.5, 0.0, 0.0, 0.0,
+    0.0, 0.5, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0,
+    0.5, 0.5, 0.0, 1.0);
+
 struct DirectionalLight {
     vec3 direction;
     vec3 diffuse;
@@ -85,12 +91,13 @@ vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 frag_
 }
 
 vec3 calculate_shadow(vec3 color, vec3 albedo, vec2 offset) {
-    const float current = light_frag_pos.z / light_frag_pos.w;
-    const float bias = 0.0035; // TODO: I dunno, hardcoding sounds bad
-    const vec2 shadow_coords = (light_frag_pos.xy / light_frag_pos.w) * 0.5 + 0.5;
-    if (current > -1.0 && current < 1.0) {
+    vec4 shadow_coords = shadow_bias * light_frag_pos;
+    shadow_coords /= shadow_coords.w;
+    const float current = shadow_coords.z;
+    const float bias = 0.0075; // TODO: I dunno, hardcoding sounds bad
+    if (current > -0.985 && current < 0.985) {
         const float closest = texture(shadow, vec2(shadow_coords.x + offset.x, 1.0 - shadow_coords.y + offset.y)).r;
-        if (light_frag_pos.w > 0.0 && current + bias > closest) {
+        if (shadow_coords.w > 0.0 && current + bias > closest) {
             return ambient_factor * albedo;
         }
     }

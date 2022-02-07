@@ -21,11 +21,11 @@ namespace crd {
 
         VkBool32 present_support;
         const auto family = context.families.graphics.family;
-        crd_vulkan_check(vkGetPhysicalDeviceSurfaceSupportKHR(context.gpu, family, swapchain.surface, &present_support));
+        crd_vulkan_check(vkGetPhysicalDeviceSurfaceSupportKHR(context.gpu.handle, family, swapchain.surface, &present_support));
         crd_assert(present_support, "surface or family does not support presentation");
 
         VkSurfaceCapabilitiesKHR capabilities;
-        crd_vulkan_check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.gpu, swapchain.surface, &capabilities));
+        crd_vulkan_check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.gpu.handle, swapchain.surface, &capabilities));
 
         detail::log("Vulkan", detail::severity_info, detail::type_general, "vkQueuePresentKHR: supported");
         auto image_count = capabilities.minImageCount + 1;
@@ -37,7 +37,7 @@ namespace crd {
         const auto viewport = window.viewport();
         crd_unlikely_if(capabilities.currentExtent.width != -1) {
             crd_likely_if(capabilities.currentExtent.width == 0) {
-                crd_vulkan_check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.gpu, swapchain.surface, &capabilities));
+                crd_vulkan_check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.gpu.handle, swapchain.surface, &capabilities));
             }
             swapchain.width  = capabilities.currentExtent.width;
             swapchain.height = capabilities.currentExtent.height;
@@ -48,9 +48,9 @@ namespace crd {
         detail::log("Vulkan", detail::severity_info, detail::type_general, "swapchain extent: { %d, %d }", swapchain.width, swapchain.height);
 
         std::uint32_t format_count;
-        crd_vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(context.gpu, swapchain.surface, &format_count, nullptr));
+        crd_vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(context.gpu.handle, swapchain.surface, &format_count, nullptr));
         std::vector<VkSurfaceFormatKHR> surface_formats(format_count);
-        crd_vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(context.gpu, swapchain.surface, &format_count, surface_formats.data()));
+        crd_vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(context.gpu.handle, swapchain.surface, &format_count, surface_formats.data()));
         auto format = surface_formats[0];
         for (const auto& each : surface_formats) {
             crd_likely_if(each.format == VK_FORMAT_B8G8R8A8_SRGB && each.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {

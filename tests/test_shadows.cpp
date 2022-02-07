@@ -204,7 +204,7 @@ int main() {
                 .width   = 2048,
                 .height  = 2048,
                 .mips    = 1,
-                .format  = VK_FORMAT_D32_SFLOAT,
+                .format  = VK_FORMAT_D16_UNORM,
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
@@ -432,7 +432,7 @@ int main() {
         }
         lights[0].position = glm::vec4(
             6.0f * std::sin(crd::time() / 4),
-            5.0f,
+            3.0f,
             6.0f * std::cos(crd::time() / 4),
             0.0f);
         for (std::size_t i = 0; const auto& light : lights) {
@@ -545,7 +545,7 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, window, swapchain, commands, shadow_pass.stage);
+        renderer.present_frame(context, window, swapchain, commands, VK_PIPELINE_STAGE_TRANSFER_BIT);
         camera.update(window, delta_time);
         crd::poll_events();
     }

@@ -111,10 +111,10 @@ namespace crd {
         std::replace(file_name.begin(), file_name.end(), '\\', '/');
         const auto format = type == aiTextureType_DIFFUSE ? texture_srgb : texture_unorm;
         const auto [cached, miss] = cache.try_emplace(file_name);
-        crd_likely_if(!miss) {
-            return cached->second;
+        crd_likely_if(miss) {
+            cached->second = new Async<StaticTexture>(request_static_texture(context, std::move(file_name), format));
         }
-        return cached->second = new Async<StaticTexture>(request_static_texture(context, std::move(file_name), format));
+        return cached->second;
     }
 
     crd_nodiscard static inline TexturedMesh import_textured_mesh(const Context& context, const aiScene* scene, const aiMesh* mesh, TextureCache& cache, const fs::path& path) noexcept {
@@ -184,7 +184,7 @@ namespace crd {
     }
 
     crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context& context, const char* path) noexcept {
-        crd::detail::log("Core", crd::detail::severity_info, crd::detail::type_general, "loading model: %s", path);
+        detail::log("Core", crd::detail::severity_info, crd::detail::type_general, "loading model: %s", path);
         using task_type = std::packaged_task<StaticModel()>;
         auto* task = new task_type([&context, path]() noexcept -> StaticModel {
             Assimp::Importer importer;

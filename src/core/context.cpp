@@ -138,19 +138,19 @@ namespace crd {
                     const auto vulkan_patch = VK_API_VERSION_PATCH(properties.apiVersion);
                     detail::log("Vulkan", detail::severity_info, detail::type_general, "  - driver version: %d.%d.%d", driver_major, driver_minor, driver_patch);
                     detail::log("Vulkan", detail::severity_info, detail::type_general, "  - vulkan version: %d.%d.%d", vulkan_major, vulkan_minor, vulkan_patch);
-                    context.gpu_properties = properties;
-                    context.gpu = gpu;
+                    context.gpu.properties = properties;
+                    context.gpu.handle = gpu;
                     break;
                 }
             }
-            crd_assert(context.gpu, "no suitable GPU found in the system");
+            crd_assert(context.gpu.handle, "no suitable GPU found in the system");
         }
         { // Chooses queue families and creates a VkDevice.
             detail::log("Vulkan", detail::severity_info, detail::type_general, "enumerating queue families");
             std::uint32_t families_count;
-            vkGetPhysicalDeviceQueueFamilyProperties(context.gpu, &families_count, nullptr);
+            vkGetPhysicalDeviceQueueFamilyProperties(context.gpu.handle, &families_count, nullptr);
             std::vector<VkQueueFamilyProperties> queue_families(families_count);
-            vkGetPhysicalDeviceQueueFamilyProperties(context.gpu, &families_count, queue_families.data());
+            vkGetPhysicalDeviceQueueFamilyProperties(context.gpu.handle, &families_count, queue_families.data());
 
             std::vector<std::uint32_t> queue_sizes(families_count);
             std::vector<std::vector<float>> queue_priorities(families_count);
@@ -221,19 +221,16 @@ namespace crd {
             }
 
             detail::log("Vulkan", detail::severity_info, detail::type_general, "fetching device features");
-            VkPhysicalDeviceFeatures features;
-            vkGetPhysicalDeviceFeatures(context.gpu, &features);
+            vkGetPhysicalDeviceFeatures(context.gpu.handle, &context.gpu.features);
             detail::log("Vulkan", detail::severity_info, detail::type_general, "enumerating device extensions");
             std::uint32_t extension_count;
-            vkEnumerateDeviceExtensionProperties(context.gpu, nullptr, &extension_count, nullptr);
-            std::vector<VkExtensionProperties> extensions_props(extension_count);
-            vkEnumerateDeviceExtensionProperties(context.gpu, nullptr, &extension_count, extensions_props.data());
-            constexpr std::array extension_names = {
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+            vkEnumerateDeviceExtensionProperties(context.gpu.handle, nullptr, &extension_count, nullptr);
+            context.gpu.extensions.resize(extension_count);
+            vkEnumerateDeviceExtensionProperties(context.gpu.handle, nullptr, &extension_count, context.gpu.extensions.data());
+            std::vector<const char*> extension_names = {
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME
             };
-
-            detail::log("Vulkan", detail::severity_info, detail::type_general, "requesting ownership of device");
+            detail::log("Vulkan", detail::severity_info, detail::type_general, "creating device");
             VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing = {};
             descriptor_indexing.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
             descriptor_indexing.shaderSampledImageArrayNonUniformIndexing = true;
@@ -243,8 +240,11 @@ namespace crd {
             descriptor_indexing.descriptorBindingPartiallyBound = true;
             descriptor_indexing.runtimeDescriptorArray = true;
             VkDeviceCreateInfo device_info;
+            if (has_extension(context, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME)) {
+                extension_names.emplace_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+                device_info.pNext = &descriptor_indexing;
+            }
             device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-            device_info.pNext = &descriptor_indexing;
             device_info.flags = {};
             device_info.pQueueCreateInfos = queue_infos.data();
             device_info.queueCreateInfoCount = queue_infos.size();
@@ -252,9 +252,9 @@ namespace crd {
             device_info.ppEnabledLayerNames = nullptr;
             device_info.enabledExtensionCount = extension_names.size();
             device_info.ppEnabledExtensionNames = extension_names.data();
-            device_info.pEnabledFeatures = &features;
-            crd_vulkan_check(vkCreateDevice(context.gpu, &device_info, nullptr, &context.device));
-            detail::log("Vulkan", detail::severity_info, detail::type_general, "ownership acquired successfully, locked");
+            device_info.pEnabledFeatures = &context.gpu.features;
+            crd_vulkan_check(vkCreateDevice(context.gpu.handle, &device_info, nullptr, &context.device));
+            detail::log("Vulkan", detail::severity_info, detail::type_general, "device created successfully");
 
             context.graphics = make_queue(context, families.graphics);
             context.transfer = make_queue(context, families.transfer);
@@ -268,11 +268,14 @@ namespace crd {
             });
         }
         { // Creates a Descriptor Pool.
-            const auto max_samplers = max_bound_samplers(context);
+            const auto& limits          = context.gpu.properties.limits;
+            const auto max_samplers     = std::min<std::uint32_t>(4096, limits.maxDescriptorSetSampledImages);
+            const auto max_uniforms     = std::min<std::uint32_t>(4096, limits.maxDescriptorSetUniformBuffers);
+            const auto max_storage      = std::min<std::uint32_t>(4096, limits.maxDescriptorSetStorageBuffers);
             const auto descriptor_sizes = std::to_array<VkDescriptorPoolSize>({
-                { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         128           },
-                { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         128           },
-                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, max_samplers  },
+                { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         max_uniforms },
+                { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         max_storage  },
+                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, max_samplers },
             });
             auto total_size = 0;
             for (auto size : descriptor_sizes) {
@@ -310,6 +313,10 @@ namespace crd {
             sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
             sampler_info.unnormalizedCoordinates = false;
             crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.default_sampler));
+            sampler_info.mipLodBias = 0.0f;
+            sampler_info.maxAnisotropy = 1.0f;
+            sampler_info.minLod = 0.0f;
+            sampler_info.maxLod = 1.0f;
             sampler_info.magFilter = VK_FILTER_NEAREST;
             sampler_info.minFilter = VK_FILTER_NEAREST;
             sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
@@ -322,15 +329,13 @@ namespace crd {
             detail::log("Vulkan", detail::severity_info, detail::type_general, "creating allocator");
             VmaAllocatorCreateInfo allocator_info;
             allocator_info.flags = {};
-            allocator_info.physicalDevice = context.gpu;
+            allocator_info.physicalDevice = context.gpu.handle;
             allocator_info.device = context.device;
             allocator_info.preferredLargeHeapBlockSize = 0;
             allocator_info.pAllocationCallbacks = nullptr;
             allocator_info.pDeviceMemoryCallbacks = nullptr;
-            allocator_info.frameInUseCount = 1;
             allocator_info.pHeapSizeLimit = nullptr;
             allocator_info.pVulkanFunctions = nullptr;
-            allocator_info.pRecordSettings = nullptr;
             allocator_info.instance = context.instance;
             allocator_info.vulkanApiVersion = VK_API_VERSION_1_2;
             allocator_info.pTypeExternalMemoryHandleTypes = nullptr;
@@ -362,6 +367,16 @@ namespace crd {
     }
 
     crd_nodiscard crd_module std::uint32_t max_bound_samplers(const Context& context) noexcept {
-        return std::min(context.gpu_properties.limits.maxPerStageDescriptorSampledImages, 16384u);
+        return std::min<std::uint32_t>(context.gpu.properties.limits.maxPerStageDescriptorSampledImages, 1024);
+    }
+
+    crd_nodiscard crd_module bool has_extension(const Context& context, const char* extension) noexcept {
+        crd_assert(!context.gpu.extensions.empty(), "has_extension used before extensions were loaded");
+        for (const auto& [name, _] : context.gpu.extensions) {
+            if (std::strcmp(name, extension) == 0) {
+                return true;
+            }
+        }
+        return false;
     }
 } //namespace crd

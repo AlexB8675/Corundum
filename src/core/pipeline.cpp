@@ -26,9 +26,9 @@ namespace crd {
     }
 
     crd_nodiscard crd_module GraphicsPipeline make_graphics_pipeline(const Context& context, Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
-        crd::detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading vertex shader: %s", info.vertex);
+        detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading vertex shader: %s", info.vertex);
         if (info.fragment) {
-            crd::detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading fragment shader: %s", info.fragment);
+            detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading fragment shader: %s", info.fragment);
         }
         GraphicsPipeline pipeline;
         VkPipelineShaderStageCreateInfo pipeline_stages[2];
@@ -188,6 +188,8 @@ namespace crd {
                 const bool  is_array     = !image_type.array.empty();
                 const bool  is_dynamic   = is_array && image_type.array[0] == 0;
                 const auto  max_samplers = max_bound_samplers(context);
+                crd_assert(!is_dynamic || has_extension(context, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME),
+                           "shader uses descriptor indexing but GPU extension is not supported");
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[textures.name] = {
                         .dynamic = is_dynamic,
@@ -270,7 +272,7 @@ namespace crd {
         rasterizer_state.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer_state.cullMode = info.cull;
         rasterizer_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        rasterizer_state.depthBiasEnable = true;
+        rasterizer_state.depthBiasEnable = false;
         rasterizer_state.depthBiasConstantFactor = 1.25f;
         rasterizer_state.depthBiasClamp = 0.0f;
         rasterizer_state.depthBiasSlopeFactor = 1.75f;
@@ -551,7 +553,7 @@ namespace crd {
         pipeline_info.basePipelineHandle = nullptr;
         pipeline_info.basePipelineIndex = -1;
         crd_vulkan_check(vkCreateComputePipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
-        crd::detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "pipeline created successfully");
+        detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "pipeline created successfully");
         return pipeline;
     }
 

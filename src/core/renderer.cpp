@@ -81,7 +81,6 @@ namespace crd {
     }
 
     crd_nodiscard crd_module FrameInfo Renderer::acquire_frame(const Context& context, Window& window, Swapchain& swapchain) noexcept {
-        // FIXME: Handling of resizing has undefined behaviour
         const auto result = vkAcquireNextImageKHR(context.device, swapchain.handle, -1, img_ready[frame_idx], nullptr, &image_idx);
         crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
             sync_renderer(context, *this);
