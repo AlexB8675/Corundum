@@ -17,6 +17,13 @@
 #include <map>
 
 namespace crd {
+    namespace spvc = spirv_cross;
+
+    enum ResourceType {
+        resource_uniform_buffer,
+        resource_storage_buffer
+    };
+
     crd_nodiscard static inline std::vector<std::uint32_t> import_spirv(const char* path) noexcept {
         auto file = detail::make_file_view(path);
         std::vector<std::uint32_t> code(file.size / sizeof(std::uint32_t));
@@ -27,25 +34,42 @@ namespace crd {
 
     crd_nodiscard crd_module GraphicsPipeline make_graphics_pipeline(const Context& context, Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
         detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading vertex shader: \"%s\"", info.vertex);
+        if (info.geometry) {
+            detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading geometry shader: \"%s\"", info.geometry);
+        }
         if (info.fragment) {
             detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading fragment shader: \"%s\"", info.fragment);
         }
         GraphicsPipeline pipeline;
-        VkPipelineShaderStageCreateInfo pipeline_stages[2];
-        pipeline_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        pipeline_stages[0].pNext = nullptr;
-        pipeline_stages[0].flags = {};
-        pipeline_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-        pipeline_stages[0].pName = "main";
-        pipeline_stages[0].pSpecializationInfo = nullptr;
 
-        if (info.fragment != nullptr) {
-            pipeline_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            pipeline_stages[1].pNext = nullptr;
-            pipeline_stages[1].flags = {};
-            pipeline_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-            pipeline_stages[1].pName = "main";
-            pipeline_stages[1].pSpecializationInfo = nullptr;
+        crd_assert(info.vertex, "vertex shader not present");
+        VkPipelineShaderStageCreateInfo vertex_stage;
+        vertex_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertex_stage.pNext = nullptr;
+        vertex_stage.flags = {};
+        vertex_stage.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vertex_stage.pName = "main";
+        vertex_stage.pSpecializationInfo = nullptr;
+
+        VkPipelineShaderStageCreateInfo geometry_stage;
+        if (info.geometry) {
+            crd_assert(context.gpu.features.geometryShader, "geometry shader requested but not supported");
+            geometry_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            geometry_stage.pNext = nullptr;
+            geometry_stage.flags = {};
+            geometry_stage.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
+            geometry_stage.pName = "main";
+            geometry_stage.pSpecializationInfo = nullptr;
+        }
+
+        VkPipelineShaderStageCreateInfo fragment_stage;
+        if (info.fragment) {
+            fragment_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            fragment_stage.pNext = nullptr;
+            fragment_stage.flags = {};
+            fragment_stage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+            fragment_stage.pName = "main";
+            fragment_stage.pSpecializationInfo = nullptr;
         }
 
         VkPushConstantRange push_constant_range;
@@ -55,9 +79,69 @@ namespace crd {
         std::vector<std::uint32_t> vertex_input_locations;
         DescriptorLayoutBindings descriptor_layout_bindings;
         std::map<std::size_t, std::vector<DescriptorBinding>> pipeline_descriptor_layout;
+        // TODO: Maybe add other descriptor resources too?
+        const auto store_resource = [&](const spvc::CompilerGLSL&                compiler,
+                                        const spvc::SmallVector<spvc::Resource>& resources,
+                                        VkShaderStageFlags                       stage,
+                                        ResourceType                             type) noexcept {
+            switch (type) {
+                case resource_uniform_buffer: {
+                    for (const auto& uniform_buffer : resources) {
+                        const auto set     = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
+                        const auto binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
+                        auto& descriptor   = pipeline_descriptor_layout[set];
+                        if (stage & VK_SHADER_STAGE_FRAGMENT_BIT) {
+                            const auto found =
+                                std::find_if(descriptor.begin(), descriptor.end(), [binding](const auto& each) {
+                                    return each.index == binding;
+                                });
+                            if (found != descriptor.end()) {
+                                found->stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
+                                return;
+                            }
+                        }
+                        pipeline_descriptor_layout[set].emplace_back(
+                            descriptor_layout_bindings[uniform_buffer.name] = {
+                                .dynamic = false,
+                                .index = binding,
+                                .count = 1,
+                                .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                .stage = stage
+                            });
+                    }
+                } break;
+
+                case resource_storage_buffer: {
+                    for (const auto& storage_buffer : resources) {
+                        const auto set     = compiler.get_decoration(storage_buffer.id, spv::DecorationDescriptorSet);
+                        const auto binding = compiler.get_decoration(storage_buffer.id, spv::DecorationBinding);
+                        auto& descriptor   = pipeline_descriptor_layout[set];
+                        if (stage & VK_SHADER_STAGE_FRAGMENT_BIT) {
+                            const auto found =
+                                std::find_if(descriptor.begin(), descriptor.end(), [binding](const auto& each) {
+                                    return each.index == binding;
+                                });
+                            if (found != descriptor.end()) {
+                                found->stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
+                                return;
+                            }
+                        }
+                        pipeline_descriptor_layout[set].emplace_back(
+                            descriptor_layout_bindings[storage_buffer.name] = {
+                                .dynamic = false,
+                                .index = binding,
+                                .count = 1,
+                                .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                .stage = stage
+                            });
+                    }
+                } break;
+            }
+        };
+        crd_assert(info.vertex, "vertex shader not present");
         { // Vertex shader.
             const auto binary    = import_spirv(info.vertex);
-            const auto compiler  = spirv_cross::CompilerGLSL(binary.data(), binary.size());
+            const auto compiler  = spvc::CompilerGLSL(binary.data(), binary.size());
             const auto resources = compiler.get_shader_resources();
 
             VkShaderModuleCreateInfo module_create_info;
@@ -66,32 +150,10 @@ namespace crd {
             module_create_info.flags = {};
             module_create_info.codeSize = size_bytes(binary);
             module_create_info.pCode = binary.data();
-            crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &pipeline_stages[0].module));
+            crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &vertex_stage.module));
 
-            for (const auto& uniform_buffer : resources.uniform_buffers) {
-                const auto set     = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
-                const auto binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
-                pipeline_descriptor_layout[set].emplace_back(
-                    descriptor_layout_bindings[uniform_buffer.name] = {
-                        .dynamic = false,
-                        .index = binding,
-                        .count = 1,
-                        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                        .stage = VK_SHADER_STAGE_VERTEX_BIT
-                    });
-            }
-            for (const auto& storage_buffer : resources.storage_buffers) {
-                const auto set     = compiler.get_decoration(storage_buffer.id, spv::DecorationDescriptorSet);
-                const auto binding = compiler.get_decoration(storage_buffer.id, spv::DecorationBinding);
-                pipeline_descriptor_layout[set].emplace_back(
-                    descriptor_layout_bindings[storage_buffer.name] = {
-                        .dynamic = false,
-                        .index = binding,
-                        .count = 1,
-                        .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                        .stage = VK_SHADER_STAGE_VERTEX_BIT
-                    });
-            }
+            store_resource(compiler, resources.uniform_buffers, VK_SHADER_STAGE_VERTEX_BIT, resource_uniform_buffer);
+            store_resource(compiler, resources.storage_buffers, VK_SHADER_STAGE_VERTEX_BIT, resource_storage_buffer);
             for (const auto& push_constant : resources.push_constant_buffers) {
                 const auto& type = compiler.get_type(push_constant.type_id);
                 push_constant_range.size = compiler.get_declared_struct_size(type);
@@ -99,10 +161,9 @@ namespace crd {
             }
         }
 
-        std::vector<VkPipelineColorBlendAttachmentState> attachment_outputs;
-        if (info.fragment != nullptr) {
-            const auto binary    = import_spirv(info.fragment);
-            const auto compiler  = spirv_cross::CompilerGLSL(binary.data(), binary.size());
+        if (info.geometry) {
+            const auto binary    = import_spirv(info.geometry);
+            const auto compiler  = spvc::CompilerGLSL(binary.data(), binary.size());
             const auto resources = compiler.get_shader_resources();
 
             VkShaderModuleCreateInfo module_create_info;
@@ -111,7 +172,22 @@ namespace crd {
             module_create_info.flags = {};
             module_create_info.codeSize = size_bytes(binary);
             module_create_info.pCode = binary.data();
-            crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &pipeline_stages[1].module));
+            crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &geometry_stage.module));
+        }
+
+        std::vector<VkPipelineColorBlendAttachmentState> attachment_outputs;
+        if (info.fragment) {
+            const auto binary    = import_spirv(info.fragment);
+            const auto compiler  = spvc::CompilerGLSL(binary.data(), binary.size());
+            const auto resources = compiler.get_shader_resources();
+
+            VkShaderModuleCreateInfo module_create_info;
+            module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+            module_create_info.pNext = nullptr;
+            module_create_info.flags = {};
+            module_create_info.codeSize = size_bytes(binary);
+            module_create_info.pCode = binary.data();
+            crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &fragment_stage.module));
 
             VkPipelineColorBlendAttachmentState attachment;
             attachment.blendEnable = true;
@@ -139,48 +215,8 @@ namespace crd {
                         .stage = VK_SHADER_STAGE_FRAGMENT_BIT
                     });
             }
-            for (const auto& uniform_buffer : resources.uniform_buffers) {
-                const auto  set        = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
-                const auto  binding    = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
-                      auto& descriptor = pipeline_descriptor_layout[set];
-                const auto  found =
-                    std::find_if(descriptor.begin(), descriptor.end(), [binding](const auto& each) {
-                        return each.index == binding;
-                    });
-                if (found != descriptor.end()) {
-                    found->stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
-                } else {
-                    descriptor.emplace_back(
-                        descriptor_layout_bindings[uniform_buffer.name] = {
-                            .dynamic = false,
-                            .index = binding,
-                            .count = 1,
-                            .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                            .stage = VK_SHADER_STAGE_FRAGMENT_BIT
-                        });
-                }
-            }
-            for (const auto& storage_buffer : resources.storage_buffers) {
-                const auto  set        = compiler.get_decoration(storage_buffer.id, spv::DecorationDescriptorSet);
-                const auto  binding    = compiler.get_decoration(storage_buffer.id, spv::DecorationBinding);
-                      auto& descriptor = pipeline_descriptor_layout[set];
-                const auto  found =
-                    std::find_if(descriptor.begin(), descriptor.end(), [binding](const auto& each) {
-                        return each.index == binding;
-                    });
-                if (found != descriptor.end()) {
-                    found->stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
-                } else {
-                    descriptor.emplace_back(
-                        descriptor_layout_bindings[storage_buffer.name] = {
-                            .dynamic = false,
-                            .index = binding,
-                            .count = 1,
-                            .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                            .stage = VK_SHADER_STAGE_FRAGMENT_BIT
-                        });
-                }
-            }
+            store_resource(compiler, resources.uniform_buffers, VK_SHADER_STAGE_FRAGMENT_BIT, resource_uniform_buffer);
+            store_resource(compiler, resources.storage_buffers, VK_SHADER_STAGE_FRAGMENT_BIT, resource_storage_buffer);
             for (const auto& textures : resources.sampled_images) {
                 const auto  set          = compiler.get_decoration(textures.id, spv::DecorationDescriptorSet);
                 const auto  binding      = compiler.get_decoration(textures.id, spv::DecorationBinding);
@@ -382,12 +418,18 @@ namespace crd {
         pipeline_layout_info.pPushConstantRanges = &push_constant_range;
         crd_vulkan_check(vkCreatePipelineLayout(context.device, &pipeline_layout_info, nullptr, &pipeline.layout.pipeline));
 
+        std::vector<VkPipelineShaderStageCreateInfo> pipeline_stages;
+        pipeline_stages.reserve(3);
+        pipeline_stages.emplace_back(vertex_stage);
+        if (info.geometry) { pipeline_stages.emplace_back(geometry_stage); }
+        if (info.fragment) { pipeline_stages.emplace_back(fragment_stage); }
+
         VkGraphicsPipelineCreateInfo pipeline_info;
         pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipeline_info.pNext = nullptr;
         pipeline_info.flags = {};
-        pipeline_info.stageCount = 2 - (info.fragment == nullptr);
-        pipeline_info.pStages = pipeline_stages;
+        pipeline_info.stageCount = pipeline_stages.size();
+        pipeline_info.pStages = pipeline_stages.data();
         pipeline_info.pVertexInputState = &vertex_input_state;
         pipeline_info.pInputAssemblyState = &input_assembly_state;
         pipeline_info.pTessellationState = nullptr;
@@ -404,9 +446,8 @@ namespace crd {
         pipeline_info.basePipelineIndex = -1;
 
         crd_vulkan_check(vkCreateGraphicsPipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
-        vkDestroyShaderModule(context.device, pipeline_stages[0].module, nullptr);
-        if (info.fragment != nullptr) {
-            vkDestroyShaderModule(context.device, pipeline_stages[1].module, nullptr);
+        for (const auto& stage : pipeline_stages) {
+            vkDestroyShaderModule(context.device, stage.module, nullptr);
         }
         return pipeline;
     }
@@ -437,7 +478,7 @@ namespace crd {
         DescriptorLayoutBindings descriptor_layout_bindings;
         std::map<std::size_t, std::vector<DescriptorBinding>> pipeline_descriptor_layout;
         { // Compute shader.
-            const auto compiler  = spirv_cross::CompilerGLSL(binary.data(), binary.size());
+            const auto compiler  = spvc::CompilerGLSL(binary.data(), binary.size());
             const auto resources = compiler.get_shader_resources();
             for (const auto& uniform_buffer : resources.uniform_buffers) {
                 const auto set     = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);

@@ -196,4 +196,64 @@ static inline Scene build_scene(std::span<Draw> models, VkDescriptorImageInfo fa
     return scene;
 }
 
+static inline std::vector<glm::vec4> calculate_frustum_corners(const glm::mat4& cam_proj) noexcept {
+    const auto inverse = glm::inverse(cam_proj);
+    std::vector<glm::vec4> corners;
+    corners.reserve(8);
+    for (std::uint32_t x = 0; x < 2; ++x) {
+        for (std::uint32_t y = 0; y < 2; ++y) {
+            for (std::uint32_t z = 0; z < 2; ++z) {
+                const auto ndc = glm::vec4(
+                    2.0f * (float)x - 1.0f,
+                    2.0f * (float)y - 1.0f,
+                    2.0f * (float)z - 1.0f,
+                    1.0f);
+                const auto pt = inverse * ndc;
+                corners.emplace_back(pt / pt.w);
+            }
+        }
+    }
+    return corners;
+}
+
+static inline glm::mat4 calculate_light_view(const glm::mat4& cam_proj, glm::vec3 light_dir) noexcept {
+    const auto corners = calculate_frustum_corners(cam_proj);
+          auto center = glm::vec3(0.0f);
+    for (const auto& corner : corners) {
+        center += glm::vec3(corner);
+    }
+    center /= corners.size();
+    return glm::lookAt(center + light_dir, center, glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
+static inline glm::mat4 calculate_light_proj(const glm::mat4& cam_proj, const glm::mat4& light_view) noexcept {
+    float min_x = (std::numeric_limits<float>::max)();
+    float max_x = (std::numeric_limits<float>::min)();
+    float min_y = min_x;
+    float max_y = max_x;
+    float min_z = min_x;
+    float max_z = max_x;
+    for (const auto& corner : calculate_frustum_corners(cam_proj)) {
+        const auto lvc = light_view * corner;
+        min_x = std::min(min_x, lvc.x);
+        max_x = std::max(max_x, lvc.x);
+        min_y = std::min(min_y, lvc.y);
+        max_y = std::max(max_y, lvc.y);
+        min_z = std::min(min_z, lvc.z);
+        max_z = std::max(max_z, lvc.z);
+    }
+    constexpr float z_mult = 10.0f;
+    if (min_z < 0) {
+        min_z *= z_mult;
+    } else {
+        min_z /= z_mult;
+    }
+    if (max_z < 0) {
+        max_z /= z_mult;
+    } else {
+        max_z *= z_mult;
+    }
+    return glm::ortho(min_x, max_x, min_y, max_y, min_z, max_z);
+}
+
 #endif //CORUNDUM_TESTS_COMMON_HPP

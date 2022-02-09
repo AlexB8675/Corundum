@@ -11,7 +11,7 @@ int main() {
                 .width   = 2048,
                 .height  = 2048,
                 .mips    = 1,
-                .format  = VK_FORMAT_D16_UNORM,
+                .format  = VK_FORMAT_D32_SFLOAT,
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
@@ -108,6 +108,7 @@ int main() {
     });
     auto shadow_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "../data/shaders/test_shadows/shadow.vert.spv",
+        .geometry = nullptr,
         .fragment = nullptr,
         .render_pass = &shadow_pass,
         .attributes = {
@@ -239,7 +240,7 @@ int main() {
         }
         lights[0].position = glm::vec4(
             8.0f * std::sin(crd::time() / 4),
-            8.0f,
+            6.0f,
             8.0f * std::cos(crd::time() / 4),
             0.0f);
         for (std::size_t i = 0; const auto& light : lights) {
@@ -247,7 +248,7 @@ int main() {
         }
         glm::mat4 shadow_camera =
             glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 1.0f, 20.0f) *
-            glm::lookAt(glm::vec3(lights[0].position) + glm::vec3(camera.position),
+            glm::lookAt(glm::vec3(lights[0].position),
                         glm::vec3(0.0f, 0.0f, 0.0f),
                         glm::vec3(0.0f, 1.0f, 0.0f));
         model_buffer[index].resize(context, crd::size_bytes(scene.transforms));

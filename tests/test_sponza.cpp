@@ -150,6 +150,7 @@ int main() {
     });
     auto main_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "../data/shaders/main.vert.spv",
+        .geometry = nullptr,
         .fragment = "../data/shaders/main.frag.spv",
         .render_pass = &deferred_pass,
         .attributes = {
@@ -169,6 +170,7 @@ int main() {
     });
     auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "../data/shaders/light.vert.spv",
+        .geometry = nullptr,
         .fragment = "../data/shaders/light.frag.spv",
         .render_pass = &deferred_pass,
         .attributes = {
@@ -188,6 +190,7 @@ int main() {
     });
     auto combine_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "../data/shaders/combine.vert.spv",
+        .geometry = nullptr,
         .fragment = "../data/shaders/combine.frag.spv",
         .render_pass = &deferred_pass,
         .attributes = {},

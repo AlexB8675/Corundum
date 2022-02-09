@@ -98,8 +98,6 @@ target_compile_definitions(corundum PUBLIC
         WIN32_LEAN_AND_MEAN
         NOMINMAX>
 
-    VMA_VULKAN_VERSION=1003000
-
     SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS
 
     VK_ENABLE_BETA_EXTENSIONS
@@ -129,12 +127,12 @@ add_library(tests-common INTERFACE tests/common.hpp)
 target_include_directories(tests-common INTERFACE tests)
 target_link_libraries(tests-common INTERFACE corundum)
 
-add_executable(test-sponza tests/test_sponza.cpp)
+add_executable(test-csm tests/test_csm.cpp)
 add_executable(test-lights tests/test_lights.cpp)
 add_executable(test-shadows tests/test_shadows.cpp)
-add_executable(test-forward-plus tests/test_forward_plus.cpp)
+add_executable(test-sponza tests/test_sponza.cpp)
 
-target_link_libraries(test-sponza PRIVATE tests-common)
+target_link_libraries(test-csm PRIVATE tests-common)
 target_link_libraries(test-lights PRIVATE tests-common)
 target_link_libraries(test-shadows PRIVATE tests-common)
-target_link_libraries(test-forward-plus PRIVATE tests-common)
+target_link_libraries(test-sponza PRIVATE tests-common)

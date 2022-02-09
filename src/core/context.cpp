@@ -1,4 +1,5 @@
 #include <corundum/core/context.hpp>
+
 #include <corundum/detail/logger.hpp>
 
 #include <string_view>
@@ -111,7 +112,7 @@ namespace crd {
                 detail::log("Vulkan", severity_string, type_string, data->pMessage);
                 const auto fatal_bits = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
                 crd_unlikely_if(severity & fatal_bits) {
-                    crd_force_assert("Fatal Vulkan Error has occurred");
+                    crd_force_assert("Fatal Vulkan error has occurred");
                 }
                 return 0;
             };
@@ -314,22 +315,18 @@ namespace crd {
             sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
             sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
             sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sampler_info.mipLodBias = 0;
+            sampler_info.mipLodBias = 0.0f;
             sampler_info.anisotropyEnable = true;
             sampler_info.maxAnisotropy = 16;
             sampler_info.compareEnable = false;
             sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
-            sampler_info.minLod = 0;
-            sampler_info.maxLod = 8;
+            sampler_info.minLod = 0.0f;
+            sampler_info.maxLod = 8.0f;
             sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
             sampler_info.unnormalizedCoordinates = false;
             crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.default_sampler));
-            sampler_info.mipLodBias = 0.0f;
-            sampler_info.maxAnisotropy = 1.0f;
-            sampler_info.minLod = 0.0f;
-            sampler_info.maxLod = 1.0f;
-            sampler_info.magFilter = VK_FILTER_LINEAR;
-            sampler_info.minFilter = VK_FILTER_LINEAR;
+            sampler_info.magFilter = VK_FILTER_NEAREST;
+            sampler_info.minFilter = VK_FILTER_NEAREST;
             sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
             sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
             sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;

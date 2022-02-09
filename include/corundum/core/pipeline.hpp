@@ -36,6 +36,7 @@ namespace crd {
     struct GraphicsPipeline {
         struct CreateInfo {
             const char* vertex;
+            const char* geometry;
             const char* fragment;
             const RenderPass* render_pass;
             std::vector<VertexAttribute> attributes;
