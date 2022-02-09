@@ -137,6 +137,11 @@ namespace crd {
         return set_scissor(scissor);
     }
 
+    crd_module CommandBuffer& CommandBuffer::set_depth_bias(float constant, float slope) noexcept {
+        vkCmdSetDepthBias(handle, constant, 0.0f, slope);
+        return *this;
+    }
+
     crd_module CommandBuffer& CommandBuffer::bind_pipeline(const GraphicsPipeline& pipeline) noexcept {
         vkCmdBindPipeline(handle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
         active_pipeline = &pipeline;

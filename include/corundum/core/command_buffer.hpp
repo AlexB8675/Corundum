@@ -60,6 +60,7 @@ namespace crd {
         crd_module CommandBuffer& set_viewport() noexcept;
         crd_module CommandBuffer& set_scissor(VkRect2D) noexcept;
         crd_module CommandBuffer& set_scissor() noexcept;
+        crd_module CommandBuffer& set_depth_bias(float, float) noexcept;
         crd_module CommandBuffer& bind_pipeline(const GraphicsPipeline&) noexcept;
         crd_module CommandBuffer& bind_descriptor_set(std::uint32_t, const DescriptorSet<1>&) noexcept;
         crd_module CommandBuffer& bind_vertex_buffer(const StaticBuffer&) noexcept;

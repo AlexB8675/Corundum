@@ -20,6 +20,9 @@ namespace crd {
         crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, VkDescriptorBufferInfo) noexcept;
         crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, VkDescriptorImageInfo) noexcept;
         crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, const std::vector<VkDescriptorImageInfo>&) noexcept;
+        crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, std::uint32_t, VkDescriptorBufferInfo) noexcept;
+        crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, std::uint32_t, VkDescriptorImageInfo) noexcept;
+        crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, std::uint32_t, const std::vector<VkDescriptorImageInfo>&) noexcept;
     };
 
     template <>
@@ -29,6 +32,9 @@ namespace crd {
                       crd_module DescriptorSet<in_flight>& bind(const Context&, const DescriptorBinding&, VkDescriptorBufferInfo) noexcept;
                       crd_module DescriptorSet<in_flight>& bind(const Context&, const DescriptorBinding&, VkDescriptorImageInfo) noexcept;
                       crd_module DescriptorSet<in_flight>& bind(const Context&, const DescriptorBinding&, const std::vector<VkDescriptorImageInfo>&) noexcept;
+                      crd_module DescriptorSet<in_flight>& bind(const Context&, const DescriptorBinding&, std::uint32_t, VkDescriptorBufferInfo) noexcept;
+                      crd_module DescriptorSet<in_flight>& bind(const Context&, const DescriptorBinding&, std::uint32_t, VkDescriptorImageInfo) noexcept;
+                      crd_module DescriptorSet<in_flight>& bind(const Context&, const DescriptorBinding&, std::uint32_t, const std::vector<VkDescriptorImageInfo>&) noexcept;
 
         crd_nodiscard crd_module DescriptorSet<1>&         operator [](std::size_t) noexcept;
         crd_nodiscard crd_module const DescriptorSet<1>&   operator [](std::size_t) const noexcept;

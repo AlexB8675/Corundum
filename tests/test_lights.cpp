@@ -1,178 +1,4 @@
-#include <corundum/core/descriptor_set.hpp>
-#include <corundum/core/static_texture.hpp>
-#include <corundum/core/static_model.hpp>
-#include <corundum/core/static_mesh.hpp>
-#include <corundum/core/render_pass.hpp>
-#include <corundum/core/utilities.hpp>
-#include <corundum/core/swapchain.hpp>
-#include <corundum/core/constants.hpp>
-#include <corundum/core/renderer.hpp>
-#include <corundum/core/pipeline.hpp>
-#include <corundum/core/context.hpp>
-#include <corundum/core/buffer.hpp>
-#include <corundum/core/clear.hpp>
-#include <corundum/core/async.hpp>
-
-#include <corundum/detail/logger.hpp>
-
-#include <corundum/wm/window.hpp>
-
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/mat4x4.hpp>
-
-#include <random>
-#include <vector>
-#include <array>
-#include <span>
-
-struct Camera {
-    glm::mat4 perspective;
-    glm::vec3 position = { 1.2f, 0.4f, -3.0f };
-    glm::vec3 front =    { 0.0f, 0.0f, -1.0f };
-    glm::vec3 up =       { 0.0f, 1.0f,  0.0f };
-    glm::vec3 right =    { 0.0f, 0.0f,  0.0f };
-    glm::vec3 world_up = { 0.0f, 1.0f,  0.0f };
-    float yaw = -180.0f;
-    float pitch = 0.0f;
-
-    void update(const crd::Window& window, double delta_time) noexcept {
-        _process_keyboard(window, delta_time);
-        perspective = glm::perspective(glm::radians(60.0f), window.width / (float)window.height, 0.1f, 100.0f);
-        perspective[1][1] *= -1;
-        
-        const auto cos_pitch = std::cos(glm::radians(pitch));
-        front = glm::normalize(glm::vec3{
-            std::cos(glm::radians(yaw)) * cos_pitch,
-            std::sin(glm::radians(pitch)),
-            std::sin(glm::radians(yaw)) * cos_pitch
-        });
-        right = glm::normalize(glm::cross(front, world_up));
-        up = glm::normalize(glm::cross(right, front));
-    }
-
-    glm::mat4 raw() const noexcept {
-        return perspective * glm::lookAt(position, position + front, up);
-    }
-private:
-    void _process_keyboard(const crd::Window& window, double delta_time) noexcept {
-        constexpr auto camera_speed = 2.5f;
-        const auto delta_movement = camera_speed * (float)delta_time;
-        if (window.key(crd::key_w) == crd::key_pressed) {
-            position.x += std::cos(glm::radians(yaw)) * delta_movement;
-            position.z += std::sin(glm::radians(yaw)) * delta_movement;
-        }
-        if (window.key(crd::key_s) == crd::key_pressed) {
-            position.x -= std::cos(glm::radians(yaw)) * delta_movement;
-            position.z -= std::sin(glm::radians(yaw)) * delta_movement;
-        }
-        if (window.key(crd::key_a) == crd::key_pressed) {
-            position -= right * delta_movement;
-        }
-        if (window.key(crd::key_d) == crd::key_pressed) {
-            position += right * delta_movement;
-        }
-        if (window.key(crd::key_space) == crd::key_pressed) {
-            position += world_up * delta_movement;
-        }
-        if (window.key(crd::key_left_shift) == crd::key_pressed) {
-            position -= world_up * delta_movement;
-        }
-        if (window.key(crd::key_left) == crd::key_pressed) {
-            yaw -= 150 * delta_time;
-        }
-        if (window.key(crd::key_right) == crd::key_pressed) {
-            yaw += 150 * delta_time;
-        }
-        if (window.key(crd::key_up) == crd::key_pressed) {
-            pitch += 150 * delta_time;
-        }
-        if (window.key(crd::key_down) == crd::key_pressed) {
-            pitch -= 150 * delta_time;
-        }
-        if (pitch > 89.9f) {
-            pitch = 89.9f;
-        }
-        if (pitch < -89.9f) {
-            pitch = -89.9f;
-        }
-    }
-};
-
-struct DirectionalLight {
-    glm::vec4 direction;
-    glm::vec4 diffuse;
-    glm::vec4 specular;
-};
-
-struct PointLight {
-    glm::vec4 position;
-    glm::vec4 falloff;
-    glm::vec4 diffuse;
-    glm::vec4 specular;
-};
-
-struct Model {
-    struct Submesh {
-        std::array<std::uint32_t, 3> textures;
-        std::uint32_t index;
-    };
-    std::vector<Submesh> submeshes;
-    std::uint32_t index;
-};
-
-struct Scene {
-    std::vector<VkDescriptorImageInfo> descriptors;
-    std::vector<Model> models;
-};
-
-// Old
-static inline Scene build_scene(std::span<crd::Async<crd::StaticModel>*> models, VkDescriptorImageInfo fallback) noexcept {
-    Scene scene;
-    scene.descriptors = { fallback };
-    std::unordered_map<void*, std::uint32_t> texture_cache;
-    for (std::uint32_t i = 0; auto& model : models) {
-        crd_likely_if(model->is_ready()) {
-            const auto submeshes_size = (*model)->submeshes.size();
-            auto& handle = scene.models.emplace_back();
-            scene.descriptors.reserve(scene.descriptors.size() + submeshes_size * 3);
-            texture_cache.reserve(texture_cache.size() + submeshes_size * 3);
-            handle.submeshes.reserve(submeshes_size);
-            handle.index = i;
-            for (std::uint32_t j = 0; auto& submesh : (*model)->submeshes) {
-                crd_likely_if(submesh.mesh.is_ready()) {
-                    std::array<std::uint32_t, 3> indices = {};
-                    const auto emplace_descriptor = [&](crd::Async<crd::StaticTexture>* texture, std::uint32_t which) {
-                        crd_likely_if(texture) {
-                            auto& cached = texture_cache[texture];
-                            crd_unlikely_if(cached == 0 && texture->is_ready()) {
-                                scene.descriptors.emplace_back((*texture)->info());
-                                cached = scene.descriptors.size() - 1;
-                            }
-                            indices[which] = cached;
-                        }
-                    };
-                    emplace_descriptor(submesh.diffuse, 0);
-                    emplace_descriptor(submesh.normal, 1);
-                    emplace_descriptor(submesh.specular, 2);
-                    handle.submeshes.push_back({
-                        .textures = indices,
-                        .index = j
-                    });
-                }
-                j++;
-            }
-        }
-        i++;
-    }
-    return scene;
-}
-
-static inline float random(float min, float max) {
-    static std::random_device device;
-    static std::mt19937 engine(device());
-    return std::uniform_real_distribution<float>(min, max)(engine);
-}
+#include <common.hpp>
 
 int main() {
     auto window = crd::make_window(1280, 720, "Test");
@@ -395,19 +221,22 @@ int main() {
     std::vector<crd::Async<crd::StaticModel>> models;
     models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
     models.emplace_back(crd::request_static_model(context, "../data/models/plane/plane.obj"));
-    std::vector<crd::Async<crd::StaticModel>*> model_handles;
-    model_handles.emplace_back(&models[0]);
-    model_handles.emplace_back(&models[1]);
+    std::vector<Draw> draw_cmds = { {
+        .model = &models[0],
+        .transforms = { glm::mat4(1.0f) }
+    }, {
+        .model = &models[1],
+        .transforms = { glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.5f, 0.0f)) }
+    } };
     Camera camera;
-    std::vector<glm::mat4> transforms;
-    transforms.reserve(nlights + 2);
+    std::vector<glm::mat4> light_ts;
+    light_ts.reserve(lights.size());
     for (const auto& light : lights) {
-        transforms.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
+        light_ts.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
     }
-    transforms.emplace_back(glm::mat4(1.0f));
-    transforms.emplace_back(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.5f, 0.0f)));
     auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::uniform_buffer);
-    auto model_buffer = crd::make_buffer(context, crd::size_bytes(transforms), crd::storage_buffer);
+    auto model_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
+    auto light_model_buffer = crd::make_buffer(context, crd::size_bytes(light_ts), crd::storage_buffer);
     auto light_color_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
     auto light_uniform_buffer = crd::make_buffer(context, sizeof(glm::vec4), crd::uniform_buffer);
     auto point_light_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
@@ -420,7 +249,7 @@ int main() {
     double delta_time = 0, last_frame = 0, fps = 0;
     while (!window.is_closed()) {
         const auto [commands, image, index] = renderer.acquire_frame(context, window, swapchain);
-        const auto scene = build_scene(model_handles, black->info());
+        const auto scene = build_scene(draw_cmds, black->info());
         const auto current_frame = crd::time();
         ++frames;
         delta_time = current_frame - last_frame;
@@ -431,10 +260,11 @@ int main() {
             frames = 0;
             fps = 0;
         }
-        model_buffer[index].resize(context, crd::size_bytes(transforms));
+        model_buffer[index].resize(context, crd::size_bytes(scene.transforms));
         point_light_buffer[index].resize(context, crd::size_bytes(lights));
         light_color_buffer[index].resize(context, crd::size_bytes(light_colors));
-        model_buffer[index].write(transforms.data(), 0);
+        model_buffer[index].write(scene.transforms.data(), 0);
+        light_model_buffer[index].write(light_ts.data(), 0);
         camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
         point_light_buffer[index].write(lights.data(), 0, crd::size_bytes(lights));
         light_color_buffer[index].write(light_colors.data(), 0, crd::size_bytes(light_colors));
@@ -445,7 +275,7 @@ int main() {
             .bind(context, main_pipeline.bindings["textures"], scene.descriptors);
         light_set[index]
             .bind(context, light_pipeline.bindings["Uniforms"], camera_buffer[index].info())
-            .bind(context, light_pipeline.bindings["Models"], model_buffer[index].info())
+            .bind(context, light_pipeline.bindings["Models"], light_model_buffer[index].info())
             .bind(context, light_pipeline.bindings["Colors"], light_color_buffer[index].info());
         light_data_set[index]
             .bind(context, combine_pipeline.bindings["Uniforms"], light_uniform_buffer[index].info())
@@ -459,16 +289,16 @@ int main() {
         commands
             .begin()
             .begin_render_pass(deferred_pass, 0)
-            .set_viewport()
+            .set_viewport(crd::inverted_viewport)
             .set_scissor()
             .bind_pipeline(main_pipeline)
             .bind_descriptor_set(0, main_set[index]);
         for (const auto& model : scene.models) {
-            auto& raw_model = **model_handles[model.index];
+            auto& raw_model = *models[model.index];
             for (const auto& submesh : model.submeshes) {
                 auto& raw_submesh = raw_model.submeshes[submesh.index];
                 const std::uint32_t indices[] = {
-                    model.index + nlights,
+                    model.transform,
                     submesh.textures[0],
                     submesh.textures[1],
                     submesh.textures[2]
@@ -476,7 +306,7 @@ int main() {
                 commands
                     .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, indices, sizeof(indices))
                     .bind_static_mesh(*raw_submesh.mesh)
-                    .draw_indexed(raw_submesh.indices, 1, 0, 0, 0);
+                    .draw_indexed(raw_submesh.indices, model.instances, 0, 0, 0);
             }
         }
         auto& light_cube = models[0]->submeshes[0];
@@ -526,6 +356,7 @@ int main() {
     crd::destroy_descriptor_set(context, main_set);
     crd::destroy_buffer(context, light_uniform_buffer);
     crd::destroy_buffer(context, light_color_buffer);
+    crd::destroy_buffer(context, light_model_buffer);
     crd::destroy_buffer(context, directional_light_buffer);
     crd::destroy_buffer(context, point_light_buffer);
     crd::destroy_buffer(context, model_buffer);

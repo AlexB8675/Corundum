@@ -28,8 +28,8 @@ namespace crd::detail {
         const auto clock     = std::chrono::system_clock::now();
         const auto time      = std::chrono::system_clock::to_time_t(clock);
               auto timestamp = std::stringstream();
-                   timestamp << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
-        const auto size      = std::snprintf(nullptr, 0, message, std::forward<Args>(args)...);
+                   timestamp << std::put_time(std::localtime(&time), "%H:%M:%S");
+              auto size      = std::snprintf(nullptr, 0, message, std::forward<Args>(args)...);
         std::string buffer(size + 1, '\0');
         std::snprintf(buffer.data(), buffer.size(), message, std::forward<Args>(args)...);
         std::printf("[%s] [%s] [%s] [%s]: %s\n", timestamp.str().c_str(), sender, severity, type, buffer.c_str());

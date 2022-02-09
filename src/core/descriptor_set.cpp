@@ -16,7 +16,7 @@ namespace crd {
         allocate_info.descriptorPool = context.descriptor_pool;
         allocate_info.descriptorSetCount = 1;
         allocate_info.pSetLayouts = &layout.handle;
-        const auto max_samplers = max_bound_samplers(context) / 8;
+        const auto max_samplers = max_bound_samplers(context);
         VkDescriptorSetVariableDescriptorCountAllocateInfo variable_count;
         if (layout.dynamic) {
             variable_count.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
@@ -52,7 +52,7 @@ namespace crd {
         }
     }
 
-    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorBufferInfo buffer) noexcept {
+    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorBufferInfo buffer) noexcept {
         const auto  buffer_hash      = detail::hash(0, buffer);
         const auto  binding_hash     = detail::hash(0, binding);
               auto& bound_descriptor = bound[binding_hash];
@@ -64,7 +64,7 @@ namespace crd {
             update.pNext = nullptr;
             update.dstSet = handle;
             update.dstBinding = binding.index;
-            update.dstArrayElement = 0;
+            update.dstArrayElement = offset;
             update.descriptorCount = 1;
             update.descriptorType = binding.type;
             update.pImageInfo = nullptr;
@@ -76,7 +76,7 @@ namespace crd {
         return *this;
     }
 
-    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorImageInfo image) noexcept {
+    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorImageInfo image) noexcept {
         const auto  image_hash       = detail::hash(0, image);
         const auto  binding_hash     = detail::hash(0, binding);
               auto& bound_descriptor = bound[binding_hash];
@@ -88,7 +88,7 @@ namespace crd {
             update.pNext = nullptr;
             update.dstSet = handle;
             update.dstBinding = binding.index;
-            update.dstArrayElement = 0;
+            update.dstArrayElement = offset;
             update.descriptorCount = 1;
             update.descriptorType = binding.type;
             update.pImageInfo = &image;
@@ -100,7 +100,7 @@ namespace crd {
         return *this;
     }
 
-    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, const std::vector<VkDescriptorImageInfo>& images) noexcept {
+    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, const std::vector<VkDescriptorImageInfo>& images) noexcept {
         const auto  images_hash      = detail::hash(0, images);
         const auto  binding_hash     = detail::hash(0, binding);
               auto& bound_descriptor = bound[binding_hash];
@@ -112,7 +112,7 @@ namespace crd {
             update.pNext = nullptr;
             update.dstSet = handle;
             update.dstBinding = binding.index;
-            update.dstArrayElement = 0;
+            update.dstArrayElement = offset;
             update.descriptorCount = images.size();
             update.descriptorType = binding.type;
             update.pImageInfo = images.data();
@@ -122,6 +122,18 @@ namespace crd {
             bound_descriptor = images_hash;
         }
         return *this;
+    }
+
+    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorBufferInfo buffer) noexcept {
+        return bind(context, binding, 0, buffer);
+    }
+
+    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorImageInfo image) noexcept {
+        return bind(context, binding, 0, image);
+    }
+
+    crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, const std::vector<VkDescriptorImageInfo>& images) noexcept {
+        return bind(context, binding, 0, images);
     }
 
     crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorBufferInfo buffer) noexcept {
@@ -141,6 +153,27 @@ namespace crd {
     crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, const std::vector<VkDescriptorImageInfo>& images) noexcept {
         for (auto& each : handles) {
             each.bind(context, binding, images);
+        }
+        return *this;
+    }
+
+    crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorBufferInfo buffer) noexcept {
+        for (auto& each : handles) {
+            each.bind(context, binding, offset, buffer);
+        }
+        return *this;
+    }
+
+    crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorImageInfo image) noexcept {
+        for (auto& each : handles) {
+            each.bind(context, binding, offset, image);
+        }
+        return *this;
+    }
+
+    crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, const std::vector<VkDescriptorImageInfo>& images) noexcept {
+        for (auto& each : handles) {
+            each.bind(context, binding, offset, images);
         }
         return *this;
     }

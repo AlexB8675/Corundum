@@ -91,13 +91,13 @@ vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 frag_
 }
 
 vec3 calculate_shadow(vec3 color, vec3 albedo, vec2 offset) {
-    vec4 shadow_coords = shadow_bias * light_frag_pos;
-    shadow_coords /= shadow_coords.w;
-    const float current = shadow_coords.z;
-    const float bias = 0.0075; // TODO: I dunno, hardcoding sounds bad
-    if (current > -0.985 && current < 0.985) {
-        const float closest = texture(shadow, vec2(shadow_coords.x + offset.x, 1.0 - shadow_coords.y + offset.y)).r;
-        if (shadow_coords.w > 0.0 && current + bias > closest) {
+    const vec4 shadow_coords = shadow_bias * (light_frag_pos / light_frag_pos.w);
+    const vec2 texel = vec2(shadow_coords.x, 1.0 - shadow_coords.y);
+    const float bias = 0.0075;
+    const float current = shadow_coords.z + bias;
+    if (current > -1.0 && current < 1.0) {
+        const float closest = texture(shadow, texel + offset).r;
+        if (shadow_coords.w > 0.0 && current > closest) {
             return ambient_factor * albedo;
         }
     }

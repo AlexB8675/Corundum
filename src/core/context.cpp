@@ -9,10 +9,21 @@
 #include <vector>
 #include <string>
 #include <array>
+#include <span>
 
 #define load_instance_function(instance, fn) const auto fn = reinterpret_cast<PFN_##fn>(vkGetInstanceProcAddr(instance, #fn))
 
 namespace crd {
+    crd_nodiscard static inline bool has_extension(std::span<VkExtensionProperties> extensions, const char* extension) noexcept {
+        for (const auto& [name, _] : extensions) {
+            if (std::strcmp(name, extension) == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     crd_nodiscard Context make_context() noexcept {
         detail::log("Vulkan", detail::severity_info, detail::type_general, "vulkan initialization started");
         Context context = {};
@@ -225,8 +236,8 @@ namespace crd {
             detail::log("Vulkan", detail::severity_info, detail::type_general, "enumerating device extensions");
             std::uint32_t extension_count;
             vkEnumerateDeviceExtensionProperties(context.gpu.handle, nullptr, &extension_count, nullptr);
-            context.gpu.extensions.resize(extension_count);
-            vkEnumerateDeviceExtensionProperties(context.gpu.handle, nullptr, &extension_count, context.gpu.extensions.data());
+            std::vector<VkExtensionProperties> extensions(extension_count);
+            vkEnumerateDeviceExtensionProperties(context.gpu.handle, nullptr, &extension_count, extensions.data());
             std::vector<const char*> extension_names = {
                 VK_KHR_SWAPCHAIN_EXTENSION_NAME
             };
@@ -234,14 +245,14 @@ namespace crd {
             VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing = {};
             descriptor_indexing.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
             descriptor_indexing.shaderSampledImageArrayNonUniformIndexing = true;
-            descriptor_indexing.shaderUniformBufferArrayNonUniformIndexing = true;
-            descriptor_indexing.shaderStorageBufferArrayNonUniformIndexing = true;
             descriptor_indexing.descriptorBindingVariableDescriptorCount = true;
             descriptor_indexing.descriptorBindingPartiallyBound = true;
             descriptor_indexing.runtimeDescriptorArray = true;
             VkDeviceCreateInfo device_info;
-            if (has_extension(context, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME)) {
+            device_info.pNext = nullptr;
+            if (has_extension(extensions, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME)) {
                 extension_names.emplace_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+                context.extensions.descriptor_indexing = true;
                 device_info.pNext = &descriptor_indexing;
             }
             device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -269,9 +280,9 @@ namespace crd {
         }
         { // Creates a Descriptor Pool.
             const auto& limits          = context.gpu.properties.limits;
-            const auto max_samplers     = std::min<std::uint32_t>(4096, limits.maxDescriptorSetSampledImages);
-            const auto max_uniforms     = std::min<std::uint32_t>(4096, limits.maxDescriptorSetUniformBuffers);
-            const auto max_storage      = std::min<std::uint32_t>(4096, limits.maxDescriptorSetStorageBuffers);
+            const auto max_samplers     = std::min<std::uint32_t>(16384, limits.maxDescriptorSetSampledImages);
+            const auto max_uniforms     = std::min<std::uint32_t>(8192, limits.maxDescriptorSetUniformBuffers);
+            const auto max_storage      = std::min<std::uint32_t>(8192, limits.maxDescriptorSetStorageBuffers);
             const auto descriptor_sizes = std::to_array<VkDescriptorPoolSize>({
                 { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         max_uniforms },
                 { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         max_storage  },
@@ -317,11 +328,11 @@ namespace crd {
             sampler_info.maxAnisotropy = 1.0f;
             sampler_info.minLod = 0.0f;
             sampler_info.maxLod = 1.0f;
-            sampler_info.magFilter = VK_FILTER_NEAREST;
-            sampler_info.minFilter = VK_FILTER_NEAREST;
-            sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-            sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-            sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+            sampler_info.magFilter = VK_FILTER_LINEAR;
+            sampler_info.minFilter = VK_FILTER_LINEAR;
+            sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
             sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
             crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.shadow_sampler));
         }
@@ -368,15 +379,5 @@ namespace crd {
 
     crd_nodiscard crd_module std::uint32_t max_bound_samplers(const Context& context) noexcept {
         return std::min<std::uint32_t>(context.gpu.properties.limits.maxPerStageDescriptorSampledImages, 1024);
-    }
-
-    crd_nodiscard crd_module bool has_extension(const Context& context, const char* extension) noexcept {
-        crd_assert(!context.gpu.extensions.empty(), "has_extension used before extensions were loaded");
-        for (const auto& [name, _] : context.gpu.extensions) {
-            if (std::strcmp(name, extension) == 0) {
-                return true;
-            }
-        }
-        return false;
     }
 } //namespace crd

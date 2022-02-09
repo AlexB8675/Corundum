@@ -21,11 +21,13 @@ namespace crd {
         VkDebugUtilsMessengerEXT validation;
 #endif
         struct {
-            std::vector<VkExtensionProperties> extensions;
             VkPhysicalDeviceProperties properties;
             VkPhysicalDeviceFeatures features;
             VkPhysicalDevice handle;
         } gpu;
+        struct {
+            bool descriptor_indexing;
+        } extensions;
         QueueFamilies families;
         VkDevice device;
         VmaAllocator allocator;
@@ -41,5 +43,4 @@ namespace crd {
     crd_nodiscard crd_module Context       make_context() noexcept;
                   crd_module void          destroy_context(Context&) noexcept;
     crd_nodiscard crd_module std::uint32_t max_bound_samplers(const Context&) noexcept;
-    crd_nodiscard crd_module bool          has_extension(const Context&, const char*) noexcept;
 } // namespace crd

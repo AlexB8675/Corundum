@@ -26,9 +26,9 @@ namespace crd {
     }
 
     crd_nodiscard crd_module GraphicsPipeline make_graphics_pipeline(const Context& context, Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
-        detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading vertex shader: %s", info.vertex);
+        detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading vertex shader: \"%s\"", info.vertex);
         if (info.fragment) {
-            detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading fragment shader: %s", info.fragment);
+            detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading fragment shader: \"%s\"", info.fragment);
         }
         GraphicsPipeline pipeline;
         VkPipelineShaderStageCreateInfo pipeline_stages[2];
@@ -188,7 +188,7 @@ namespace crd {
                 const bool  is_array     = !image_type.array.empty();
                 const bool  is_dynamic   = is_array && image_type.array[0] == 0;
                 const auto  max_samplers = max_bound_samplers(context);
-                crd_assert(!is_dynamic || has_extension(context, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME),
+                crd_assert(!is_dynamic || context.extensions.descriptor_indexing,
                            "shader uses descriptor indexing but GPU extension is not supported");
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[textures.name] = {
@@ -273,9 +273,9 @@ namespace crd {
         rasterizer_state.cullMode = info.cull;
         rasterizer_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer_state.depthBiasEnable = false;
-        rasterizer_state.depthBiasConstantFactor = 1.25f;
+        rasterizer_state.depthBiasConstantFactor = 0.0f;
         rasterizer_state.depthBiasClamp = 0.0f;
-        rasterizer_state.depthBiasSlopeFactor = 1.75f;
+        rasterizer_state.depthBiasSlopeFactor = 0.0f;
         rasterizer_state.lineWidth = 1.0f;
 
         VkPipelineMultisampleStateCreateInfo multisampling_state;
@@ -522,8 +522,11 @@ namespace crd {
                 binding_flags.pBindingFlags = flags.data();
 
                 VkDescriptorSetLayoutCreateInfo layout_info;
+                layout_info.pNext = nullptr;
+                if (context.extensions.descriptor_indexing) {
+                    layout_info.pNext = &binding_flags;
+                }
                 layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-                layout_info.pNext = &binding_flags;
                 layout_info.flags = {};
                 layout_info.bindingCount = bindings.size();
                 layout_info.pBindings = bindings.data();
