@@ -90,13 +90,13 @@ namespace crd {
                         const auto set     = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
                         const auto binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
                         auto& descriptor   = pipeline_descriptor_layout[set];
-                        if (stage & VK_SHADER_STAGE_FRAGMENT_BIT) {
+                        if (stage & (VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT)) {
                             const auto found =
                                 std::find_if(descriptor.begin(), descriptor.end(), [binding](const auto& each) {
                                     return each.index == binding;
                                 });
                             if (found != descriptor.end()) {
-                                found->stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
+                                found->stage |= stage;
                                 return;
                             }
                         }
@@ -173,6 +173,14 @@ namespace crd {
             module_create_info.codeSize = size_bytes(binary);
             module_create_info.pCode = binary.data();
             crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &geometry_stage.module));
+
+            store_resource(compiler, resources.uniform_buffers, VK_SHADER_STAGE_GEOMETRY_BIT, resource_uniform_buffer);
+            store_resource(compiler, resources.storage_buffers, VK_SHADER_STAGE_GEOMETRY_BIT, resource_storage_buffer);
+            if (!resources.push_constant_buffers.empty()) {
+                crd_assert(resources.push_constant_buffers.size() == push_constant_range.size,
+                           "push constant block in geometry stage has a size different from other stages");
+                push_constant_range.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+            }
         }
 
         std::vector<VkPipelineColorBlendAttachmentState> attachment_outputs;

@@ -34,6 +34,7 @@ namespace crd {
                 .width = (std::uint32_t)width,
                 .height = (std::uint32_t)height,
                 .mips = (std::uint32_t)std::floor(std::log2(std::max(width, height))) + 1,
+                .layers = 1,
                 .format = static_cast<VkFormat>(format),
                 .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,

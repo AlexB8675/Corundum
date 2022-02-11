@@ -15,7 +15,8 @@ layout (location = 0) out VertexData {
 };
 
 layout (set = 0, binding = 0) uniform Uniforms {
-    mat4 proj_view;
+    mat4 projection;
+    mat4 view;
     mat4 light_proj_view;
 };
 
@@ -41,5 +42,5 @@ void main() {
     light_frag_pos = light_proj_view * vec4(frag_pos, 1.0);
     normal = i_normal;
     uvs = i_uvs;
-    gl_Position = proj_view * vec4(frag_pos, 1.0);
+    gl_Position = projection * view * vec4(frag_pos, 1.0);
 }

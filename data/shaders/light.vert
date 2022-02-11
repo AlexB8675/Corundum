@@ -9,7 +9,8 @@ layout (location = 4) in vec3 i_bitangent;
 layout (location = 0) out flat uint instance;
 
 layout (set = 0, binding = 0) uniform Uniforms {
-    mat4 proj_view;
+    mat4 projection;
+    mat4 view;
     mat4 _u0;
 };
 
@@ -19,5 +20,5 @@ layout (set = 0, binding = 1) buffer readonly Models {
 
 void main() {
     instance = gl_InstanceIndex;
-    gl_Position = proj_view * model[instance] * vec4(i_vertex, 1.0);
+    gl_Position = projection * view * model[instance] * vec4(i_vertex, 1.0);
 }

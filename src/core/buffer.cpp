@@ -5,7 +5,7 @@
 
 namespace crd {
     template <>
-    crd_nodiscard crd_module Buffer<1> make_buffer(const Context& context, std::size_t size, BufferType type) {
+    crd_nodiscard crd_module Buffer<1> make_buffer(const Context& context, std::size_t size, BufferType type) noexcept {
         Buffer<1> buffer;
         buffer.handle = make_static_buffer(context, {
             .flags = static_cast<VkBufferUsageFlags>(type),
@@ -17,7 +17,7 @@ namespace crd {
     }
 
     template <>
-    crd_nodiscard crd_module Buffer<in_flight> make_buffer(const Context& context, std::size_t size, BufferType type) {
+    crd_nodiscard crd_module Buffer<in_flight> make_buffer(const Context& context, std::size_t size, BufferType type) noexcept {
         Buffer<in_flight> buffer;
         for (auto& handle : buffer.handles) {
             handle = make_buffer<1>(context, size, type);
@@ -26,13 +26,13 @@ namespace crd {
     }
 
     template <>
-    crd_module void destroy_buffer(const Context& context, Buffer<1>& buffer) {
+    crd_module void destroy_buffer(const Context& context, Buffer<1>& buffer) noexcept {
         destroy_static_buffer(context, buffer.handle);
         buffer = {};
     }
 
     template <>
-    crd_module void destroy_buffer(const Context& context, Buffer<in_flight>& buffer) {
+    crd_module void destroy_buffer(const Context& context, Buffer<in_flight>& buffer) noexcept {
         for (auto& handle : buffer.handles) {
             destroy_buffer(context, handle);
         }
@@ -65,23 +65,6 @@ namespace crd {
         std::memcpy(static_cast<char*>(handle.mapped) + offset, data, length);
     }
 
-    crd_module void Buffer<1>::resize(const Context& context, std::size_t new_size) noexcept {
-        crd_likely_if(new_size == size) {
-            return;
-        }
-        crd_unlikely_if(new_size >= handle.capacity) {
-            auto old = handle;
-            handle = make_static_buffer(context, {
-                .flags = old.flags,
-                .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-                .capacity = new_size
-            });
-            std::memcpy(handle.mapped, old.mapped, size);
-            destroy_static_buffer(context, old);
-        }
-        size = new_size;
-    }
-
     crd_module Buffer<1>& Buffer<in_flight>::operator [](std::size_t index) noexcept {
         return handles[index];
     }
@@ -98,9 +81,49 @@ namespace crd {
         }
     }
 
-    crd_module void Buffer<in_flight>::resize(const Context& context, std::size_t new_size) noexcept {
-        for (auto& each : handles) {
-            each.resize(context, new_size);
+    template <>
+    crd_module void resize_buffer(const Context& context, Buffer<1>& buffer, std::size_t new_size) noexcept {
+        crd_likely_if(new_size == buffer.size) {
+            return;
+        }
+        crd_unlikely_if(new_size >= buffer.handle.capacity) {
+            auto old = buffer.handle;
+            buffer.handle = make_static_buffer(context, {
+                .flags = old.flags,
+                .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+                .capacity = new_size
+            });
+            std::memcpy(buffer.handle.mapped, old.mapped, buffer.size);
+            destroy_static_buffer(context, old);
+        }
+        buffer.size = new_size;
+    }
+
+    template <>
+    crd_module void resize_buffer(const Context& context, Buffer<in_flight>& buffer, std::size_t new_size) noexcept {
+        for (auto& each : buffer.handles) {
+            resize_buffer(context, each, new_size);
+        }
+    }
+
+    template <>
+    crd_module void shrink_buffer(const Context& context, Buffer<1>& buffer) noexcept {
+        crd_unlikely_if(buffer.size < buffer.handle.capacity) {
+            auto old = buffer.handle;
+            buffer.handle = make_static_buffer(context, {
+                .flags = old.flags,
+                .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+                .capacity = buffer.size
+            });
+            std::memcpy(buffer.handle.mapped, old.mapped, buffer.size);
+            destroy_static_buffer(context, old);
+        }
+    }
+
+    template <>
+    crd_module void shrink_buffer(const Context& context, Buffer<in_flight>& buffer) noexcept {
+        for (auto& each : buffer.handles) {
+            shrink_buffer(context, each);
         }
     }
 } // namespace crd

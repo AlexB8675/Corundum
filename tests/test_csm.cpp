@@ -1,5 +1,103 @@
 #include <common.hpp>
 
+#define max_shadow_cascades 16
+#define shadow_cascades 6
+
+struct Cascade {
+    glm::mat4 pv;
+    float level;
+    float _0[3];
+};
+
+static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& camera, glm::vec3 light_pos) noexcept {
+    std::array<Cascade, shadow_cascades> cascades;
+    const auto calculate_cascade = [&camera, &light_pos](float near, float far) {
+        const auto perspective = glm::perspective(glm::radians(60.0f), camera.aspect, near, far);
+        glm::vec4 corners[8];
+        { // Calculate frustum corners
+            const auto inverse = glm::inverse(perspective * camera.view);
+            std::uint32_t offset = 0;
+            for (std::uint32_t x = 0; x < 2; ++x) {
+                for (std::uint32_t y = 0; y < 2; ++y) {
+                    for (std::uint32_t z = 0; z < 2; ++z) {
+                        const glm::vec4 v_world =
+                            inverse * glm::vec4(
+                                2.0f * (float)x - 1.0f,
+                                2.0f * (float)y - 1.0f,
+                                2.0f * (float)z - 1.0f,
+                                1.0f);
+                        corners[offset++] = v_world / v_world.w;
+                    }
+                }
+            }
+        }
+        glm::mat4 light_view;
+        { // Calculate light view matrix
+            auto center = glm::vec3(0.0f);
+            for (const auto& corner : corners) {
+                center += glm::vec3(corner);
+            }
+            center /= 8.0f;
+            const auto light_dir = glm::normalize(light_pos);
+            light_view = glm::lookAt(center + light_dir, center, { 0.0f, 1.0f, 0.0f });
+        }
+
+        glm::mat4 light_proj;
+        {
+            float min_x = (std::numeric_limits<float>::max)();
+            float max_x = (std::numeric_limits<float>::min)();
+            float min_y = min_x;
+            float max_y = max_x;
+            float min_z = min_x;
+            float max_z = max_x;
+            for (const auto& corner : corners) {
+                const auto trf = light_view * corner;
+                min_x = std::min(min_x, trf.x);
+                max_x = std::max(max_x, trf.x);
+                min_y = std::min(min_y, trf.y);
+                max_y = std::max(max_y, trf.y);
+                min_z = std::min(min_z, trf.z);
+                max_z = std::max(max_z, trf.z);
+            }
+            constexpr float z_mult = 15.0f;
+            if (min_z < 0) {
+                min_z *= z_mult;
+            } else {
+                min_z /= z_mult;
+            }
+            if (max_z < 0){
+                max_z /= z_mult;
+            } else {
+                max_z *= z_mult;
+            }
+
+            light_proj = glm::ortho(min_x, max_x, min_y, max_y, min_z, max_z);
+        }
+        return light_proj * light_view;
+    };
+    const float cascade_levels[shadow_cascades] = {
+        camera.far / 50.0f,
+        camera.far / 25.0f,
+        camera.far / 12.5f,
+        camera.far / 7.5f,
+        camera.far / 2.5f,
+        camera.far
+    };
+    for (std::size_t i = 0; i < shadow_cascades; ++i) {
+        float near;
+        float far;
+        if (i == 0) {
+            near = camera.near;
+            far = cascade_levels[i];
+        } else {
+            near = cascade_levels[i - 1];
+            far = cascade_levels[i];
+        }
+        cascades[i] = { calculate_cascade(near, far), far };
+    }
+    return cascades;
+}
+
 int main() {
     auto window = crd::make_window(1280, 720, "Hello Triangle");
     auto context = crd::make_context();
@@ -8,10 +106,11 @@ int main() {
     auto shadow_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
-                .width   = 2048,
-                .height  = 2048,
+                .width   = 4096,
+                .height  = 4096,
                 .mips    = 1,
-                .format  = VK_FORMAT_D32_SFLOAT,
+                .layers  = shadow_cascades,
+                .format  = VK_FORMAT_D16_UNORM,
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
@@ -58,6 +157,7 @@ int main() {
                 .width   = window.width,
                 .height  = window.height,
                 .mips    = 1,
+                .layers  = 1,
                 .format  = swapchain.format,
                 .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -76,6 +176,7 @@ int main() {
                 .width   = window.width,
                 .height  = window.height,
                 .mips    = 1,
+                .layers  = 1,
                 .format  = VK_FORMAT_D32_SFLOAT,
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -107,7 +208,8 @@ int main() {
         } }
     });
     auto shadow_pipeline = crd::make_graphics_pipeline(context, renderer, {
-        .vertex = "../data/shaders/test_shadows/shadow.vert.spv",
+        .vertex = "../data/shaders/test_csm/shadow.vert.spv",
+        .geometry = "../data/shaders/test_csm/shadow.geom.spv",
         .fragment = nullptr,
         .render_pass = &shadow_pass,
         .attributes = {
@@ -126,8 +228,9 @@ int main() {
         .depth = true
     });
     auto main_pipeline = crd::make_graphics_pipeline(context, renderer, {
-        .vertex = "../data/shaders/test_shadows/main.vert.spv",
-        .fragment = "../data/shaders/test_shadows/main.frag.spv",
+        .vertex = "../data/shaders/test_csm/main.vert.spv",
+        .geometry = nullptr,
+        .fragment = "../data/shaders/test_csm/main.frag.spv",
         .render_pass = &main_pass,
         .attributes = {
             crd::vertex_attribute_vec3,
@@ -146,6 +249,7 @@ int main() {
     });
     auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "../data/shaders/light.vert.spv",
+        .geometry = nullptr,
         .fragment = "../data/shaders/light.frag.spv",
         .render_pass = &main_pass,
         .attributes = {
@@ -173,31 +277,54 @@ int main() {
     auto black = crd::request_static_texture(context, "../data/textures/black.png", crd::texture_srgb);
     auto models = std::vector<crd::Async<crd::StaticModel>>();
     models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/plane/plane.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.obj"));
     models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
     models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
     auto draw_cmds = std::to_array<Draw>({ {
         .model = &models[0],
-        .transforms = {
-            glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.5f, 0.0f)), glm::vec3(0.5f)),
-            glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 1.0f)), glm::vec3(0.5f)),
-            glm::scale(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 2.0f)), glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f))), glm::vec3(0.25))
-        }
+        .transforms = { {
+            .position = glm::vec3(0.0f, 1.5f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.5f)
+        }, {
+            .position = glm::vec3(2.0f, 0.0f, 1.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.5f)
+        }, {
+            .position = glm::vec3(-1.0f, 0.0f, 2.0f),
+            .rotation = {
+                .axis = glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)),
+                .angle = glm::radians(60.0f)
+            },
+            .scale = glm::vec3(0.25f)
+        } }
     }, {
         .model = &models[1],
-        .transforms = { glm::mat4(1.0f) }
+        .transforms = { {
+            .position = glm::vec3(0.0f, -0.5f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.02f)
+        } }
     }, {
         .model = &models[2],
-        .transforms = { glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, -4.0f)), glm::vec3(2.0f)) }
+        .transforms = { {
+            .position = glm::vec3(-4.0f, 1.0f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(2.0f)
+        } }
     }, {
         .model = &models[3],
-        .transforms = { glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 4.0f)), glm::vec3(0.5f)) }
+        .transforms = { {
+            .position = glm::vec3(4.0f, 1.0f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.5f)
+        } }
     } });
     std::vector<PointLight> lights = { {
         .position = glm::vec4(0.0f),
-        .falloff = glm::vec4(1.0f, 0.078f, 0.096f, 0.0f),
-        .diffuse = glm::vec4(1.0f),
-        .specular = glm::vec4(1.0f)
+        .falloff = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
+        .diffuse = glm::vec4(0.3f),
+        .specular = glm::vec4(0.3f)
     } };
     std::vector<glm::vec4> light_colors;
     light_colors.reserve(lights.size());
@@ -210,7 +337,7 @@ int main() {
     for (const auto& light : lights) {
         light_ts.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
     }
-    auto shadow_camera_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::uniform_buffer);
+    auto cascades_buffer = crd::make_buffer(context, sizeof(Cascade[max_shadow_cascades]), crd::uniform_buffer);
     auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4) * 2, crd::uniform_buffer);
     auto model_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
     auto light_model_buffer = crd::make_buffer(context, crd::size_bytes(light_ts), crd::storage_buffer);
@@ -218,10 +345,12 @@ int main() {
     auto light_uniform_buffer = crd::make_buffer(context, sizeof(glm::vec4), crd::uniform_buffer);
     auto point_light_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
     auto directional_light_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
+
     auto shadow_set = crd::make_descriptor_set(context, shadow_pipeline.layout.sets[0]);
     auto main_set = crd::make_descriptor_set(context, main_pipeline.layout.sets[0]);
     auto light_set = crd::make_descriptor_set(context, light_pipeline.layout.sets[0]);
     auto light_data_set = crd::make_descriptor_set(context, main_pipeline.layout.sets[1]);
+
     std::size_t frames = 0;
     double last_frame = 0, fps = 0;
     while (!window.is_closed()) {
@@ -238,32 +367,32 @@ int main() {
             fps = 0;
         }
         lights[0].position = glm::vec4(
-            8.0f * std::sin(crd::time() / 4),
-            6.0f,
-            8.0f * std::cos(crd::time() / 4),
+            7.5f * std::sin(crd::time() / 4),
+            75.0f,
+            7.5f * std::cos(crd::time() / 4),
             0.0f);
         for (std::size_t i = 0; const auto& light : lights) {
-            light_ts[i++] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f));
+            light_ts[i++] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.25f));
         }
-        glm::mat4 shadow_camera =
-            glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 1.0f, 20.0f) *
-            glm::lookAt(glm::vec3(lights[0].position),
-                        glm::vec3(0.0f, 0.0f, 0.0f),
-                        glm::vec3(0.0f, 1.0f, 0.0f));
-        model_buffer[index].resize(context, crd::size_bytes(scene.transforms));
-        point_light_buffer[index].resize(context, crd::size_bytes(lights));
-        light_color_buffer[index].resize(context, crd::size_bytes(light_colors));
+        const auto cascades = calculate_cascades(camera, lights[0].position);
+
+        crd::resize_buffer(context, model_buffer[index], crd::size_bytes(scene.transforms));
+        crd::resize_buffer(context, cascades_buffer[index], crd::size_bytes(cascades));
+        crd::resize_buffer(context, point_light_buffer[index], crd::size_bytes(lights));
+        crd::resize_buffer(context, light_color_buffer[index], crd::size_bytes(light_colors));
+
         model_buffer[index].write(scene.transforms.data(), 0, crd::size_bytes(scene.transforms));
         light_model_buffer[index].write(light_ts.data(), 0, crd::size_bytes(light_ts));
-        shadow_camera_buffer[index].write(glm::value_ptr(shadow_camera), 0, sizeof shadow_camera);
-        camera_buffer[index].write(glm::value_ptr(camera.raw()), 0, sizeof camera.raw());
-        camera_buffer[index].write(glm::value_ptr(shadow_camera), sizeof(glm::mat4), sizeof camera.raw());
+        cascades_buffer[index].write(cascades.data(), 0, crd::size_bytes(cascades));
+        camera_buffer[index].write(glm::value_ptr(camera.projection), 0, sizeof camera.raw());
+        camera_buffer[index].write(glm::value_ptr(camera.view), sizeof(glm::mat4), sizeof camera.raw());
         point_light_buffer[index].write(lights.data(), 0, crd::size_bytes(lights));
         light_color_buffer[index].write(light_colors.data(), 0, crd::size_bytes(light_colors));
         light_uniform_buffer[index].write(&camera.position, 0, sizeof camera.position);
+
         shadow_set[index]
-            .bind(context, shadow_pipeline.bindings["Uniforms"], shadow_camera_buffer[index].info())
-            .bind(context, shadow_pipeline.bindings["Models"], model_buffer[index].info());
+            .bind(context, shadow_pipeline.bindings["Models"], model_buffer[index].info())
+            .bind(context, shadow_pipeline.bindings["Cascades"], cascades_buffer[index].info());
         main_set[index]
             .bind(context, main_pipeline.bindings["Uniforms"], camera_buffer[index].info())
             .bind(context, main_pipeline.bindings["Models"], model_buffer[index].info())
@@ -274,9 +403,10 @@ int main() {
             .bind(context, light_pipeline.bindings["Colors"], light_color_buffer[index].info());
         light_data_set[index]
             .bind(context, main_pipeline.bindings["ViewPos"], light_uniform_buffer[index].info())
-                // .bind(context, main_pipeline.bindings["DirectionalLights"], directional_light_buffer[index].info())
+            // .bind(context, main_pipeline.bindings["DirectionalLights"], directional_light_buffer[index].info())
+            .bind(context, main_pipeline.bindings["shadow"], shadow_pass.image(0).sample(context.shadow_sampler))
             .bind(context, main_pipeline.bindings["PointLights"], point_light_buffer[index].info())
-            .bind(context, main_pipeline.bindings["shadow"], shadow_pass.image(0).sample(context.shadow_sampler));
+            .bind(context, main_pipeline.bindings["Cascades"], cascades_buffer[index].info());
         commands
             .begin()
             .begin_render_pass(shadow_pass, 0)
@@ -368,7 +498,7 @@ int main() {
     crd::destroy_buffer(context, light_model_buffer);
     crd::destroy_buffer(context, model_buffer);
     crd::destroy_buffer(context, camera_buffer);
-    crd::destroy_buffer(context, shadow_camera_buffer);
+    crd::destroy_buffer(context, cascades_buffer);
     for (auto& each : models) {
         crd::destroy_static_model(context, *each);
     }

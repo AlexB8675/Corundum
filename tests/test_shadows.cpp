@@ -8,9 +8,10 @@ int main() {
     auto shadow_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
-                .width   = 2048,
-                .height  = 2048,
+                .width   = 4096,
+                .height  = 4096,
                 .mips    = 1,
+                .layers  = 1,
                 .format  = VK_FORMAT_D32_SFLOAT,
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -58,6 +59,7 @@ int main() {
                 .width   = window.width,
                 .height  = window.height,
                 .mips    = 1,
+                .layers  = 1,
                 .format  = swapchain.format,
                 .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -76,6 +78,7 @@ int main() {
                 .width   = window.width,
                 .height  = window.height,
                 .mips    = 1,
+                .layers  = 1,
                 .format  = VK_FORMAT_D32_SFLOAT,
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -128,6 +131,7 @@ int main() {
     });
     auto main_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "../data/shaders/test_shadows/main.vert.spv",
+        .geometry = nullptr,
         .fragment = "../data/shaders/test_shadows/main.frag.spv",
         .render_pass = &main_pass,
         .attributes = {
@@ -147,6 +151,7 @@ int main() {
     });
     auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "../data/shaders/light.vert.spv",
+        .geometry = nullptr,
         .fragment = "../data/shaders/light.frag.spv",
         .render_pass = &main_pass,
         .attributes = {
@@ -179,20 +184,43 @@ int main() {
     models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
     auto draw_cmds = std::to_array<Draw>({ {
         .model = &models[0],
-        .transforms = {
-            glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.5f, 0.0f)), glm::vec3(0.5f)),
-            glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 1.0f)), glm::vec3(0.5f)),
-            glm::scale(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 2.0f)), glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f))), glm::vec3(0.25))
-        }
+        .transforms = { {
+            .position = glm::vec3(0.0f, 1.5f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.5f)
+        }, {
+            .position = glm::vec3(2.0f, 0.0f, 1.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.5f)
+        }, {
+            .position = glm::vec3(-1.0f, 0.0f, 2.0f),
+            .rotation = {
+                .axis = glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)),
+                .angle = glm::radians(60.0f)
+            },
+            .scale = glm::vec3(0.25f)
+        } }
     }, {
         .model = &models[1],
-        .transforms = { glm::mat4(1.0f) }
+        .transforms = { {
+            .position = glm::vec3(0.0f),
+            .rotation = {},
+            .scale = glm::vec3(1.0f)
+        } }
     }, {
         .model = &models[2],
-        .transforms = { glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, -4.0f)), glm::vec3(2.0f)) }
+        .transforms = { {
+            .position = glm::vec3(-4.0f, 1.0f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(2.0f)
+        } }
     }, {
         .model = &models[3],
-        .transforms = { glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 4.0f)), glm::vec3(0.5f)) }
+        .transforms = { {
+            .position = glm::vec3(4.0f, 1.0f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.5f)
+        } }
     } });
     std::vector<PointLight> lights = { {
         .position = glm::vec4(0.0f),
@@ -212,7 +240,7 @@ int main() {
         light_ts.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
     }
     auto shadow_camera_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::uniform_buffer);
-    auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4) * 2, crd::uniform_buffer);
+    auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4) * 3, crd::uniform_buffer);
     auto model_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
     auto light_model_buffer = crd::make_buffer(context, crd::size_bytes(light_ts), crd::storage_buffer);
     auto light_color_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
@@ -251,17 +279,21 @@ int main() {
             glm::lookAt(glm::vec3(lights[0].position),
                         glm::vec3(0.0f, 0.0f, 0.0f),
                         glm::vec3(0.0f, 1.0f, 0.0f));
-        model_buffer[index].resize(context, crd::size_bytes(scene.transforms));
-        point_light_buffer[index].resize(context, crd::size_bytes(lights));
-        light_color_buffer[index].resize(context, crd::size_bytes(light_colors));
+
+        crd::resize_buffer(context, model_buffer[index], crd::size_bytes(scene.transforms));
+        crd::resize_buffer(context, point_light_buffer[index], crd::size_bytes(lights));
+        crd::resize_buffer(context, light_color_buffer[index], crd::size_bytes(light_colors));
+
         model_buffer[index].write(scene.transforms.data(), 0, crd::size_bytes(scene.transforms));
         light_model_buffer[index].write(light_ts.data(), 0, crd::size_bytes(light_ts));
         shadow_camera_buffer[index].write(glm::value_ptr(shadow_camera), 0, sizeof shadow_camera);
-        camera_buffer[index].write(glm::value_ptr(camera.raw()), 0, sizeof camera.raw());
-        camera_buffer[index].write(glm::value_ptr(shadow_camera), sizeof(glm::mat4), sizeof camera.raw());
+        camera_buffer[index].write(glm::value_ptr(camera.projection), 0, sizeof(glm::mat4));
+        camera_buffer[index].write(glm::value_ptr(camera.view), sizeof(glm::mat4), sizeof(glm::mat4));
+        camera_buffer[index].write(glm::value_ptr(shadow_camera), sizeof(glm::mat4) * 2, sizeof(glm::mat4));
         point_light_buffer[index].write(lights.data(), 0, crd::size_bytes(lights));
         light_color_buffer[index].write(light_colors.data(), 0, crd::size_bytes(light_colors));
         light_uniform_buffer[index].write(&camera.position, 0, sizeof camera.position);
+
         shadow_set[index]
             .bind(context, shadow_pipeline.bindings["Uniforms"], shadow_camera_buffer[index].info())
             .bind(context, shadow_pipeline.bindings["Models"], model_buffer[index].info());

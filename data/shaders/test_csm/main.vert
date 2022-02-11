@@ -11,14 +11,15 @@ layout (location = 0) out VertexData {
     vec3 frag_pos;
     vec3 normal;
     vec2 uvs;
+    float view_depth;
 };
 
 layout (set = 0, binding = 0) uniform Uniforms {
     mat4 projection;
     mat4 view;
-};
+ };
 
-layout (set = 0, binding = 1) buffer readonly Models {
+layout (std430, set = 0, binding = 1) buffer readonly Models {
     mat4[] model;
 };
 
@@ -39,5 +40,6 @@ void main() {
     frag_pos = vec3(t_model * vec4(i_vertex, 1.0));
     normal = i_normal;
     uvs = i_uvs;
+    view_depth = (view * vec4(frag_pos, 1.0)).z;
     gl_Position = projection * view * vec4(frag_pos, 1.0);
 }

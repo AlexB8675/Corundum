@@ -25,7 +25,6 @@ namespace crd {
         crd_nodiscard crd_module char*                  raw() const noexcept;
                       crd_module void                   write(const void*, std::size_t) noexcept;
                       crd_module void                   write(const void*, std::size_t, std::size_t) noexcept;
-                      crd_module void                   resize(const Context&, std::size_t) noexcept;
     };
 
     template <>
@@ -34,11 +33,12 @@ namespace crd {
 
                       crd_module void       write(const void*, std::size_t) noexcept;
                       crd_module void       write(const void*, std::size_t, std::size_t) noexcept;
-                      crd_module void       resize(const Context&, std::size_t) noexcept;
 
         crd_nodiscard crd_module Buffer<1>& operator [](std::size_t) noexcept;
    };
 
-    template <std::size_t N = in_flight> crd_nodiscard crd_module Buffer<N> make_buffer(const Context&, std::size_t, BufferType);
-    template <std::size_t N = in_flight>               crd_module void      destroy_buffer(const Context&, Buffer<N>&);
+    template <std::size_t N = in_flight> crd_nodiscard crd_module Buffer<N> make_buffer(const Context&, std::size_t, BufferType) noexcept;
+    template <std::size_t N = in_flight>               crd_module void      destroy_buffer(const Context&, Buffer<N>&) noexcept;
+    template <std::size_t N = in_flight>               crd_module void      resize_buffer(const Context&, Buffer<N>&, std::size_t) noexcept;
+    template <std::size_t N = in_flight>               crd_module void      shrink_buffer(const Context&, Buffer<N>&) noexcept;
 } // namespace crd

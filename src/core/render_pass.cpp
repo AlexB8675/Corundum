@@ -140,12 +140,12 @@ namespace crd {
         framebuffer_info.pNext = nullptr;
         framebuffer_info.flags = {};
         framebuffer_info.renderPass = render_pass.handle;
-        framebuffer_info.layers = 1; // TODO: Don't hardcode.
         for (const auto& each : info.framebuffers) {
             auto& framebuffer = render_pass.framebuffers.emplace_back();
             std::vector<VkImageView> image_references;
             for (const auto& index : each.attachments) {
                 const auto& attachment = render_pass.attachments[index];
+                framebuffer_info.layers = attachment.image.layers;
                 framebuffer_info.width = attachment.image.width;
                 framebuffer_info.height = attachment.image.height;
                 image_references.emplace_back(attachment.image.view);
@@ -205,6 +205,7 @@ namespace crd {
                 .width   = resize.size.width,
                 .height  = resize.size.height,
                 .mips    = old_image.mips,
+                .layers  = 1,
                 .format  = old_image.format,
                 .aspect  = old_image.aspect,
                 .samples = old_image.samples,

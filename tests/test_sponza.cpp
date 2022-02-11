@@ -11,6 +11,7 @@ int main() {
                 .width   = window.width,
                 .height  = window.height,
                 .mips    = 1,
+                .layers  = 1,
                 .format  = swapchain.format,
                 .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -34,6 +35,7 @@ int main() {
                 .width   = window.width,
                 .height  = window.height,
                 .mips    = 1,
+                .layers  = 1,
                 .format  = VK_FORMAT_R16G16B16A16_SFLOAT,
                 .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -52,6 +54,7 @@ int main() {
                 .width   = window.width,
                 .height  = window.height,
                 .mips    = 1,
+                .layers  = 1,
                 .format  = VK_FORMAT_R16G16B16A16_SFLOAT,
                 .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -69,8 +72,8 @@ int main() {
             .image = crd::make_image(context, { // Specular.
                 .width   = window.width,
                 .height  = window.height,
-
                 .mips    = 1,
+                .layers  = 1,
                 .format  = VK_FORMAT_R8G8B8A8_UNORM,
                 .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -89,6 +92,7 @@ int main() {
                 .width   = window.width,
                 .height  = window.height,
                 .mips    = 1,
+                .layers  = 1,
                 .format  = VK_FORMAT_R8G8B8A8_SRGB,
                 .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -107,6 +111,7 @@ int main() {
                 .width   = window.width,
                 .height  = window.height,
                 .mips    = 1,
+                .layers  = 1,
                 .format  = VK_FORMAT_D32_SFLOAT,
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -231,10 +236,18 @@ int main() {
     models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.obj"));
     std::vector<Draw> draw_cmds = { {
         .model = &models[0],
-        .transforms = { glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f)) }
+        .transforms = { {
+            .position = glm::vec3(0.0f, 1.0f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(1.0f)
+        } }
     }, {
         .model = &models[1],
-        .transforms = { glm::scale(glm::mat4(1.0f), glm::vec3(0.02f)) }
+        .transforms = { {
+            .position = glm::vec3(0.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.02f)
+        } }
     } };
     Camera camera;
     std::vector<glm::mat4> light_ts;
@@ -242,7 +255,7 @@ int main() {
     for (const auto& light : lights) {
         light_ts.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
     }
-    auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::uniform_buffer);
+    auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4) * 2, crd::uniform_buffer);
     auto model_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
     auto light_model_buffer = crd::make_buffer(context, crd::size_bytes(light_ts), crd::storage_buffer);
     auto light_color_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
@@ -268,15 +281,19 @@ int main() {
             frames = 0;
             fps = 0;
         }
-        model_buffer[index].resize(context, crd::size_bytes(scene.transforms));
-        point_light_buffer[index].resize(context, crd::size_bytes(lights));
-        light_color_buffer[index].resize(context, crd::size_bytes(light_colors));
+
+        crd::resize_buffer(context, model_buffer[index], crd::size_bytes(scene.transforms));
+        crd::resize_buffer(context, point_light_buffer[index], crd::size_bytes(lights));
+        crd::resize_buffer(context, light_color_buffer[index], crd::size_bytes(light_colors));
+
         model_buffer[index].write(scene.transforms.data(), 0, crd::size_bytes(scene.transforms));
         light_model_buffer[index].write(light_ts.data(), 0, crd::size_bytes(light_ts));
-        camera_buffer[index].write(glm::value_ptr(camera.raw()), 0);
+        camera_buffer[index].write(glm::value_ptr(camera.projection), 0, sizeof(glm::mat4));
+        camera_buffer[index].write(glm::value_ptr(camera.view), sizeof(glm::mat4), sizeof(glm::mat4));
         point_light_buffer[index].write(lights.data(), 0, crd::size_bytes(lights));
         light_color_buffer[index].write(light_colors.data(), 0, crd::size_bytes(light_colors));
         light_uniform_buffer[index].write(&camera.position, 0, sizeof camera.position);
+
         main_set[index]
             .bind(context, main_pipeline.bindings["Uniforms"], camera_buffer[index].info())
             .bind(context, main_pipeline.bindings["Models"], model_buffer[index].info())

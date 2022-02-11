@@ -10,6 +10,7 @@ namespace crd {
         image.aspect  = info.aspect;
         image.usage   = info.usage;
         image.format  = info.format;
+        image.layers  = info.layers;
         image.mips    = info.mips;
         image.width   = info.width;
         image.height  = info.height;
@@ -22,7 +23,7 @@ namespace crd {
         image_info.format = image.format;
         image_info.extent = { image.width, image.height, 1 };
         image_info.mipLevels = image.mips;
-        image_info.arrayLayers = 1;
+        image_info.arrayLayers = info.layers;
         image_info.samples = info.samples;
         image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
         image_info.usage = info.usage;
@@ -58,7 +59,10 @@ namespace crd {
         image_view_info.pNext = nullptr;
         image_view_info.flags = {};
         image_view_info.image = image.handle;
-        image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        image_view_info.viewType =
+            info.layers == 1 ?
+                VK_IMAGE_VIEW_TYPE_2D :
+                VK_IMAGE_VIEW_TYPE_2D_ARRAY;
         image_view_info.format = image.format;
         image_view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
         image_view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -68,7 +72,7 @@ namespace crd {
         image_view_info.subresourceRange.baseMipLevel = 0;
         image_view_info.subresourceRange.levelCount = image.mips;
         image_view_info.subresourceRange.baseArrayLayer = 0;
-        image_view_info.subresourceRange.layerCount = 1;
+        image_view_info.subresourceRange.layerCount = info.layers;
         crd_vulkan_check(vkCreateImageView(context.device, &image_view_info, nullptr, &image.view));
         return image;
     }
