@@ -9,7 +9,7 @@
 
 namespace crd {
     static inline void sync_renderer(const Context& context, Renderer& renderer) noexcept {
-        context.graphics->wait_idle();
+        crd_vulkan_check(vkDeviceWaitIdle(context.device));
         renderer.frame_idx = 0;
         renderer.image_idx = 0;
         for (std::size_t i = 0; i < in_flight; ++i) {
@@ -74,6 +74,13 @@ namespace crd {
             vkDestroySemaphore(context.device, renderer.gfx_done[i], nullptr);
             vkDestroyFence(context.device, renderer.cmd_wait[i], nullptr);
         }
+        for (auto& cache : renderer.compute_cache) {
+            destroy_command_buffers(context, std::move(cache.commands));
+            for (std::size_t i = 0; i < in_flight; ++i) {
+                vkDestroySemaphore(context.device, cache.done[i], nullptr);
+                vkDestroyFence(context.device, cache.wait[i], nullptr);
+            }
+        }
         for (const auto [_, layout] : renderer.set_layout_cache) {
             vkDestroyDescriptorSetLayout(context.device, layout, nullptr);
         }
@@ -94,7 +101,7 @@ namespace crd {
         };
     }
 
-    crd_module void Renderer::present_frame(const Context& context, Window& window, Swapchain& swapchain, const CommandBuffer& commands, VkPipelineStageFlags stage) noexcept {
+    crd_module void Renderer::present_frame(const Context& context, const CommandBuffer& commands, Window& window, Swapchain& swapchain, VkPipelineStageFlags stage) noexcept {
         crd_vulkan_check(vkResetFences(context.device, 1, &cmd_wait[frame_idx]));
         context.graphics->submit(commands, stage, img_ready[frame_idx], gfx_done[frame_idx], cmd_wait[frame_idx]);
         const auto result = context.graphics->present(swapchain, image_idx, gfx_done[frame_idx]);
@@ -103,5 +110,51 @@ namespace crd {
             recreate_swapchain(context, window, swapchain);
         }
         frame_idx = (frame_idx + 1) % in_flight;
+    }
+
+    crd_nodiscard crd_module Handle<ComputeContext> make_compute_context(const Context& context, Renderer& renderer, bool semaphore) noexcept {
+        ComputeContext cmp;
+        cmp.commands = make_command_buffers(context, {
+            .count = in_flight,
+            .pool = context.compute->pool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
+        });
+        VkFenceCreateInfo fence_info;
+        fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fence_info.pNext = nullptr;
+        fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        VkSemaphoreCreateInfo semaphore_info;
+        semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        semaphore_info.pNext = nullptr;
+        semaphore_info.flags = {};
+        for (std::size_t i = 0; i < in_flight; ++i) {
+            cmp.done[i] = nullptr;
+            if (semaphore) {
+                crd_vulkan_check(vkCreateSemaphore(context.device, &semaphore_info, nullptr, &cmp.done[i]));
+            }
+            crd_vulkan_check(vkCreateFence(context.device, &fence_info, nullptr, &cmp.wait[i]));
+        }
+        renderer.compute_cache.emplace_back(cmp);
+        return { renderer.compute_cache.size() - 1 };
+    }
+
+    crd_nodiscard crd_module CommandBuffer& acquire_compute_commands(const Context& context, Renderer& renderer, Handle<ComputeContext> cmp_handle, std::uint32_t index) noexcept {
+        auto& cmp = renderer.compute_cache[cmp_handle.index];
+        crd_vulkan_check(vkWaitForFences(context.device, 1, &cmp.wait[index], true, -1));
+        return cmp.commands[index];
+    }
+
+    crd_nodiscard crd_module CommandBuffer& acquire_compute_commands(Renderer& renderer, Handle<ComputeContext> cmp_handle, std::uint32_t index) noexcept {
+        return renderer.compute_cache[cmp_handle.index].commands[index];
+    }
+
+    crd_module void wait_compute(const Context& context, Renderer& renderer, Handle<ComputeContext> cmp_handle, std::uint32_t index) noexcept {
+        crd_vulkan_check(vkWaitForFences(context.device, 1, &renderer.compute_cache[cmp_handle.index].wait[index], true, -1));
+    }
+
+    crd_module void submit_compute(const Context& context, Renderer& renderer, Handle<ComputeContext> cmp_handle, std::uint32_t index) noexcept {
+        auto& compute = renderer.compute_cache[cmp_handle.index];
+        crd_vulkan_check(vkResetFences(context.device, 1, &compute.wait[index]));
+        context.compute->submit(compute.commands[index], {}, nullptr, compute.done[index], compute.wait[index]);
     }
 } // namespace crd

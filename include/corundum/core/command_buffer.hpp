@@ -48,7 +48,7 @@ namespace crd {
         };
         const Framebuffer* active_framebuffer;
         const RenderPass* active_pass;
-        const GraphicsPipeline* active_pipeline;
+        const Pipeline* active_pipeline;
         VkCommandBuffer handle;
         VkCommandPool pool;
 
@@ -61,7 +61,7 @@ namespace crd {
         crd_module CommandBuffer& set_scissor(VkRect2D) noexcept;
         crd_module CommandBuffer& set_scissor() noexcept;
         crd_module CommandBuffer& set_depth_bias(float, float) noexcept;
-        crd_module CommandBuffer& bind_pipeline(const GraphicsPipeline&) noexcept;
+        crd_module CommandBuffer& bind_pipeline(const Pipeline&) noexcept;
         crd_module CommandBuffer& bind_descriptor_set(std::uint32_t, const DescriptorSet<1>&) noexcept;
         crd_module CommandBuffer& bind_vertex_buffer(const StaticBuffer&) noexcept;
         crd_module CommandBuffer& bind_index_buffer(const StaticBuffer&) noexcept;
@@ -75,6 +75,7 @@ namespace crd {
         crd_module CommandBuffer& blit_image(const ImageBlit&) noexcept;
         crd_module CommandBuffer& copy_buffer(const StaticBuffer&, const StaticBuffer&) noexcept;
         crd_module CommandBuffer& copy_buffer_to_image(const StaticBuffer&, const Image&) noexcept;
+        crd_module CommandBuffer& barrier(const BufferMemoryBarrier&) noexcept;
         crd_module CommandBuffer& transfer_ownership(const BufferMemoryBarrier&, const Queue&, const Queue&) noexcept;
         crd_module CommandBuffer& transfer_ownership(const ImageMemoryBarrier&, const Queue&, const Queue&) noexcept;
         crd_module CommandBuffer& transition_layout(const ImageMemoryBarrier&) noexcept;

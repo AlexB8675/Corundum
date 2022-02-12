@@ -1,7 +1,7 @@
 #version 460
 #extension GL_EXT_nonuniform_qualifier : enable
 
-#define ambient_factor 0.01
+#define ambient_factor 0.02
 #define max_shadow_cascades 16
 #define shadow_cascades 6
 
@@ -45,8 +45,8 @@ layout (set = 1, binding = 0) uniform ViewPos {
     vec3 view_pos;
 };
 
-layout (std430, set = 1, binding = 1) buffer readonly DirectionalLights {
-    DirectionalLight[] directional_lights;
+layout (set = 1, binding = 1) uniform DirectionalLights {
+    DirectionalLight[4] directional_lights;
 };
 
 layout (std430, set = 1, binding = 2) buffer readonly PointLights {
@@ -73,16 +73,16 @@ uint calculate_layer();
 
 void main() {
     const vec3 normal = normal_index != 0 ? normalize(TBN * (2.0 * texture(textures[normal_index], uvs).rgb - 1.0)) : i_normal;
-    const vec3 albedo = texture(textures[diffuse_index], uvs).rgb;
     const vec3 view_dir = normalize(view_pos - frag_pos);
+    const vec4 albedo = texture(textures[diffuse_index], uvs);
 
-    vec3 color = albedo * ambient_factor;
+    vec3 color = vec3(albedo) * ambient_factor;
     for (uint i = 0; i < point_lights.length(); ++i) {
-        color += calculate_point_light(point_lights[i], albedo, normal, view_dir);
+        color += calculate_point_light(point_lights[i], vec3(albedo), normal, view_dir);
     }
     const uint layer = calculate_layer();
-    color = filter_pcf(color, normal, albedo, layer);
-    pixel = vec4(color, 1.0);
+    color = filter_pcf(color, normal, vec3(albedo), layer);
+    pixel = vec4(color, albedo.a);
 }
 
 vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 view_dir) {

@@ -27,6 +27,7 @@
 #include <random>
 #include <vector>
 #include <array>
+#include <cmath>
 #include <span>
 
 struct Camera {
@@ -41,7 +42,7 @@ struct Camera {
     float pitch = 0.0f;
     float aspect = 0.0f;
     const float near = 0.1f;
-    const float far = 256.0f;
+    const float far = 128.0f;
 
     void update(const crd::Window& window, double delta_time) noexcept {
         _process_keyboard(window, delta_time);

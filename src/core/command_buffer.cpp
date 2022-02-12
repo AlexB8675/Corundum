@@ -142,14 +142,20 @@ namespace crd {
         return *this;
     }
 
-    crd_module CommandBuffer& CommandBuffer::bind_pipeline(const GraphicsPipeline& pipeline) noexcept {
-        vkCmdBindPipeline(handle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
+    crd_module CommandBuffer& CommandBuffer::bind_pipeline(const Pipeline& pipeline) noexcept {
+        const auto bind_point = pipeline.type == Pipeline::type_graphics ?
+            VK_PIPELINE_BIND_POINT_GRAPHICS :
+        VK_PIPELINE_BIND_POINT_COMPUTE;
+        vkCmdBindPipeline(handle, bind_point, pipeline.handle);
         active_pipeline = &pipeline;
         return *this;
     }
 
     crd_module CommandBuffer& CommandBuffer::bind_descriptor_set(std::uint32_t index, const DescriptorSet<1>& set) noexcept {
-        vkCmdBindDescriptorSets(handle, VK_PIPELINE_BIND_POINT_GRAPHICS, active_pipeline->layout.pipeline, index, 1, &set.handle, 0, nullptr);
+        const auto bind_point = active_pipeline->type == Pipeline::type_graphics ?
+            VK_PIPELINE_BIND_POINT_GRAPHICS :
+            VK_PIPELINE_BIND_POINT_COMPUTE;
+        vkCmdBindDescriptorSets(handle, bind_point, active_pipeline->layout.pipeline, index, 1, &set.handle, 0, nullptr);
         return *this;
     }
 
@@ -271,6 +277,28 @@ namespace crd {
         region.imageOffset = { 0, 0, 0 };
         region.imageExtent = { dest.width, dest.height, 1 };
         vkCmdCopyBufferToImage(handle, source.handle, dest.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        return *this;
+    }
+
+    crd_module CommandBuffer& CommandBuffer::barrier(const BufferMemoryBarrier& info) noexcept {
+        VkBufferMemoryBarrier barrier;
+        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barrier.pNext = nullptr;
+        barrier.srcAccessMask = info.source_access;
+        barrier.dstAccessMask = info.dest_access;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.buffer = info.buffer->handle;
+        barrier.offset = 0;
+        barrier.size = info.buffer->capacity;
+        vkCmdPipelineBarrier(
+            handle,
+            info.source_stage,
+            info.dest_stage,
+            VK_DEPENDENCY_BY_REGION_BIT,
+            0, nullptr,
+            1, &barrier,
+            0, nullptr);
         return *this;
     }
 

@@ -385,7 +385,7 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, window, swapchain, commands, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        renderer.present_frame(context, commands, window, swapchain, VK_PIPELINE_STAGE_TRANSFER_BIT);
         camera.update(window, delta_time);
         crd::poll_events();
     }

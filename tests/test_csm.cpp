@@ -76,11 +76,11 @@ static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Came
         return light_proj * light_view;
     };
     const float cascade_levels[shadow_cascades] = {
-        camera.far / 50.0f,
-        camera.far / 25.0f,
-        camera.far / 12.5f,
+        camera.far / 30.0f,
+        camera.far / 10.0f,
         camera.far / 7.5f,
-        camera.far / 2.5f,
+        camera.far / 5.0f,
+        camera.far / 3.3f,
         camera.far
     };
     for (std::size_t i = 0; i < shadow_cascades; ++i) {
@@ -106,8 +106,8 @@ int main() {
     auto shadow_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
-                .width   = 4096,
-                .height  = 4096,
+                .width   = 2048,
+                .height  = 2048,
                 .mips    = 1,
                 .layers  = shadow_cascades,
                 .format  = VK_FORMAT_D16_UNORM,
@@ -210,7 +210,7 @@ int main() {
     auto shadow_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "../data/shaders/test_csm/shadow.vert.spv",
         .geometry = "../data/shaders/test_csm/shadow.geom.spv",
-        .fragment = nullptr,
+        .fragment = "../data/shaders/test_csm/shadow.frag.spv",
         .render_pass = &shadow_pass,
         .attributes = {
             crd::vertex_attribute_vec3,
@@ -361,15 +361,10 @@ int main() {
         last_frame = current_frame;
         fps += delta_time;
         ++frames;
-        if (fps >= 1.6) {
-            crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
-            frames = 0;
-            fps = 0;
-        }
         lights[0].position = glm::vec4(
-            7.5f * std::sin(crd::time() / 4),
+            20.0f,// * std::sin(crd::time() / 4),
             75.0f,
-            7.5f * std::cos(crd::time() / 4),
+            5.0f,// * std::cos(crd::time() / 4),
             0.0f);
         for (std::size_t i = 0; const auto& light : lights) {
             light_ts[i++] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.25f));
@@ -393,6 +388,7 @@ int main() {
         shadow_set[index]
             .bind(context, shadow_pipeline.bindings["Models"], model_buffer[index].info())
             .bind(context, shadow_pipeline.bindings["Cascades"], cascades_buffer[index].info());
+            //.bind(context, shadow_pipeline.bindings["textures"], scene.descriptors);
         main_set[index]
             .bind(context, main_pipeline.bindings["Uniforms"], camera_buffer[index].info())
             .bind(context, main_pipeline.bindings["Models"], model_buffer[index].info())
@@ -407,6 +403,7 @@ int main() {
             .bind(context, main_pipeline.bindings["shadow"], shadow_pass.image(0).sample(context.shadow_sampler))
             .bind(context, main_pipeline.bindings["PointLights"], point_light_buffer[index].info())
             .bind(context, main_pipeline.bindings["Cascades"], cascades_buffer[index].info());
+
         commands
             .begin()
             .begin_render_pass(shadow_pass, 0)
@@ -482,11 +479,17 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, window, swapchain, commands, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        renderer.present_frame(context, commands, window, swapchain, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        if (fps >= 1.6) {
+            crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
+            frames = 0;
+            fps = 0;
+        }
         camera.update(window, delta_time);
         crd::poll_events();
     }
     context.graphics->wait_idle();
+    context.compute->wait_idle();
     crd::destroy_descriptor_set(context, light_data_set);
     crd::destroy_descriptor_set(context, light_set);
     crd::destroy_descriptor_set(context, shadow_set);

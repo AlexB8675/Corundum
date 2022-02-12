@@ -330,8 +330,8 @@ namespace crd {
         multisampling_state.sampleShadingEnable = true;
         multisampling_state.minSampleShading = 0.2f;
         multisampling_state.pSampleMask = nullptr;
-        multisampling_state.alphaToCoverageEnable = !attachment_outputs.empty();
-        multisampling_state.alphaToOneEnable = !attachment_outputs.empty();
+        multisampling_state.alphaToCoverageEnable = !attachment_outputs.empty() && context.gpu.features.alphaToOne;
+        multisampling_state.alphaToOneEnable = !attachment_outputs.empty() && context.gpu.features.alphaToOne;
 
         VkPipelineDepthStencilStateCreateInfo depth_stencil_state;
         depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -414,6 +414,7 @@ namespace crd {
             set_layouts.push_back({ layout, dynamic });
             set_layout_handles.emplace_back(layout);
         }
+        pipeline.type = Pipeline::type_graphics;
         pipeline.layout.sets = std::move(set_layouts);
         pipeline.bindings = std::move(descriptor_layout_bindings);
         VkPipelineLayoutCreateInfo pipeline_layout_info;
@@ -497,7 +498,7 @@ namespace crd {
                         .index = binding,
                         .count = 1,
                         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                        .stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                        .stage = VK_SHADER_STAGE_COMPUTE_BIT
                     });
             }
             for (const auto& storage_buffer : resources.storage_buffers) {
@@ -509,7 +510,7 @@ namespace crd {
                         .index = binding,
                         .count = 1,
                         .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                        .stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                        .stage = VK_SHADER_STAGE_COMPUTE_BIT
                     });
             }
             for (const auto& textures : resources.sampled_images) {
@@ -584,7 +585,8 @@ namespace crd {
             set_layouts.push_back({ layout, dynamic });
             set_layout_handles.emplace_back(layout);
         }
-        pipeline.layout.descriptor = std::move(set_layouts);
+        pipeline.type = Pipeline::type_compute;
+        pipeline.layout.sets = std::move(set_layouts);
         pipeline.bindings = std::move(descriptor_layout_bindings);
         VkPipelineLayoutCreateInfo pipeline_layout_info;
         pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -605,11 +607,18 @@ namespace crd {
         pipeline_info.basePipelineHandle = nullptr;
         pipeline_info.basePipelineIndex = -1;
         crd_vulkan_check(vkCreateComputePipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
+        vkDestroyShaderModule(context.device, compute_stage.module, nullptr);
         detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "pipeline created successfully");
         return pipeline;
     }
 
     crd_module void destroy_pipeline(const Context& context, GraphicsPipeline& pipeline) noexcept {
+        vkDestroyPipelineLayout(context.device, pipeline.layout.pipeline, nullptr);
+        vkDestroyPipeline(context.device, pipeline.handle, nullptr);
+        pipeline = {};
+    }
+
+    crd_module void destroy_pipeline(const Context& context, ComputePipeline& pipeline) noexcept {
         vkDestroyPipelineLayout(context.device, pipeline.layout.pipeline, nullptr);
         vkDestroyPipeline(context.device, pipeline.handle, nullptr);
         pipeline = {};

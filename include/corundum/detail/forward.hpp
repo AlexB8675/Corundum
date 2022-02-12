@@ -14,7 +14,9 @@ namespace crd {
     struct Image;
     struct Framebuffer;
     struct RenderPass;
+    struct Pipeline;
     struct GraphicsPipeline;
+    struct ComputePipeline;
     struct Queue;
     struct CommandBuffer;
     struct Renderer;
@@ -30,4 +32,8 @@ namespace crd {
     template <typename T>
     struct Async;
     struct Window;
+    template <typename T>
+    struct Handle {
+        std::size_t index;
+    };
 } // namespace crd

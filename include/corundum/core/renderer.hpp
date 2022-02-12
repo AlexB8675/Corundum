@@ -19,6 +19,12 @@ namespace crd {
         std::uint32_t index;
     };
 
+    struct ComputeContext {
+        std::vector<CommandBuffer> commands;
+        std::array<VkSemaphore, in_flight> done;
+        std::array<VkFence, in_flight> wait;
+    };
+
     struct Renderer {
         std::uint32_t image_idx;
         std::uint32_t frame_idx;
@@ -28,12 +34,18 @@ namespace crd {
         std::array<VkSemaphore, in_flight> gfx_done;
         std::array<VkFence, in_flight> cmd_wait;
 
+        std::vector<ComputeContext> compute_cache;
         std::unordered_map<std::size_t, VkDescriptorSetLayout> set_layout_cache;
 
         crd_nodiscard crd_module FrameInfo acquire_frame(const Context&, Window&, Swapchain&) noexcept;
-                      crd_module void      present_frame(const Context&, Window&, Swapchain&, const CommandBuffer&, VkPipelineStageFlags) noexcept;
+                      crd_module void      present_frame(const Context&, const CommandBuffer&, Window&, Swapchain&, VkPipelineStageFlags) noexcept;
     };
 
-    crd_nodiscard crd_module Renderer make_renderer(const Context&) noexcept;
-                  crd_module void     destroy_renderer(const Context&, Renderer&) noexcept;
+    crd_nodiscard crd_module Renderer               make_renderer(const Context&) noexcept;
+                  crd_module void                   destroy_renderer(const Context&, Renderer&) noexcept;
+    crd_nodiscard crd_module Handle<ComputeContext> make_compute_context(const Context&, Renderer&, bool) noexcept;
+    crd_nodiscard crd_module CommandBuffer&         acquire_compute_commands(const Context&, Renderer&, Handle<ComputeContext>, std::uint32_t) noexcept;
+    crd_nodiscard crd_module CommandBuffer&         acquire_compute_commands(Renderer&, Handle<ComputeContext>, std::uint32_t) noexcept;
+                  crd_module void                   wait_compute(const Context&, Renderer&, Handle<ComputeContext>, std::uint32_t) noexcept;
+                  crd_module void                   submit_compute(const Context&, Renderer&, Handle<ComputeContext>, std::uint32_t) noexcept;
 } // namespace crd
