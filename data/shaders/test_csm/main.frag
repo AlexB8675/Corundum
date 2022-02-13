@@ -3,7 +3,7 @@
 
 #define ambient_factor 0.02
 #define max_shadow_cascades 16
-#define shadow_cascades 6
+#define shadow_cascades 4
 
 const mat4 shadow_bias = mat4(
     0.5, 0.0, 0.0, 0.0,
@@ -67,7 +67,7 @@ layout (push_constant) uniform Constants {
 };
 
 vec3 calculate_point_light(PointLight, vec3, vec3, vec3);
-vec3 calculate_shadow(vec3, vec3, vec3, vec3, uint);
+vec3 calculate_shadow(vec3, vec3, vec3, vec2, uint);
 vec3 filter_pcf(vec3, vec3, vec3, uint);
 uint calculate_layer();
 
@@ -132,12 +132,12 @@ vec3 calculate_shadow(vec3 color, vec3 normal, vec3 albedo, vec2 offset, uint la
 
 vec3 filter_pcf(vec3 color, vec3 normal, vec3 albedo, uint layer) {
     const ivec2 shadow_size = textureSize(shadow, 0).xy;
-    const float dx = 1 / float(shadow_size.x);
-    const float dy = 1 / float(shadow_size.y);
+    const float dx = 0.75 / float(shadow_size.x);
+    const float dy = 0.75 / float(shadow_size.y);
 
     vec3 shadow_factor = vec3(0.0);
     int count = 0;
-    int range = 2;
+    int range = 1;
     for (int x = -range; x <= range; x++) {
         for (int y = -range; y <= range; y++) {
             shadow_factor += calculate_shadow(color, normal, albedo, vec2(dx * x, dy * y), layer);

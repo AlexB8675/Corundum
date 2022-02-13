@@ -1,7 +1,8 @@
 #include <common.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 #define max_shadow_cascades 16
-#define shadow_cascades 6
+#define shadow_cascades 4
 
 struct Cascade {
     glm::mat4 pv;
@@ -9,7 +10,7 @@ struct Cascade {
     float _0[3];
 };
 
-static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& camera, glm::vec3 light_pos) noexcept {
+static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& camera, glm::vec3 light_pos) noexcept {
     std::array<Cascade, shadow_cascades> cascades;
     const auto calculate_cascade = [&camera, &light_pos](float near, float far) {
         const auto perspective = glm::perspective(glm::radians(60.0f), camera.aspect, near, far);
@@ -20,12 +21,11 @@ static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Came
             for (std::uint32_t x = 0; x < 2; ++x) {
                 for (std::uint32_t y = 0; y < 2; ++y) {
                     for (std::uint32_t z = 0; z < 2; ++z) {
-                        const glm::vec4 v_world =
-                            inverse * glm::vec4(
-                                2.0f * (float)x - 1.0f,
-                                2.0f * (float)y - 1.0f,
-                                2.0f * (float)z - 1.0f,
-                                1.0f);
+                        const auto v_world = inverse * glm::vec4(
+                            2.0f * (float)x - 1.0f,
+                            2.0f * (float)y - 1.0f,
+                            2.0f * (float)z - 1.0f,
+                            1.0f);
                         corners[offset++] = v_world / v_world.w;
                     }
                 }
@@ -39,7 +39,8 @@ static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Came
             }
             center /= 8.0f;
             const auto light_dir = glm::normalize(light_pos);
-            light_view = glm::lookAt(center + light_dir, center, { 0.0f, 1.0f, 0.0f });
+            const auto eye = center + light_dir;
+            light_view = glm::lookAt(eye, center, { 0.0f, 1.0f, 0.0f });
         }
 
         glm::mat4 light_proj;
@@ -59,7 +60,7 @@ static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Came
                 min_z = std::min(min_z, trf.z);
                 max_z = std::max(max_z, trf.z);
             }
-            constexpr float z_mult = 15.0f;
+            constexpr float z_mult = 17.5f;
             if (min_z < 0) {
                 min_z *= z_mult;
             } else {
@@ -76,12 +77,10 @@ static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Came
         return light_proj * light_view;
     };
     const float cascade_levels[shadow_cascades] = {
-        camera.far / 30.0f,
-        camera.far / 10.0f,
         camera.far / 7.5f,
         camera.far / 5.0f,
-        camera.far / 3.3f,
-        camera.far
+        camera.far / 2.5f,
+        camera.far,
     };
     for (std::size_t i = 0; i < shadow_cascades; ++i) {
         float near;
@@ -99,15 +98,15 @@ static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Came
 }
 
 int main() {
-    auto window = crd::make_window(1280, 720, "Hello Triangle");
+    auto window = crd::make_window(1280, 720, "Cascaded Shadows Test");
     auto context = crd::make_context();
     auto renderer = crd::make_renderer(context);
     auto swapchain = crd::make_swapchain(context, window);
     auto shadow_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
-                .width   = 2048,
-                .height  = 2048,
+                .width   = 4096,
+                .height  = 4096,
                 .mips    = 1,
                 .layers  = shadow_cascades,
                 .format  = VK_FORMAT_D16_UNORM,
@@ -359,13 +358,14 @@ int main() {
         const auto current_frame = crd::time();
         const auto delta_time = current_frame - last_frame;
         last_frame = current_frame;
+        camera.update(window, delta_time);
         fps += delta_time;
         ++frames;
         lights[0].position = glm::vec4(
-            20.0f,// * std::sin(crd::time() / 4),
+            0.1f,// * std::sin(crd::time() / 4),
             75.0f,
-            5.0f,// * std::cos(crd::time() / 4),
-            0.0f);
+            -0.1f,// * std::cos(crd::time() / 4),
+            1.0f);
         for (std::size_t i = 0; const auto& light : lights) {
             light_ts[i++] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.25f));
         }
@@ -485,7 +485,6 @@ int main() {
             frames = 0;
             fps = 0;
         }
-        camera.update(window, delta_time);
         crd::poll_events();
     }
     context.graphics->wait_idle();

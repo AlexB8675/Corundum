@@ -1,7 +1,7 @@
 #include <common.hpp>
 
 int main() {
-    auto window = crd::make_window(1280, 720, "Test");
+    auto window = crd::make_window(1280, 720, "Test Deferred Lights");
     auto context = crd::make_context();
     auto renderer = crd::make_renderer(context);
     auto swapchain = crd::make_swapchain(context, window);
@@ -365,7 +365,6 @@ int main() {
             .end();
         renderer.present_frame(context, commands, window, swapchain, VK_PIPELINE_STAGE_TRANSFER_BIT);
         crd::poll_events();
-        camera.update(window, delta_time);
     }
     context.graphics->wait_idle();
     crd::destroy_descriptor_set(context, gbuffer_set);

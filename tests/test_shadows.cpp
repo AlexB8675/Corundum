@@ -1,7 +1,7 @@
 #include <common.hpp>
 
 int main() {
-    auto window = crd::make_window(1280, 720, "Hello Triangle");
+    auto window = crd::make_window(1280, 720, "Test Simple Shadow");
     auto context = crd::make_context();
     auto renderer = crd::make_renderer(context);
     auto swapchain = crd::make_swapchain(context, window);

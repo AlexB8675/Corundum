@@ -1,7 +1,7 @@
 #version 460
 
 #define max_shadow_cascades 16
-#define shadow_cascades 6
+#define shadow_cascades 4
 
 layout (triangles, invocations = shadow_cascades) in;
 layout (triangle_strip, max_vertices = 3) out;
