@@ -66,23 +66,41 @@ layout (push_constant) uniform Constants {
     uint specular_index;
 };
 
+vec3 calculate_directional_light(DirectionalLight, vec3, vec3, vec3);
 vec3 calculate_point_light(PointLight, vec3, vec3, vec3);
 vec3 calculate_shadow(vec3, vec3, vec3, vec2, uint);
 vec3 filter_pcf(vec3, vec3, vec3, uint);
 uint calculate_layer();
 
 void main() {
-    const vec3 normal = normal_index != 0 ? normalize(TBN * (2.0 * texture(textures[normal_index], uvs).rgb - 1.0)) : i_normal;
+    const vec3 normal = normalize(normal_index != 0 ? (TBN * (2.0 * texture(textures[normal_index], uvs).rgb - 1.0)) : i_normal);
     const vec3 view_dir = normalize(view_pos - frag_pos);
     const vec4 albedo = texture(textures[diffuse_index], uvs);
 
     vec3 color = vec3(albedo) * ambient_factor;
-    for (uint i = 0; i < point_lights.length(); ++i) {
-        color += calculate_point_light(point_lights[i], vec3(albedo), normal, view_dir);
+    for (uint i = 0; i < directional_lights.length(); ++i) {
+        color += calculate_directional_light(directional_lights[i], vec3(albedo), normal, view_dir);
     }
+    /*for (uint i = 0; i < point_lights.length(); ++i) {
+        color += calculate_point_light(point_lights[i], vec3(albedo), normal, view_dir);
+    }*/
     const uint layer = calculate_layer();
     color = filter_pcf(color, normal, vec3(albedo), layer);
     pixel = vec4(color, albedo.a);
+}
+
+vec3 calculate_directional_light(DirectionalLight light, vec3 color, vec3 normal, vec3 view_dir) {
+    const vec3 light_dir = normalize(light.direction);
+    // Diffuse.
+    const float diffuse_comp = max(dot(light_dir, normal), 0.0);
+    // Specular.
+    const vec3 halfway_dir = normalize(light_dir + view_dir);
+    const float specular_comp = pow(max(dot(halfway_dir, normal), 0.0), 32);
+
+    // Combine.
+    const vec3 result_diffuse = vec3(light.diffuse) * diffuse_comp * color;
+    const vec3 result_specular = vec3(light.specular) * specular_comp * (texture(textures[specular_index], uvs).rgb * color);
+    return result_diffuse + result_specular;
 }
 
 vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 view_dir) {
@@ -100,7 +118,6 @@ vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 view_
     // Combine.
     const vec3 result_diffuse = vec3(light.diffuse) * diffuse_comp * color;
     const vec3 result_specular = vec3(light.specular) * specular_comp * (texture(textures[specular_index], uvs).rgb * color);
-
     return (result_diffuse + result_specular) * attenuation;
 }
 

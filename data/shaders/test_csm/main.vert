@@ -38,7 +38,7 @@ void main() {
     vec3 B = cross(N, T);
     TBN = mat3(T, B, N);
     frag_pos = vec3(t_model * vec4(i_vertex, 1.0));
-    normal = i_normal;
+    normal = mat3(transpose(inverse(t_model))) * i_normal;
     uvs = i_uvs;
     view_depth = (view * vec4(frag_pos, 1.0)).z;
     gl_Position = projection * view * vec4(frag_pos, 1.0);

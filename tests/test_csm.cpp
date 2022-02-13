@@ -38,6 +38,8 @@ static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& cam
                 center += glm::vec3(corner);
             }
             center /= 8.0f;
+            light_pos.x += 0.01f;
+            light_pos.z += 0.01f;
             const auto light_dir = glm::normalize(light_pos);
             const auto eye = center + light_dir;
             light_view = glm::lookAt(eye, center, { 0.0f, 1.0f, 0.0f });
@@ -66,7 +68,7 @@ static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& cam
             } else {
                 min_z /= z_mult;
             }
-            if (max_z < 0){
+            if (max_z < 0) {
                 max_z /= z_mult;
             } else {
                 max_z *= z_mult;
@@ -293,7 +295,7 @@ int main() {
             .position = glm::vec3(-1.0f, 0.0f, 2.0f),
             .rotation = {
                 .axis = glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)),
-                .angle = glm::radians(60.0f)
+                .angle = glm::radians(45.0f)
             },
             .scale = glm::vec3(0.25f)
         } }
@@ -319,9 +321,8 @@ int main() {
             .scale = glm::vec3(0.5f)
         } }
     } });
-    std::vector<PointLight> lights = { {
-        .position = glm::vec4(0.0f),
-        .falloff = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
+    std::vector<DirectionalLight> lights = { {
+        .direction = glm::vec4(0.0f),
         .diffuse = glm::vec4(0.3f),
         .specular = glm::vec4(0.3f)
     } };
@@ -334,7 +335,7 @@ int main() {
     std::vector<glm::mat4> light_ts;
     light_ts.reserve(lights.size());
     for (const auto& light : lights) {
-        light_ts.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
+        light_ts.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.direction)), glm::vec3(0.1f)));
     }
     auto cascades_buffer = crd::make_buffer(context, sizeof(Cascade[max_shadow_cascades]), crd::uniform_buffer);
     auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4) * 2, crd::uniform_buffer);
@@ -342,8 +343,8 @@ int main() {
     auto light_model_buffer = crd::make_buffer(context, crd::size_bytes(light_ts), crd::storage_buffer);
     auto light_color_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
     auto light_uniform_buffer = crd::make_buffer(context, sizeof(glm::vec4), crd::uniform_buffer);
-    auto point_light_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
-    auto directional_light_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
+    auto point_light_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
+    auto directional_light_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::uniform_buffer);
 
     auto shadow_set = crd::make_descriptor_set(context, shadow_pipeline.layout.sets[0]);
     auto main_set = crd::make_descriptor_set(context, main_pipeline.layout.sets[0]);
@@ -361,19 +362,19 @@ int main() {
         camera.update(window, delta_time);
         fps += delta_time;
         ++frames;
-        lights[0].position = glm::vec4(
-            0.1f,// * std::sin(crd::time() / 4),
+        lights[0].direction = glm::vec4(
+            0.0f,// * std::sin(crd::time() / 4),
             75.0f,
-            -0.1f,// * std::cos(crd::time() / 4),
+            0.0f,// * std::cos(crd::time() / 4),
             1.0f);
         for (std::size_t i = 0; const auto& light : lights) {
-            light_ts[i++] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.25f));
+            light_ts[i++] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(lights[0].direction)), glm::vec3(0.25f));
         }
-        const auto cascades = calculate_cascades(camera, lights[0].position);
+        const auto cascades = calculate_cascades(camera, lights[0].direction);
 
         crd::resize_buffer(context, model_buffer[index], crd::size_bytes(scene.transforms));
         crd::resize_buffer(context, cascades_buffer[index], crd::size_bytes(cascades));
-        crd::resize_buffer(context, point_light_buffer[index], crd::size_bytes(lights));
+        crd::resize_buffer(context, directional_light_buffer[index], crd::size_bytes(lights));
         crd::resize_buffer(context, light_color_buffer[index], crd::size_bytes(light_colors));
 
         model_buffer[index].write(scene.transforms.data(), 0, crd::size_bytes(scene.transforms));
@@ -381,7 +382,8 @@ int main() {
         cascades_buffer[index].write(cascades.data(), 0, crd::size_bytes(cascades));
         camera_buffer[index].write(glm::value_ptr(camera.projection), 0, sizeof camera.raw());
         camera_buffer[index].write(glm::value_ptr(camera.view), sizeof(glm::mat4), sizeof camera.raw());
-        point_light_buffer[index].write(lights.data(), 0, crd::size_bytes(lights));
+        point_light_buffer[index].write(nullptr, 0);
+        directional_light_buffer[index].write(lights.data(), 0, crd::size_bytes(lights));
         light_color_buffer[index].write(light_colors.data(), 0, crd::size_bytes(light_colors));
         light_uniform_buffer[index].write(&camera.position, 0, sizeof camera.position);
 
@@ -399,9 +401,9 @@ int main() {
             .bind(context, light_pipeline.bindings["Colors"], light_color_buffer[index].info());
         light_data_set[index]
             .bind(context, main_pipeline.bindings["ViewPos"], light_uniform_buffer[index].info())
-            // .bind(context, main_pipeline.bindings["DirectionalLights"], directional_light_buffer[index].info())
+            .bind(context, main_pipeline.bindings["DirectionalLights"], directional_light_buffer[index].info())
             .bind(context, main_pipeline.bindings["shadow"], shadow_pass.image(0).sample(context.shadow_sampler))
-            .bind(context, main_pipeline.bindings["PointLights"], point_light_buffer[index].info())
+            //.bind(context, main_pipeline.bindings["PointLights"], point_light_buffer[index].info())
             .bind(context, main_pipeline.bindings["Cascades"], cascades_buffer[index].info());
 
         commands
