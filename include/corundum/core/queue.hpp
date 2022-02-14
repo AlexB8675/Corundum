@@ -27,8 +27,8 @@ namespace crd {
         std::uint32_t family;
         std::mutex lock;
 
-        crd_module void     submit(const CommandBuffer&, VkPipelineStageFlags, VkSemaphore, VkSemaphore, VkFence) noexcept;
-        crd_module VkResult present(const Swapchain&, std::uint32_t, VkSemaphore) noexcept;
+        crd_module void     submit(const CommandBuffer&, VkPipelineStageFlags, std::vector<VkSemaphore>, std::vector<VkSemaphore>, VkFence) noexcept;
+        crd_module VkResult present(const Swapchain&, std::uint32_t, std::vector<VkSemaphore>) noexcept;
         crd_module void     wait_idle() noexcept;
     };
 

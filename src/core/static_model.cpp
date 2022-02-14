@@ -173,7 +173,7 @@ namespace crd {
         };
     }
 
-    static inline void process_node(const Context& context, const aiScene* scene, const aiNode* node, StaticModel& model, TextureCache& cache, const fs::path& path) noexcept {
+    static inline void process_node(const Context& context, const aiScene* scene, const aiNode* node, StaticModel& model, TextureCache& cache, fs::path path) noexcept {
         for (std::size_t i = 0; i < node->mNumMeshes; i++) {
             model.submeshes.emplace_back(import_textured_mesh(context, scene, scene->mMeshes[node->mMeshes[i]], cache, path));
         }
@@ -183,10 +183,10 @@ namespace crd {
         }
     }
 
-    crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context& context, const char* path) noexcept {
-        detail::log("Core", crd::detail::severity_info, crd::detail::type_general, "loading model: \"%s\"", path);
+    crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context& context, std::string&& path) noexcept {
+        detail::log("Core", crd::detail::severity_info, crd::detail::type_general, "loading model: \"%s\"", path.c_str());
         using task_type = std::packaged_task<StaticModel()>;
-        auto* task = new task_type([&context, path]() noexcept -> StaticModel {
+        auto* task = new task_type([&context, path = std::move(path)]() noexcept -> StaticModel {
             Assimp::Importer importer;
             const auto post_process =
                 aiProcess_Triangulate |
@@ -200,7 +200,7 @@ namespace crd {
             cache.reserve(32);
             StaticModel model;
             process_node(context, scene, scene->mRootNode, model, cache, fs::path(path).parent_path());
-            detail::log("Vulkan", detail::severity_info, detail::type_general, "StaticModel \"%s\" was loaded successfully", path);
+            detail::log("Vulkan", detail::severity_info, detail::type_general, "StaticModel \"%s\" was loaded successfully", path.c_str());
             return model;
         });
         Async<StaticModel> resource;

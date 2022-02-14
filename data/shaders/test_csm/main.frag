@@ -64,6 +64,8 @@ layout (push_constant) uniform Constants {
     uint diffuse_index;
     uint normal_index;
     uint specular_index;
+    uint point_light_size;
+    uint directional_light_size;
 };
 
 vec3 calculate_directional_light(DirectionalLight, vec3, vec3, vec3);
@@ -78,14 +80,28 @@ void main() {
     const vec4 albedo = texture(textures[diffuse_index], uvs);
 
     vec3 color = vec3(albedo) * ambient_factor;
-    for (uint i = 0; i < directional_lights.length(); ++i) {
+    for (uint i = 0; i < directional_light_size; ++i) {
         color += calculate_directional_light(directional_lights[i], vec3(albedo), normal, view_dir);
     }
-    /*for (uint i = 0; i < point_lights.length(); ++i) {
+    for (uint i = 0; i < point_light_size; ++i) {
         color += calculate_point_light(point_lights[i], vec3(albedo), normal, view_dir);
-    }*/
+    }
     const uint layer = calculate_layer();
     color = filter_pcf(color, normal, vec3(albedo), layer);
+    /*switch(layer) {
+        case 0 :
+            color *= vec3(1.0, 0.25, 0.25);
+            break;
+        case 1 :
+            color *= vec3(0.25, 1.0, 0.25);
+            break;
+        case 2 :
+            color *= vec3(0.25, 0.25, 1.0);
+            break;
+        case 3 :
+            color *= vec3(1.0, 1.0, 0.25);
+            break;
+    }*/
     pixel = vec4(color, albedo.a);
 }
 
@@ -99,7 +115,7 @@ vec3 calculate_directional_light(DirectionalLight light, vec3 color, vec3 normal
 
     // Combine.
     const vec3 result_diffuse = vec3(light.diffuse) * diffuse_comp * color;
-    const vec3 result_specular = vec3(light.specular) * specular_comp * (texture(textures[specular_index], uvs).rgb * color);
+    const vec3 result_specular = vec3(light.specular) * specular_comp * texture(textures[specular_index], uvs).rgb;
     return result_diffuse + result_specular;
 }
 
@@ -117,7 +133,7 @@ vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 view_
 
     // Combine.
     const vec3 result_diffuse = vec3(light.diffuse) * diffuse_comp * color;
-    const vec3 result_specular = vec3(light.specular) * specular_comp * (texture(textures[specular_index], uvs).rgb * color);
+    const vec3 result_specular = vec3(light.specular) * specular_comp * texture(textures[specular_index], uvs).rgb;
     return (result_diffuse + result_specular) * attenuation;
 }
 
@@ -136,7 +152,7 @@ vec3 calculate_shadow(vec3 color, vec3 normal, vec3 albedo, vec2 offset, uint la
     const vec4 light_frag_pos = (shadow_bias * cascades[layer].pv) * vec4(frag_pos, 1.0);
     const vec4 shadow_coords = light_frag_pos / light_frag_pos.w;
     const vec2 texel = vec2(shadow_coords.x, 1.0 - shadow_coords.y);
-    const float bias = 0.00025 * (1 / (cascades[layer].split * 0.5));
+    const float bias = 0.00001 * (1 / (cascades[layer].split * 0.5));
     const float current = shadow_coords.z + bias;
     if (shadow_coords.z > -1.0 && shadow_coords.z < 1.0) {
         const float closest = texture(shadow, vec3(texel + offset, layer)).r;
@@ -149,18 +165,18 @@ vec3 calculate_shadow(vec3 color, vec3 normal, vec3 albedo, vec2 offset, uint la
 
 vec3 filter_pcf(vec3 color, vec3 normal, vec3 albedo, uint layer) {
     const ivec2 shadow_size = textureSize(shadow, 0).xy;
-    const float dx = 0.75 / float(shadow_size.x);
-    const float dy = 0.75 / float(shadow_size.y);
+    const float dx = 0.5 / float(shadow_size.x);
+    const float dy = 0.5 / float(shadow_size.y);
 
-    vec3 shadow_factor = vec3(0.0);
+    vec3 shadow = vec3(0.0);
     int count = 0;
     int range = 1;
     for (int x = -range; x <= range; x++) {
         for (int y = -range; y <= range; y++) {
-            shadow_factor += calculate_shadow(color, normal, albedo, vec2(dx * x, dy * y), layer);
+            shadow += calculate_shadow(color, normal, albedo, vec2(dx * x, dy * y), layer);
             count++;
         }
 
     }
-    return shadow_factor / count;
+    return shadow / count;
 }

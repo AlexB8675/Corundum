@@ -37,37 +37,34 @@ namespace crd {
 
     crd_module void Queue::submit(const CommandBuffer& commands,
                                   VkPipelineStageFlags stage,
-                                  VkSemaphore wait,
-                                  VkSemaphore signal,
+                                  std::vector<VkSemaphore> wait,
+                                  std::vector<VkSemaphore> signal,
                                   VkFence fence) noexcept {
-        VkSubmitInfo submit_info = {};
+        VkSubmitInfo submit_info;
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        if (wait) {
-            submit_info.waitSemaphoreCount = 1;
-            submit_info.pWaitSemaphores = &wait;
-            submit_info.pWaitDstStageMask = &stage;
-        }
+        submit_info.pNext = nullptr;
+        submit_info.waitSemaphoreCount = wait.size();
+        submit_info.pWaitSemaphores = wait.data();
+        submit_info.pWaitDstStageMask = &stage;
         submit_info.commandBufferCount = 1;
         submit_info.pCommandBuffers = &commands.handle;
-        if (signal) {
-            submit_info.signalSemaphoreCount = 1;
-            submit_info.pSignalSemaphores = &signal;
-        }
+        submit_info.signalSemaphoreCount = signal.size();
+        submit_info.pSignalSemaphores = signal.data();
 
         std::lock_guard<std::mutex> guard(lock);
         crd_vulkan_check(vkQueueSubmit(handle, 1, &submit_info, fence));
     }
 
-    crd_module VkResult Queue::present(const Swapchain& swapchain, std::uint32_t image, VkSemaphore wait) noexcept {
-        VkPresentInfoKHR present_info = {};
+    crd_module VkResult Queue::present(const Swapchain& swapchain, std::uint32_t image, std::vector<VkSemaphore> wait) noexcept {
+        VkPresentInfoKHR present_info;
         present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        if (wait) {
-            present_info.waitSemaphoreCount = 1;
-            present_info.pWaitSemaphores = &wait;
-        }
+        present_info.pNext = nullptr;
+        present_info.waitSemaphoreCount = wait.size();
+        present_info.pWaitSemaphores = wait.data();
         present_info.swapchainCount = 1;
         present_info.pSwapchains = &swapchain.handle;
         present_info.pImageIndices = &image;
+        present_info.pResults = nullptr;
 
         std::lock_guard<std::mutex> guard(lock);
         return vkQueuePresentKHR(handle, &present_info);

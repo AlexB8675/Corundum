@@ -319,7 +319,7 @@ int main() {
             .bind_pipeline(main_pipeline)
             .bind_descriptor_set(0, main_set[index]);
         for (const auto& model : scene.models) {
-            auto& raw_model = *models[model.index];
+            auto& raw_model = **model.handle;
             for (const auto& submesh : model.submeshes) {
                 auto& raw_submesh = raw_model.submeshes[submesh.index];
                 const std::uint32_t indices[] = {
@@ -370,7 +370,13 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, commands, window, swapchain, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        renderer.present_frame(context, {
+            commands,
+            window,
+            swapchain,
+            {},
+            VK_PIPELINE_STAGE_TRANSFER_BIT
+        });
         crd::poll_events();
         camera.update(window, delta_time);
     }

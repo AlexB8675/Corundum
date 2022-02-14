@@ -10,6 +10,7 @@
 #include <vulkan/vulkan.h>
 
 #include <vector>
+#include <string>
 
 namespace crd {
     struct TexturedMesh {
@@ -25,6 +26,6 @@ namespace crd {
         std::vector<TexturedMesh> submeshes;
     };
 
-    crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context&, const char*) noexcept;
+    crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context&, std::string&&) noexcept;
                   crd_module void               destroy_static_model(const Context&, StaticModel&) noexcept;
 } // namespace crd

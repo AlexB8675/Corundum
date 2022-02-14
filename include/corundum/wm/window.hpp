@@ -10,7 +10,7 @@
 #include <cstdint>
 
 namespace crd {
-    enum Keys {
+    enum Key {
         key_space      = GLFW_KEY_SPACE,
         key_a          = GLFW_KEY_A,
         key_b          = GLFW_KEY_B,
@@ -51,15 +51,21 @@ namespace crd {
     };
 
     struct Window {
+        using key_callback_t = std::function<void(crd::Key, crd::KeyState)>;
+        using resize_callback_t = std::function<void()>;
         GLFWwindow* handle;
         std::uint32_t width;
         std::uint32_t height;
+        bool fullscreen;
 
-        std::function<void()> on_resize;
+        resize_callback_t on_resize;
+        key_callback_t key_callback;
 
         crd_nodiscard crd_module bool       is_closed() const noexcept;
-        crd_nodiscard crd_module KeyState   key(Keys) const noexcept;
+        crd_nodiscard crd_module KeyState   key(Key) const noexcept;
         crd_nodiscard crd_module VkExtent2D viewport() noexcept;
+                      crd_module void       toggle_fullscreen() noexcept;
+                      crd_module void       set_key_callback(key_callback_t&&) noexcept;
     };
 
     crd_nodiscard crd_module Window       make_window(std::uint32_t, std::uint32_t, const char*) noexcept;

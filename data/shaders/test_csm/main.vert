@@ -28,6 +28,8 @@ layout (push_constant) uniform Constants {
     uint diffuse_index;
     uint normal_index;
     uint specular_index;
+    uint point_light_size;
+    uint directional_light_size;
 };
 
 void main() {

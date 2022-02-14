@@ -15,6 +15,7 @@ namespace crd {
         window.handle = handle;
         window.width  = width;
         window.height = height;
+        window.fullscreen = false;
         return window;
     }
 
@@ -41,7 +42,7 @@ namespace crd {
         return glfwWindowShouldClose(handle);
     }
 
-    crd_nodiscard crd_module KeyState Window::key(Keys key) const noexcept {
+    crd_nodiscard crd_module KeyState Window::key(Key key) const noexcept {
         return static_cast<KeyState>(glfwGetKey(handle, static_cast<int>(key)));
     }
 
@@ -52,9 +53,47 @@ namespace crd {
             glfwWaitEvents();
             glfwGetFramebufferSize(handle, &new_width, &new_height);
         }
+        if (fullscreen) {
+            return { width, height };
+        }
         return {
             width  = new_width,
             height = new_height
         };
+    }
+
+    crd_module void Window::toggle_fullscreen() noexcept {
+        static int old_width = width;
+        static int old_height = height;
+        const auto monitor = glfwGetPrimaryMonitor();
+        const auto video = glfwGetVideoMode(monitor);
+        const auto next = glfwGetWindowMonitor(handle) ? nullptr : monitor;
+        int x_pos = video->width / 2 - old_width / 2;
+        int y_pos = video->height / 2 - old_height / 2;
+        if (next) {
+            x_pos = 0;
+            y_pos = 0;
+            width = video->width;
+            height = video->height;
+        } else {
+            width = old_width;
+            height = old_height;
+            old_width = width;
+            old_height = height;
+        }
+        fullscreen = !fullscreen;
+        glfwSetWindowMonitor(
+            handle, next,
+            x_pos, y_pos,
+            width, height,
+            GLFW_DONT_CARE);
+    }
+
+    void Window::set_key_callback(Window::key_callback_t&& callback) noexcept {
+        key_callback = std::move(callback);
+        glfwSetWindowUserPointer(handle, this);
+        glfwSetKeyCallback(handle, [](GLFWwindow* l_handle, int key, int, int action, int) {
+            static_cast<Window*>(glfwGetWindowUserPointer(l_handle))->key_callback(static_cast<Key>(key), static_cast<KeyState>(action));
+        });
     }
 } // namespace crd

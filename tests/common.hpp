@@ -42,7 +42,7 @@ struct Camera {
     float pitch = 0.0f;
     float aspect = 0.0f;
     const float near = 0.1f;
-    const float far = 128.0f;
+    const float far = 150.0f;
 
     void update(const crd::Window& window, double delta_time) noexcept {
         _process_keyboard(window, delta_time);
@@ -112,10 +112,10 @@ struct Model {
         std::array<std::uint32_t, 3> textures;
         std::uint32_t index;
     };
+    crd::Async<crd::StaticModel>* handle;
     std::vector<Submesh> submeshes;
     std::uint32_t transform;
     std::uint32_t instances;
-    std::uint32_t index;
 };
 
 struct Scene {
@@ -175,11 +175,7 @@ static inline Scene build_scene(std::span<Draw> models, VkDescriptorImageInfo fa
             auto& handle = scene.models.emplace_back();
             scene.descriptors.reserve(scene.descriptors.size() + submeshes_size * 3);
             cache.reserve(cache.size() + submeshes_size * 3 + transforms.size());
-            auto [value, miss] = cache.try_emplace(model);
-            crd_unlikely_if(miss) {
-                value->second = i;
-            }
-            handle.index = value->second;
+            handle.handle = model;
             handle.transform = offset;
             handle.instances = transforms.size();
             handle.submeshes.reserve(submeshes_size);

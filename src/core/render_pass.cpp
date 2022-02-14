@@ -195,17 +195,19 @@ namespace crd {
             detail::log("Vulkan", detail::severity_info, detail::type_general, "window extent is the same, framebuffer will not be resized");
             return;
         }
+        std::uint32_t layers = 1;
         std::vector<VkImageView> image_references;
         image_references.reserve(resize.attachments.size());
         for (const auto attachment : resize.attachments) {
             auto& current = attachments[attachment];
             crd_assert(current.owning, "resizing a handle to attachment");
-                  auto& old_image = current.image;
-            const auto  new_image = make_image(context, {
+            auto& old_image = current.image;
+            layers = old_image.layers;
+            const auto new_image = make_image(context, {
                 .width   = resize.size.width,
                 .height  = resize.size.height,
                 .mips    = old_image.mips,
-                .layers  = 1,
+                .layers  = old_image.layers,
                 .format  = old_image.format,
                 .aspect  = old_image.aspect,
                 .samples = old_image.samples,
@@ -225,7 +227,7 @@ namespace crd {
         framebuffer_info.pAttachments = image_references.data();
         framebuffer_info.width = framebuffer.extent.width;
         framebuffer_info.height = framebuffer.extent.height;
-        framebuffer_info.layers = 1; // TODO: Don't hardcode.
+        framebuffer_info.layers = layers;
         crd_vulkan_check(vkCreateFramebuffer(context.device, &framebuffer_info, nullptr, &framebuffer.handle));
     }
 } // namespace crd

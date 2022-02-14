@@ -47,6 +47,7 @@ namespace crd {
                 new (&storage) T(std::move(*other.object()));
             } break;
         }
+        other.tag = task_tag_none;
         return *this;
     }
 

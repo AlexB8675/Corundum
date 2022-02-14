@@ -35,8 +35,8 @@ namespace crd {
         detail::log("Vulkan", detail::severity_info, detail::type_general, "image count: %d", image_count);
 
         const auto viewport = window.viewport();
-        crd_unlikely_if(capabilities.currentExtent.width != -1) {
-            crd_likely_if(capabilities.currentExtent.width == 0) {
+        crd_likely_if(capabilities.currentExtent.width != -1) {
+            crd_unlikely_if(capabilities.currentExtent.width == 0) {
                 crd_vulkan_check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.gpu.handle, swapchain.surface, &capabilities));
             }
             swapchain.width  = capabilities.currentExtent.width;

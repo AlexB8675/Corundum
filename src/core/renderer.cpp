@@ -34,7 +34,6 @@ namespace crd {
     }
 
     static inline void recreate_swapchain(const Context& context, Window& window, Swapchain& swapchain) noexcept {
-        crd_vulkan_check(vkDeviceWaitIdle(context.device));
         detail::log("Vulkan", detail::severity_warning, detail::type_performance, "window resized, recreating swapchain");
         swapchain = make_swapchain(context, window, &swapchain);
         window.on_resize();
@@ -101,10 +100,12 @@ namespace crd {
         };
     }
 
-    crd_module void Renderer::present_frame(const Context& context, const CommandBuffer& commands, Window& window, Swapchain& swapchain, VkPipelineStageFlags stage) noexcept {
+    crd_module void Renderer::present_frame(const Context& context, PresentInfo&& info) noexcept {
+        auto [commands, window, swapchain, waits, stage] = info;
         crd_vulkan_check(vkResetFences(context.device, 1, &cmd_wait[frame_idx]));
-        context.graphics->submit(commands, stage, img_ready[frame_idx], gfx_done[frame_idx], cmd_wait[frame_idx]);
-        const auto result = context.graphics->present(swapchain, image_idx, gfx_done[frame_idx]);
+        waits.emplace_back(img_ready[frame_idx]);
+        context.graphics->submit(commands, stage, std::move(waits), { gfx_done[frame_idx] }, cmd_wait[frame_idx]);
+        const auto result = context.graphics->present(swapchain, image_idx, { gfx_done[frame_idx] });
         crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
             sync_renderer(context, *this);
             recreate_swapchain(context, window, swapchain);
@@ -155,6 +156,6 @@ namespace crd {
     crd_module void submit_compute(const Context& context, Renderer& renderer, Handle<ComputeContext> cmp_handle, std::uint32_t index) noexcept {
         auto& compute = renderer.compute_cache[cmp_handle.index];
         crd_vulkan_check(vkResetFences(context.device, 1, &compute.wait[index]));
-        context.compute->submit(compute.commands[index], {}, nullptr, compute.done[index], compute.wait[index]);
+        context.compute->submit(compute.commands[index], {}, {}, { compute.done[index] }, compute.wait[index]);
     }
 } // namespace crd

@@ -25,6 +25,14 @@ namespace crd {
         std::array<VkFence, in_flight> wait;
     };
 
+    struct PresentInfo {
+        const CommandBuffer& commands;
+        Window& window;
+        Swapchain& swapchain;
+        std::vector<VkSemaphore> waits;
+        VkPipelineStageFlagBits stage;
+    };
+
     struct Renderer {
         std::uint32_t image_idx;
         std::uint32_t frame_idx;
@@ -38,7 +46,7 @@ namespace crd {
         std::unordered_map<std::size_t, VkDescriptorSetLayout> set_layout_cache;
 
         crd_nodiscard crd_module FrameInfo acquire_frame(const Context&, Window&, Swapchain&) noexcept;
-                      crd_module void      present_frame(const Context&, const CommandBuffer&, Window&, Swapchain&, VkPipelineStageFlags) noexcept;
+                      crd_module void      present_frame(const Context&, PresentInfo&&) noexcept;
     };
 
     crd_nodiscard crd_module Renderer               make_renderer(const Context&) noexcept;

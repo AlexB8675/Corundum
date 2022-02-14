@@ -85,7 +85,7 @@ vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 frag_
 
     // Combine.
     const vec3 result_diffuse = vec3(light.diffuse) * diffuse_comp * color;
-    const vec3 result_specular = vec3(light.specular) * specular_comp * (texture(textures[specular_index], uvs).rgb * color);
+    const vec3 result_specular = vec3(light.specular) * specular_comp * texture(textures[specular_index], uvs).rgb;
 
     return (result_diffuse + result_specular) * attenuation;
 }
@@ -93,7 +93,7 @@ vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 frag_
 vec3 calculate_shadow(vec3 color, vec3 albedo, vec2 offset) {
     const vec4 shadow_coords = shadow_bias * (light_frag_pos / light_frag_pos.w);
     const vec2 texel = vec2(shadow_coords.x, 1.0 - shadow_coords.y);
-    const float bias = 0.0075;
+    const float bias = 0.0025;
     const float current = shadow_coords.z + bias;
     if (current > -1.0 && current < 1.0) {
         const float closest = texture(shadow, texel + offset).r;
