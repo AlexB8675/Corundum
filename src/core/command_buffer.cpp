@@ -302,6 +302,45 @@ namespace crd {
         return *this;
     }
 
+    crd_module CommandBuffer& CommandBuffer::barrier(const ImageMemoryBarrier& info) noexcept {
+        VkImageMemoryBarrier barrier;
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.pNext = nullptr;
+        barrier.srcAccessMask = info.source_access;
+        barrier.dstAccessMask = info.dest_access;
+        barrier.oldLayout = info.old_layout;
+        barrier.newLayout = info.new_layout;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = info.image->handle;
+        barrier.subresourceRange.aspectMask = info.image->aspect;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = info.level == 0 ? info.image->mips : info.level;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        vkCmdPipelineBarrier(
+            handle,
+            info.source_stage,
+            info.dest_stage,
+            VK_DEPENDENCY_BY_REGION_BIT,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+        return *this;
+    }
+
+    crd_module CommandBuffer& CommandBuffer::barrier(VkPipelineStageFlags source_stage, VkPipelineStageFlags dest_stage) noexcept {
+        vkCmdPipelineBarrier(
+            handle,
+            source_stage,
+            dest_stage,
+            VK_DEPENDENCY_BY_REGION_BIT,
+            0, nullptr,
+            0, nullptr,
+            0, nullptr);
+        return *this;
+    }
+
     crd_module CommandBuffer& CommandBuffer::transfer_ownership(const BufferMemoryBarrier& info, const Queue& source, const Queue& dest) noexcept {
         VkBufferMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;

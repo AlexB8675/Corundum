@@ -76,6 +76,8 @@ namespace crd {
         crd_module CommandBuffer& copy_buffer(const StaticBuffer&, const StaticBuffer&) noexcept;
         crd_module CommandBuffer& copy_buffer_to_image(const StaticBuffer&, const Image&) noexcept;
         crd_module CommandBuffer& barrier(const BufferMemoryBarrier&) noexcept;
+        crd_module CommandBuffer& barrier(const ImageMemoryBarrier&) noexcept;
+        crd_module CommandBuffer& barrier(VkPipelineStageFlags, VkPipelineStageFlags) noexcept;
         crd_module CommandBuffer& transfer_ownership(const BufferMemoryBarrier&, const Queue&, const Queue&) noexcept;
         crd_module CommandBuffer& transfer_ownership(const ImageMemoryBarrier&, const Queue&, const Queue&) noexcept;
         crd_module CommandBuffer& transition_layout(const ImageMemoryBarrier&) noexcept;

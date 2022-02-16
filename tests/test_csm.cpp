@@ -16,7 +16,7 @@ struct Cascade {
 static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& camera, glm::vec3 light_pos) noexcept {
     std::array<Cascade, shadow_cascades> cascades;
     const auto calculate_cascade = [&camera, &light_pos](float near, float far) {
-        const auto perspective = glm::perspective(glm::radians(60.0f), camera.aspect, near, far);
+        const auto perspective = glm::perspective(glm::radians(90.0f), camera.aspect, near, far);
         glm::vec4 corners[8];
         { // Calculate frustum corners
             const auto inverse = glm::inverse(perspective * camera.view);
@@ -65,7 +65,7 @@ static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& cam
                 min_z = std::min(min_z, trf.z);
                 max_z = std::max(max_z, trf.z);
             }
-            constexpr float z_mult = 7.5f;
+            constexpr auto z_mult = 10.0f;
             if (min_z < 0) {
                 min_z *= z_mult;
             } else {
@@ -82,9 +82,9 @@ static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& cam
         return light_proj * light_view;
     };
     const float cascade_levels[shadow_cascades] = {
-        camera.far / 12.5f,
-        camera.far / 7.5f,
-        camera.far / 3.0f,
+        camera.far / 30.0f,
+        camera.far / 10.0f,
+        camera.far / 3.3f,
         camera.far,
     };
     for (std::size_t i = 0; i < shadow_cascades; ++i) {
@@ -140,7 +140,7 @@ int main() {
                             VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
             .dest_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
                           VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-            .source_access = {},
+            .source_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
             .dest_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
         }, {
             .source_subpass = 0,
@@ -202,10 +202,17 @@ int main() {
         .dependencies = { {
             .source_subpass = crd::external_subpass,
             .dest_subpass = 0,
+            .source_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .dest_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .source_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dest_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+        }, {
+            .source_subpass = 0,
+            .dest_subpass = crd::external_subpass,
             .source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .dest_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .source_access = {},
-            .dest_access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+            .dest_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+            .source_access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dest_access = VK_ACCESS_TRANSFER_READ_BIT
         } },
         .framebuffers = { {
             .attachments = { 0, 1 }
@@ -290,26 +297,67 @@ int main() {
     auto black = crd::request_static_texture(context, "../data/textures/black.png", crd::texture_srgb);
     auto models = std::vector<crd::Async<crd::StaticModel>>();
     models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.obj"));
     models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
     models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
     models.emplace_back(crd::request_static_model(context, "../data/models/deccer-cubes/SM_Deccer_Cubes_Textured.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/rungholt/rungholt.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/rungholt/house.obj"));
-    auto draw_cmds = std::vector<Draw>({ {
-        .model = &models[4],
+    //models.emplace_back(crd::request_static_model(context, "../data/models/rungholt/rungholt.obj"));
+    //models.emplace_back(crd::request_static_model(context, "../data/models/rungholt/house.obj"));
+    auto draw_cmds = std::to_array<Draw>({ {
+        .model = &models[0],
         .transforms = { {
-            .position = glm::vec3(0.0f, 0.0f, 0.0f),
+            .position = glm::vec3(0.0f, 1.5f, 0.0f),
             .rotation = {},
+            .scale = glm::vec3(0.5f)
+        }, {
+            .position = glm::vec3(2.0f, 0.0f, 1.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.5f)
+        }, {
+            .position = glm::vec3(-1.0f, 0.0f, 2.0f),
+            .rotation = {
+                .axis = glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)),
+                .angle = glm::radians(45.0f)
+            },
             .scale = glm::vec3(0.25f)
         } }
     }, {
+        .model = &models[1],
+        .transforms = { {
+            .position = glm::vec3(0.0f, -0.5f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.02f)
+        } }
+    }, {
+        .model = &models[2],
+        .transforms = { {
+            .position = glm::vec3(-4.0f, 1.0f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(2.0f)
+        } }
+    }, {
+        .model = &models[3],
+        .transforms = { {
+            .position = glm::vec3(4.0f, 1.0f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.5f)
+        } }
+    } });
+    /*auto draw_cmds = std::vector<Draw>({ {
         .model = &models[5],
         .transforms = { {
             .position = glm::vec3(0.0f, 0.0f, 0.0f),
             .rotation = {},
-            .scale = glm::vec3(0.25f)
+            .scale = glm::vec3(0.35f)
         } }
-    } });
+    }, {
+        .model = &models[6],
+        .transforms = { {
+            .position = glm::vec3(0.0f, 0.0f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.35f)
+        } }
+    } });*/
     std::vector<DirectionalLight> dir_lights = { {
         .direction = glm::vec4(0.0f),
         .diffuse = glm::vec4(0.3f),
@@ -352,9 +400,9 @@ int main() {
         fps += delta_time;
         ++frames;
         dir_lights[0].direction = glm::vec4(
-            200.0f * std::cos(crd::time() / 32),
+            25.0f * std::cos(crd::time() / 6),
             150.0f,
-            200.0f * std::sin(crd::time() / 32),
+            25.0f * std::sin(crd::time() / 6),
             1.0f);
         for (std::size_t i = 0; const auto& light : dir_lights) {
             light_ts[i++] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(dir_lights[0].direction)), glm::vec3(0.25f));
@@ -453,9 +501,9 @@ int main() {
                 .image = &image,
                 .mip = 0,
                 .level = 0,
-                .source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                .source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                 .dest_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                .source_access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                .source_access = {},
                 .dest_access = VK_ACCESS_TRANSFER_WRITE_BIT,
                 .old_layout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL

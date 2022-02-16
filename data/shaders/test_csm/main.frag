@@ -70,8 +70,8 @@ layout (push_constant) uniform Constants {
 
 vec3 calculate_directional_light(DirectionalLight, vec3, vec3, vec3);
 vec3 calculate_point_light(PointLight, vec3, vec3, vec3);
-vec3 calculate_shadow(vec3, vec3, vec3, vec2, uint);
-vec3 filter_pcf(vec3, vec3, vec3, uint);
+vec3 calculate_shadow(vec3, vec3, vec3, vec3, vec2, uint);
+vec3 filter_pcf(vec3, vec3, vec3, vec3, uint);
 uint calculate_layer();
 
 void main() {
@@ -80,28 +80,14 @@ void main() {
     const vec4 albedo = texture(textures[diffuse_index], uvs);
 
     vec3 color = vec3(albedo) * ambient_factor;
+    const uint layer = calculate_layer();
     for (uint i = 0; i < directional_light_size; ++i) {
         color += calculate_directional_light(directional_lights[i], vec3(albedo), normal, view_dir);
+        color = filter_pcf(color, normal, normalize(directional_lights[i].direction), vec3(albedo), layer);
     }
     for (uint i = 0; i < point_light_size; ++i) {
         color += calculate_point_light(point_lights[i], vec3(albedo), normal, view_dir);
     }
-    const uint layer = calculate_layer();
-    color = filter_pcf(color, normal, vec3(albedo), layer);
-    /*switch(layer) {
-        case 0 :
-            color *= vec3(1.0, 0.25, 0.25);
-            break;
-        case 1 :
-            color *= vec3(0.25, 1.0, 0.25);
-            break;
-        case 2 :
-            color *= vec3(0.25, 0.25, 1.0);
-            break;
-        case 3 :
-            color *= vec3(1.0, 1.0, 0.25);
-            break;
-    }*/
     pixel = vec4(color, albedo.a);
 }
 
@@ -148,11 +134,12 @@ uint calculate_layer() {
     return layer;
 }
 
-vec3 calculate_shadow(vec3 color, vec3 normal, vec3 albedo, vec2 offset, uint layer) {
+vec3 calculate_shadow(vec3 color, vec3 normal, vec3 light_dir, vec3 albedo, vec2 offset, uint layer) {
     const vec4 light_frag_pos = (shadow_bias * cascades[layer].pv) * vec4(frag_pos, 1.0);
     const vec4 shadow_coords = light_frag_pos / light_frag_pos.w;
     const vec2 texel = vec2(shadow_coords.x, 1.0 - shadow_coords.y);
-    const float bias = 0.00001 * (1 / (cascades[layer].split * 0.5));
+    float bias = 0.000025 * (1 / (cascades[layer].split * 0.5));
+    bias = max(bias, bias * (1.0 - dot(normal, light_dir)));
     const float current = shadow_coords.z + bias;
     if (shadow_coords.z > -1.0 && shadow_coords.z < 1.0) {
         const float closest = texture(shadow, vec3(texel + offset, layer)).r;
@@ -163,17 +150,15 @@ vec3 calculate_shadow(vec3 color, vec3 normal, vec3 albedo, vec2 offset, uint la
     return color;
 }
 
-vec3 filter_pcf(vec3 color, vec3 normal, vec3 albedo, uint layer) {
+vec3 filter_pcf(vec3 color, vec3 normal, vec3 light_dir, vec3 albedo, uint layer) {
     const ivec2 shadow_size = textureSize(shadow, 0).xy;
-    const float dx = 0.5 / float(shadow_size.x);
-    const float dy = 0.5 / float(shadow_size.y);
-
+    const vec2 texel = 1 / shadow_size;
     vec3 shadow = vec3(0.0);
     int count = 0;
-    int range = 1;
+    int range = 2;
     for (int x = -range; x <= range; x++) {
         for (int y = -range; y <= range; y++) {
-            shadow += calculate_shadow(color, normal, albedo, vec2(dx * x, dy * y), layer);
+            shadow += calculate_shadow(color, normal, light_dir, albedo, vec2(x, y) * texel, layer);
             count++;
         }
 

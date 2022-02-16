@@ -30,7 +30,7 @@ namespace crd {
         Window& window;
         Swapchain& swapchain;
         std::vector<VkSemaphore> waits;
-        VkPipelineStageFlagBits stage;
+        VkPipelineStageFlags stage;
     };
 
     struct Renderer {

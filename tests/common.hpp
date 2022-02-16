@@ -42,12 +42,12 @@ struct Camera {
     float pitch = 0.0f;
     float aspect = 0.0f;
     const float near = 0.1f;
-    const float far = 150.0f;
+    const float far = 256.0f;
 
     void update(const crd::Window& window, double delta_time) noexcept {
         _process_keyboard(window, delta_time);
         aspect = window.width / (float)window.height;
-        projection = glm::perspective(glm::radians(60.0f), aspect, near, far);
+        projection = glm::perspective(glm::radians(90.0f), aspect, near, far);
         const auto cos_pitch = std::cos(glm::radians(pitch));
         front = glm::normalize(glm::vec3{
             std::cos(glm::radians(yaw)) * cos_pitch,
@@ -64,7 +64,7 @@ struct Camera {
     }
 private:
     void _process_keyboard(const crd::Window& window, double delta_time) noexcept {
-        constexpr auto camera_speed = 5.0f;
+        constexpr auto camera_speed = 7.5f;
         const auto delta_movement = camera_speed * (float)delta_time;
         if (window.key(crd::key_w) == crd::key_pressed) {
             position.x += std::cos(glm::radians(yaw)) * delta_movement;

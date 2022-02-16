@@ -34,10 +34,10 @@ namespace crd {
             application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
             application_info.pNext = nullptr;
             application_info.pApplicationName = "Corundum Engine";
-            application_info.applicationVersion = VK_API_VERSION_1_2;
+            application_info.applicationVersion = VK_API_VERSION_1_3;
             application_info.pEngineName = "Corundum Engine";
-            application_info.engineVersion = VK_API_VERSION_1_2;
-            application_info.apiVersion = VK_API_VERSION_1_2;
+            application_info.engineVersion = VK_API_VERSION_1_3;
+            application_info.apiVersion = VK_API_VERSION_1_3;
 
             detail::log("Vulkan", detail::severity_verbose, detail::type_general, "enumerating extensions:");
             std::uint32_t extension_count;
@@ -256,6 +256,9 @@ namespace crd {
                 context.extensions.descriptor_indexing = true;
                 device_info.pNext = &descriptor_indexing;
             }
+            if (has_extension(extensions, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME)) {
+                extension_names.emplace_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
+            }
             device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
             device_info.flags = {};
             device_info.pQueueCreateInfos = queue_infos.data();
@@ -346,7 +349,7 @@ namespace crd {
             allocator_info.pHeapSizeLimit = nullptr;
             allocator_info.pVulkanFunctions = nullptr;
             allocator_info.instance = context.instance;
-            allocator_info.vulkanApiVersion = VK_API_VERSION_1_2;
+            allocator_info.vulkanApiVersion = VK_API_VERSION_1_3;
             allocator_info.pTypeExternalMemoryHandleTypes = nullptr;
             crd_vulkan_check(vmaCreateAllocator(&allocator_info, &context.allocator));
             detail::log("Vulkan", detail::severity_info, detail::type_general, "allocator created successfully");
