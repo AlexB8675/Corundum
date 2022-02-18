@@ -73,7 +73,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::begin_render_pass(const RenderPass& render_pass, std::size_t index) noexcept {
-        const auto& clear_values = render_pass.clears();
+        const auto& clear_values = render_pass.clears(index);
         const auto& framebuffer  = render_pass.framebuffers[index];
         active_framebuffer = &framebuffer;
         active_pass = &render_pass;

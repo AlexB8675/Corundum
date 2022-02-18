@@ -176,10 +176,10 @@ namespace crd {
 
             store_resource(compiler, resources.uniform_buffers, VK_SHADER_STAGE_GEOMETRY_BIT, resource_uniform_buffer);
             store_resource(compiler, resources.storage_buffers, VK_SHADER_STAGE_GEOMETRY_BIT, resource_storage_buffer);
-            if (!resources.push_constant_buffers.empty()) {
-                crd_assert(resources.push_constant_buffers.size() == push_constant_range.size,
-                           "push constant block in geometry stage has a size different from other stages");
-                push_constant_range.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+            for (const auto& push_constant : resources.push_constant_buffers) {
+                const auto& type = compiler.get_type(push_constant.type_id);
+                push_constant_range.size = compiler.get_declared_struct_size(type);
+                push_constant_range.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
             }
         }
 
@@ -198,18 +198,23 @@ namespace crd {
             crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &fragment_stage.module));
 
             VkPipelineColorBlendAttachmentState attachment;
-            attachment.blendEnable = true;
             attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
             attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
             attachment.colorBlendOp = VK_BLEND_OP_ADD;
             attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
             attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
             attachment.alphaBlendOp = VK_BLEND_OP_ADD;
-            attachment.colorWriteMask =
-                VK_COLOR_COMPONENT_R_BIT |
-                VK_COLOR_COMPONENT_G_BIT |
-                VK_COLOR_COMPONENT_B_BIT |
-                VK_COLOR_COMPONENT_A_BIT;
+            attachment.colorWriteMask = {};
+            for (const auto& outputs : resources.stage_outputs) {
+                const auto& type = compiler.get_type(outputs.type_id);
+                attachment.blendEnable = info.blend && type.vecsize == 4;
+                switch (type.vecsize) {
+                    case 4: attachment.colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
+                    case 3: attachment.colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
+                    case 2: attachment.colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
+                    case 1: attachment.colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
+                }
+            }
             attachment_outputs.resize(resources.stage_outputs.size(), attachment);
             for (const auto& input_attachment : resources.subpass_inputs) {
                 const auto set     = compiler.get_decoration(input_attachment.id, spv::DecorationDescriptorSet);
@@ -243,7 +248,9 @@ namespace crd {
                         .stage   = VK_SHADER_STAGE_FRAGMENT_BIT
                     });
             }
-            if (!resources.push_constant_buffers.empty()) {
+            for (const auto& push_constant : resources.push_constant_buffers) {
+                const auto& type = compiler.get_type(push_constant.type_id);
+                push_constant_range.size = compiler.get_declared_struct_size(type);
                 push_constant_range.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
             }
         }
@@ -330,8 +337,8 @@ namespace crd {
         multisampling_state.sampleShadingEnable = true;
         multisampling_state.minSampleShading = 0.2f;
         multisampling_state.pSampleMask = nullptr;
-        multisampling_state.alphaToCoverageEnable = !attachment_outputs.empty() && context.gpu.features.alphaToOne;
-        multisampling_state.alphaToOneEnable = !attachment_outputs.empty() && context.gpu.features.alphaToOne;
+        multisampling_state.alphaToCoverageEnable = false;
+        multisampling_state.alphaToOneEnable = false;
 
         VkPipelineDepthStencilStateCreateInfo depth_stencil_state;
         depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;

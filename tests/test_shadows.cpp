@@ -127,6 +127,7 @@ int main() {
         },
         .cull = VK_CULL_MODE_FRONT_BIT,
         .subpass = 0,
+        .blend = false,
         .depth = true
     });
     auto main_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -147,6 +148,7 @@ int main() {
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 0,
+        .blend = false,
         .depth = true
     });
     auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -167,6 +169,7 @@ int main() {
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 0,
+        .blend = false,
         .depth = true
     });
     window.on_resize = [&]() {

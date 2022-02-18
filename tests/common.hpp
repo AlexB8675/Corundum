@@ -1,6 +1,9 @@
 #ifndef CORUNDUM_TESTS_COMMON_HPP
 #define CORUNDUM_TESTS_COMMON_HPP
 
+#define max_shadow_cascades 16
+#define shadow_cascades 4
+
 #include <corundum/core/descriptor_set.hpp>
 #include <corundum/core/static_texture.hpp>
 #include <corundum/core/static_model.hpp>
@@ -21,9 +24,11 @@
 #include <corundum/wm/window.hpp>
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/string_cast.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
 
+#include <filesystem>
 #include <random>
 #include <vector>
 #include <array>
@@ -42,7 +47,7 @@ struct Camera {
     float pitch = 0.0f;
     float aspect = 0.0f;
     const float near = 0.1f;
-    const float far = 256.0f;
+    const float far = 150.0f;
 
     void update(const crd::Window& window, double delta_time) noexcept {
         _process_keyboard(window, delta_time);
@@ -105,6 +110,12 @@ private:
             pitch = -89.9f;
         }
     }
+};
+
+struct Cascade {
+    glm::mat4 pv;
+    float level;
+    float _0[3];
 };
 
 struct Model {
@@ -216,6 +227,95 @@ static inline Scene build_scene(std::span<Draw> models, VkDescriptorImageInfo fa
         i++;
     }
     return scene;
+}
+
+static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& camera, glm::vec3 light_pos) noexcept {
+    std::array<Cascade, shadow_cascades> cascades;
+    const auto calculate_cascade = [&camera, &light_pos](float near, float far) {
+        const auto perspective = glm::perspective(glm::radians(90.0f), camera.aspect, near, far);
+        glm::vec4 corners[8];
+        { // Calculate frustum corners
+            const auto inverse = glm::inverse(perspective * camera.view);
+            std::uint32_t offset = 0;
+            for (std::uint32_t x = 0; x < 2; ++x) {
+                for (std::uint32_t y = 0; y < 2; ++y) {
+                    for (std::uint32_t z = 0; z < 2; ++z) {
+                        const auto v_world = inverse * glm::vec4(
+                            2.0f * (float)x - 1.0f,
+                            2.0f * (float)y - 1.0f,
+                            2.0f * (float)z - 1.0f,
+                            1.0f);
+                        corners[offset++] = v_world / v_world.w;
+                    }
+                }
+            }
+        }
+        glm::mat4 light_view;
+        { // Calculate light view matrix
+            auto center = glm::vec3(0.0f);
+            for (const auto& corner : corners) {
+                center += glm::vec3(corner);
+            }
+            center /= 8.0f;
+            light_pos.x += 0.01f;
+            light_pos.z += 0.01f;
+            const auto light_dir = glm::normalize(light_pos);
+            const auto eye = center + light_dir;
+            light_view = glm::lookAt(eye, center, { 0.0f, 1.0f, 0.0f });
+        }
+
+        glm::mat4 light_proj;
+        {
+            float min_x = (std::numeric_limits<float>::max)();
+            float max_x = (std::numeric_limits<float>::min)();
+            float min_y = min_x;
+            float max_y = max_x;
+            float min_z = min_x;
+            float max_z = max_x;
+            for (const auto& corner : corners) {
+                const auto trf = light_view * corner;
+                min_x = std::min(min_x, trf.x);
+                max_x = std::max(max_x, trf.x);
+                min_y = std::min(min_y, trf.y);
+                max_y = std::max(max_y, trf.y);
+                min_z = std::min(min_z, trf.z);
+                max_z = std::max(max_z, trf.z);
+            }
+            constexpr auto z_mult = 10.0f;
+            if (min_z < 0) {
+                min_z *= z_mult;
+            } else {
+                min_z /= z_mult;
+            }
+            if (max_z < 0) {
+                max_z /= z_mult;
+            } else {
+                max_z *= z_mult;
+            }
+
+            light_proj = glm::ortho(min_x, max_x, min_y, max_y, min_z, max_z);
+        }
+        return light_proj * light_view;
+    };
+    const float cascade_levels[shadow_cascades] = {
+        camera.far / 15.0f,
+        camera.far / 7.5f,
+        camera.far / 3.3f,
+        camera.far,
+    };
+    for (std::size_t i = 0; i < shadow_cascades; ++i) {
+        float near;
+        float far;
+        if (i == 0) {
+            near = camera.near;
+            far = cascade_levels[i];
+        } else {
+            near = cascade_levels[i - 1];
+            far = cascade_levels[i];
+        }
+        cascades[i] = { calculate_cascade(near, far), far };
+    }
+    return cascades;
 }
 
 #endif //CORUNDUM_TESTS_COMMON_HPP

@@ -52,7 +52,6 @@ namespace crd {
     crd_nodiscard crd_module Renderer               make_renderer(const Context&) noexcept;
                   crd_module void                   destroy_renderer(const Context&, Renderer&) noexcept;
     crd_nodiscard crd_module Handle<ComputeContext> make_compute_context(const Context&, Renderer&, bool) noexcept;
-    crd_nodiscard crd_module CommandBuffer&         acquire_compute_commands(const Context&, Renderer&, Handle<ComputeContext>, std::uint32_t) noexcept;
     crd_nodiscard crd_module CommandBuffer&         acquire_compute_commands(Renderer&, Handle<ComputeContext>, std::uint32_t) noexcept;
                   crd_module void                   wait_compute(const Context&, Renderer&, Handle<ComputeContext>, std::uint32_t) noexcept;
                   crd_module void                   submit_compute(const Context&, Renderer&, Handle<ComputeContext>, std::uint32_t) noexcept;
