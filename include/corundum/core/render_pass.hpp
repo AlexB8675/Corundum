@@ -51,6 +51,7 @@ namespace crd {
     struct Framebuffer {
         VkFramebuffer handle;
         VkExtent2D extent;
+        std::vector<std::uint32_t> attachments;
     };
 
     struct RenderPass {
@@ -67,7 +68,7 @@ namespace crd {
         std::vector<AttachmentInfo> attachments;
 
         crd_nodiscard crd_module const Image&              image(std::size_t) const noexcept;
-        crd_nodiscard crd_module std::vector<VkClearValue> clears() const noexcept;
+        crd_nodiscard crd_module std::vector<VkClearValue> clears(std::size_t) const noexcept;
                       crd_module void                      resize(const Context&, ResizeAttachments&&) noexcept;
     };
 

@@ -139,12 +139,6 @@ namespace crd {
         return { renderer.compute_cache.size() - 1 };
     }
 
-    crd_nodiscard crd_module CommandBuffer& acquire_compute_commands(const Context& context, Renderer& renderer, Handle<ComputeContext> cmp_handle, std::uint32_t index) noexcept {
-        auto& cmp = renderer.compute_cache[cmp_handle.index];
-        crd_vulkan_check(vkWaitForFences(context.device, 1, &cmp.wait[index], true, -1));
-        return cmp.commands[index];
-    }
-
     crd_nodiscard crd_module CommandBuffer& acquire_compute_commands(Renderer& renderer, Handle<ComputeContext> cmp_handle, std::uint32_t index) noexcept {
         return renderer.compute_cache[cmp_handle.index].commands[index];
     }

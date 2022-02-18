@@ -156,6 +156,7 @@ namespace crd {
                 framebuffer_info.width,
                 framebuffer_info.height
             };
+            framebuffer.attachments = each.attachments;
             crd_vulkan_check(vkCreateFramebuffer(context.device, &framebuffer_info, nullptr, &framebuffer.handle));
         }
         return render_pass;
@@ -180,11 +181,12 @@ namespace crd {
         return attachments[index].image;
     }
 
-    crd_nodiscard crd_module std::vector<VkClearValue> RenderPass::clears() const noexcept {
+    crd_nodiscard crd_module std::vector<VkClearValue> RenderPass::clears(std::size_t index) const noexcept {
         std::vector<VkClearValue> result;
-        result.reserve(attachments.size());
-        for (const auto& each : attachments) {
-            result.emplace_back(as_vulkan(each.clear));
+        const auto& f_attachments = framebuffers[index].attachments;
+        result.reserve(f_attachments.size());
+        for (const auto& each : f_attachments) {
+            result.emplace_back(as_vulkan(attachments[each].clear));
         }
         return result;
     }

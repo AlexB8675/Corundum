@@ -29,7 +29,7 @@ namespace crd {
         detail::log("Vulkan", detail::severity_info, detail::type_general, "vulkan initialization started");
         Context context = {};
         { // Creates a VkInstance.
-            detail::log("Vulkan", detail::severity_info, detail::type_general, "requesting vulkan version 1.2");
+            detail::log("Vulkan", detail::severity_info, detail::type_general, "requesting vulkan version 1.3");
             VkApplicationInfo application_info;
             application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
             application_info.pNext = nullptr;
@@ -55,13 +55,23 @@ namespace crd {
                     extension_names.emplace_back(name);
                 }
             }
-
             VkInstanceCreateInfo instance_info;
             instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
             instance_info.pNext = nullptr;
             instance_info.flags = {};
             instance_info.pApplicationInfo = &application_info;
 #if defined(crd_debug)
+            constexpr auto enabled_validation_features = std::to_array({
+                VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+            });
+            VkValidationFeaturesEXT extra_validation;
+            extra_validation.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+            extra_validation.pNext = nullptr;
+            extra_validation.enabledValidationFeatureCount = enabled_validation_features.size();
+            extra_validation.pEnabledValidationFeatures = enabled_validation_features.data();
+            extra_validation.disabledValidationFeatureCount = 0;
+            extra_validation.pDisabledValidationFeatures = nullptr;
+            instance_info.pNext = &extra_validation;
             detail::log("Vulkan", detail::severity_info, detail::type_general, "debug mode active, requesting validation layers");
             const char* validation_layer = "VK_LAYER_KHRONOS_validation";
             instance_info.enabledLayerCount = 1;
@@ -110,7 +120,7 @@ namespace crd {
                 }
 
                 detail::log("Vulkan", severity_string, type_string, data->pMessage);
-                const auto fatal_bits = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+                const auto fatal_bits = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
                 crd_unlikely_if(severity & fatal_bits) {
                     crd_force_assert("Fatal Vulkan error has occurred");
                 }
@@ -328,9 +338,9 @@ namespace crd {
             sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
             sampler_info.unnormalizedCoordinates = false;
             crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.default_sampler));
-            sampler_info.anisotropyEnable = false;
-            sampler_info.magFilter = VK_FILTER_NEAREST;
-            sampler_info.minFilter = VK_FILTER_NEAREST;
+            sampler_info.anisotropyEnable = true;
+            sampler_info.magFilter = VK_FILTER_LINEAR;
+            sampler_info.minFilter = VK_FILTER_LINEAR;
             sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
             sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
             sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
