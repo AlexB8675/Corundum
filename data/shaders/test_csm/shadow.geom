@@ -20,9 +20,9 @@ layout (set = 0, binding = 1) uniform Cascades {
 };
 
 void main() {
-    uvs = i_uvs[0];
     for (int i = 0; i < 3; ++i) {
         gl_Position = cascades[gl_InvocationID].pv * gl_in[i].gl_Position;
+        uvs = i_uvs[gl_InvocationID];
         gl_Layer = gl_InvocationID;
         EmitVertex();
     }

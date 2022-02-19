@@ -47,7 +47,7 @@ struct Camera {
     float pitch = 0.0f;
     float aspect = 0.0f;
     const float near = 0.1f;
-    const float far = 150.0f;
+    const float far = 128.0f;
 
     void update(const crd::Window& window, double delta_time) noexcept {
         _process_keyboard(window, delta_time);
@@ -298,9 +298,9 @@ static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& cam
         return light_proj * light_view;
     };
     const float cascade_levels[shadow_cascades] = {
-        camera.far / 15.0f,
-        camera.far / 7.5f,
-        camera.far / 3.3f,
+        camera.far / 12.5f,
+        camera.far / 5.0f,
+        camera.far / 2.5f,
         camera.far,
     };
     for (std::size_t i = 0; i < shadow_cascades; ++i) {

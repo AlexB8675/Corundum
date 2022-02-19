@@ -169,73 +169,46 @@ int main() {
     auto shadow_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
-                .width   = 2048,
-                .height  = 2048,
+                .width   = 4096,
+                .height  = 4096,
                 .mips    = 1,
                 .layers  = shadow_cascades,
-                .format  = VK_FORMAT_R32G32_SFLOAT,
-                .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
+                .format  = VK_FORMAT_D32_SFLOAT,
+                .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
-                .usage   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
                            VK_IMAGE_USAGE_SAMPLED_BIT
             }),
             .layout = {
                 .initial = VK_IMAGE_LAYOUT_UNDEFINED,
                 .final   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
             },
-            .clear   = crd::make_clear_color({ 1.0f, 1.0f, 1.0f, 1.0f }),
-            .owning  = true,
-            .discard = false
-        }, {
-            .image = crd::make_image(context, {
-                .width   = 2048,
-                .height  = 2048,
-                .mips    = 1,
-                .layers  = shadow_cascades,
-                .format  = VK_FORMAT_D16_UNORM,
-                .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
-                .samples = VK_SAMPLE_COUNT_1_BIT,
-                .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-            }),
-            .layout = {
-                .initial = VK_IMAGE_LAYOUT_UNDEFINED,
-                .final   = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-            },
             .clear   = crd::make_clear_depth({ 1.0f, 0 }),
             .owning  = true,
-            .discard = true
+            .discard = false
         } },
         .subpasses = { {
-            .attachments = { 0, 1 },
+            .attachments = { 0 },
             .preserve = {},
             .input = {}
         } },
         .dependencies = { {
             .source_subpass = crd::external_subpass,
             .dest_subpass = 0,
-            .source_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
-                            VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
-                            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .dest_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
-                          VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
-                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .source_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
-                             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-            .dest_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
-                           VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+            .source_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+            .dest_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+            .source_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            .dest_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
         }, {
             .source_subpass = 0,
             .dest_subpass = crd::external_subpass,
-            .source_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
-                            VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
-                            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .source_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
             .dest_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            .source_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
-                             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .source_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
             .dest_access = VK_ACCESS_SHADER_READ_BIT
         } },
         .framebuffers = { {
-            .attachments = { 0, 1 }
+            .attachments = { 0 }
         } }
     });
     auto shadow_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -250,13 +223,13 @@ int main() {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
         },
+        .attachments = {},
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR,
+            VK_DYNAMIC_STATE_SCISSOR
         },
         .cull = VK_CULL_MODE_FRONT_BIT,
         .subpass = 0,
-        .blend = false,
         .depth = true
     });
     auto deferred_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -271,13 +244,18 @@ int main() {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
         },
+        .attachments = {
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend
+        },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR,
+            VK_DYNAMIC_STATE_SCISSOR
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 0,
-        .blend = false,
         .depth = true
     });
     auto main_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -286,13 +264,15 @@ int main() {
         .fragment = "../data/shaders/test_csm/main.frag.spv",
         .render_pass = &deferred_pass,
         .attributes = {},
+        .attachments = {
+            crd::color_attachment_auto
+        },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR,
+            VK_DYNAMIC_STATE_SCISSOR
         },
         .cull = VK_CULL_MODE_NONE,
         .subpass = 1,
-        .blend = false,
         .depth = false
     });
     auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -307,13 +287,15 @@ int main() {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
         },
+        .attachments = {
+            crd::color_attachment_auto
+        },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR,
+            VK_DYNAMIC_STATE_SCISSOR
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 1,
-        .blend = false,
         .depth = true
     });
     window.on_resize = [&]() {
@@ -338,7 +320,7 @@ int main() {
     models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.obj"));
     models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
     models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/deccer-cubes/SM_Deccer_Cubes_Textured.obj"));
+    //models.emplace_back(crd::request_static_model(context, "../data/models/deccer-cubes/SM_Deccer_Cubes_Textured.obj"));
     //models.emplace_back(crd::request_static_model(context, "../data/models/rungholt/rungholt.obj"));
     //models.emplace_back(crd::request_static_model(context, "../data/models/rungholt/house.obj"));
     auto draw_cmds = std::to_array<Draw>({ {
@@ -439,9 +421,9 @@ int main() {
         fps += delta_time;
         ++frames;
         dir_lights[0].direction = glm::vec4(
-            75.0f * std::cos(crd::time() / 6),
+            35.0f * std::cos(crd::time() / 6),
             150.0f,
-            75.0f * std::sin(crd::time() / 6),
+            35.0f * std::sin(crd::time() / 6),
             1.0f);
         for (std::size_t i = 0; const auto& light : dir_lights) {
             light_ts[i++] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(dir_lights[0].direction)), glm::vec3(0.25f));
@@ -465,8 +447,8 @@ int main() {
 
         shadow_set[index]
             .bind(context, shadow_pipeline.bindings["Models"], model_buffer[index].info())
-            .bind(context, shadow_pipeline.bindings["Cascades"], cascades_buffer[index].info());
-            //.bind(context, shadow_pipeline.bindings["textures"], scene.descriptors);
+            .bind(context, shadow_pipeline.bindings["Cascades"], cascades_buffer[index].info())
+            .bind(context, shadow_pipeline.bindings["textures"], scene.descriptors);
         gbuffer_set[index]
             .bind(context, main_pipeline.bindings["i_position"], deferred_pass.image(1).sample(context.default_sampler))
             .bind(context, main_pipeline.bindings["i_normal"], deferred_pass.image(2).sample(context.default_sampler))
@@ -500,10 +482,10 @@ int main() {
                 auto& raw_submesh = raw_model.submeshes[submesh.index];
                 const std::uint32_t indices[] = {
                     model.transform,
-                    //submesh.textures[0]
+                    submesh.textures[0]
                 };
                 commands
-                    .push_constants(VK_SHADER_STAGE_VERTEX_BIT, indices, sizeof(indices))
+                    .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, indices, sizeof indices)
                     .bind_static_mesh(*raw_submesh.mesh)
                     .draw_indexed(raw_submesh.indices, model.instances, 0, 0, 0);
             }

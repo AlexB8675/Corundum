@@ -338,7 +338,7 @@ namespace crd {
             sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
             sampler_info.unnormalizedCoordinates = false;
             crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.default_sampler));
-            sampler_info.anisotropyEnable = true;
+            sampler_info.anisotropyEnable = false;
             sampler_info.magFilter = VK_FILTER_LINEAR;
             sampler_info.minFilter = VK_FILTER_LINEAR;
             sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;

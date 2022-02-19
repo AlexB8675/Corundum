@@ -205,9 +205,17 @@ namespace crd {
             attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
             attachment.alphaBlendOp = VK_BLEND_OP_ADD;
             attachment.colorWriteMask = {};
-            for (const auto& outputs : resources.stage_outputs) {
+            crd_assert(resources.stage_outputs.size() == info.attachments.size(), "output attachment count differ");
+            for (std::uint32_t i = 0; const auto& outputs : resources.stage_outputs) {
                 const auto& type = compiler.get_type(outputs.type_id);
-                attachment.blendEnable = info.blend && type.vecsize == 4;
+                switch (info.attachments[i++]) {
+                    case color_attachment_auto: {
+                        attachment.blendEnable = type.vecsize == 4;
+                    } break;
+                    case color_attachment_disable_blend: {
+                        attachment.blendEnable = false;
+                    } break;
+                }
                 switch (type.vecsize) {
                     case 4: attachment.colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
                     case 3: attachment.colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
@@ -470,6 +478,7 @@ namespace crd {
 
     crd_nodiscard crd_module ComputePipeline make_compute_pipeline(const Context& context, Renderer& renderer, ComputePipeline::CreateInfo&& info) noexcept {
         ComputePipeline pipeline;
+        detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading compute shader: \"%s\"", info.compute);
         const auto binary = import_spirv(info.compute);
         VkShaderModuleCreateInfo compute_module;
         compute_module.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;

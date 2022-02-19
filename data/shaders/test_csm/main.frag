@@ -3,13 +3,36 @@
 
 #define ambient_factor 0.03
 #define max_shadow_cascades 16
+#define max_directional_lights 4
 #define shadow_cascades 4
+#define blocker_search_samples 16
+#define pcf_range 4
+#define pcf_samples 64
 
 const mat4 shadow_bias = mat4(
     0.5, 0.0, 0.0, 0.0,
     0.0, 0.5, 0.0, 0.0,
     0.0, 0.0, 1.0, 0.0,
     0.5, 0.5, 0.0, 1.0);
+
+const vec2[] poisson_disk = {
+    vec2(-0.94201624,  -0.39906216),
+    vec2( 0.94558609,  -0.76890725),
+    vec2(-0.094184101, -0.92938870),
+    vec2( 0.34495938,   0.29387760),
+    vec2(-0.91588581,   0.45771432),
+    vec2(-0.81544232,  -0.87912464),
+    vec2(-0.38277543,   0.27676845),
+    vec2( 0.97484398,   0.75648379),
+    vec2( 0.44323325,  -0.97511554),
+    vec2( 0.53742981,  -0.47373420),
+    vec2(-0.26496911,  -0.41893023),
+    vec2( 0.79197514,   0.19090188),
+    vec2(-0.24188840,   0.99706507),
+    vec2(-0.81409955,   0.91437590),
+    vec2( 0.19984126,   0.78641367),
+    vec2( 0.14383161,  -0.14100790)
+};
 
 struct Cascade {
     mat4 pv;
@@ -41,7 +64,7 @@ layout (set = 1, binding = 0) uniform ViewPos {
 };
 
 layout (set = 1, binding = 1) uniform DirectionalLights {
-    DirectionalLight[4] directional_lights;
+    DirectionalLight[max_directional_lights] directional_lights;
 };
 
 layout (std430, set = 1, binding = 2) buffer readonly PointLights {
@@ -70,17 +93,17 @@ void main() {
     const float view_depth = subpassLoad(i_position).a;
     const vec3 frag_pos = subpassLoad(i_position).rgb;
     const vec3 normal = subpassLoad(i_normal).rgb;
-    const vec4 albedo = subpassLoad(i_albedo);
+    const vec3 albedo = subpassLoad(i_albedo).rgb;
     const vec3 view_dir = normalize(view_pos - frag_pos);
 
-    vec3 color = vec3(albedo) * ambient_factor;
+    vec3 color = albedo * ambient_factor;
     const uint layer = calculate_layer(view_depth);
     for (uint i = 0; i < directional_light_size; ++i) {
-        color += calculate_directional_light(directional_lights[i], vec3(albedo), normal, view_dir);
-        color = filter_pcf(directional_lights[i], color, normal, frag_pos, vec3(albedo), layer);
+        color += calculate_directional_light(directional_lights[i], albedo, normal, view_dir);
+        color = filter_pcf(directional_lights[i], color, normal, frag_pos, albedo, layer);
     }
     for (uint i = 0; i < point_light_size; ++i) {
-        color += calculate_point_light(point_lights[i], vec3(albedo), normal, frag_pos, view_dir);
+        color += calculate_point_light(point_lights[i], albedo, normal, frag_pos, view_dir);
     }
     pixel = vec4(color, 1.0);
 }
@@ -139,6 +162,10 @@ uint calculate_layer(float view_depth) {
     return layer;
 }
 
+float penumbra_size(float z_receiver, float z_blocker) {
+    return (z_receiver - z_blocker) / z_blocker;
+}
+
 vec3 calculate_shadow(vec3 color, vec3 normal, vec3 light_dir, vec3 frag_pos, vec3 albedo, vec2 offset, uint layer) {
     const vec4 light_frag_pos = (shadow_bias * cascades[layer].pv) * vec4(frag_pos, 1.0);
     const vec4 shadow_coords = light_frag_pos / light_frag_pos.w;
@@ -155,21 +182,18 @@ vec3 calculate_shadow(vec3 color, vec3 normal, vec3 light_dir, vec3 frag_pos, ve
     return color;
 }
 
-#define pcf_samples 8
 
 vec3 filter_pcf(DirectionalLight light, vec3 color, vec3 normal, vec3 frag_pos, vec3 albedo, uint layer) {
     const ivec2 shadow_size = textureSize(shadow, 0).xy;
-    const vec2 texel = 0.5 / shadow_size;
+    const vec2 texel = 0.15 / shadow_size;
     const vec3 light_dir = normalize(light.direction);
-    const int[pcf_samples] range = {
-        -4, -3, -2, -1,
-         1,  2,  3,  4,
-    };
     vec3 shadow = vec3(0.0);
-    for (int x = 0; x < pcf_samples; x++) {
-        for (int y = 0; y < pcf_samples; y++) {
-            shadow += calculate_shadow(color, normal, light_dir, frag_pos, albedo, vec2(range[x], range[y]) * texel, layer);
+    uint count = 0;
+    for (int x = -pcf_range; x < pcf_range; x++) {
+        for (int y = -pcf_range; y < pcf_range; y++) {
+            shadow += calculate_shadow(color, normal, light_dir, frag_pos, albedo, vec2(x, y) * texel, layer);
+            ++count;
         }
     }
-    return shadow / (pcf_samples * pcf_samples);
+    return shadow / count;
 }

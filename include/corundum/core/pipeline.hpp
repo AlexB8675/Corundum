@@ -17,6 +17,11 @@ namespace crd {
         vertex_attribute_vec4 = sizeof(float[4])
     };
 
+    enum ColorAttachment {
+        color_attachment_auto,
+        color_attachment_disable_blend
+    };
+
     struct DescriptorBinding {
         bool dynamic;
         std::uint32_t index;
@@ -53,10 +58,10 @@ namespace crd {
             const char* fragment;
             const RenderPass* render_pass;
             std::vector<VertexAttribute> attributes;
+            std::vector<ColorAttachment> attachments;
             std::vector<VkDynamicState> states;
             VkCullModeFlagBits cull;
             std::uint32_t subpass;
-            bool blend;
             bool depth;
         };
     };
