@@ -378,21 +378,37 @@ int main() {
             .scale = glm::vec3(0.35f)
         } }
     } });*/
+    std::vector<PointLight> point_lights;
+    point_lights.reserve(4);
+    for (int i = 0; i < 4; ++i) {
+        point_lights.push_back({
+            .position = glm::vec4(random(-20, 20), random(4, 16), random(-16, 16), 0.0f),
+            .falloff = glm::vec4(1.0f, 0.25f, 0.086f, 0.0f),
+            .diffuse = glm::vec4(1.0f),
+            .specular = glm::vec4(1.0f)
+        });
+    }
     std::vector<DirectionalLight> dir_lights = { {
         .direction = glm::vec4(0.0f),
         .diffuse = glm::vec4(0.3f),
         .specular = glm::vec4(0.2f)
     } };
     std::vector<glm::vec4> light_colors;
-    light_colors.reserve(dir_lights.size());
+    light_colors.reserve(point_lights.size() + dir_lights.size());
+    for (const auto& light : point_lights) {
+        light_colors.emplace_back(light.diffuse);
+    }
     for (const auto& light : dir_lights) {
         light_colors.emplace_back(light.diffuse);
     }
     Camera camera;
     std::vector<glm::mat4> light_ts;
-    light_ts.reserve(dir_lights.size());
+    light_ts.reserve(dir_lights.size() + point_lights.size());
     for (const auto& light : dir_lights) {
         light_ts.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.direction)), glm::vec3(0.1f)));
+    }
+    for (const auto& light : point_lights) {
+        light_ts.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
     }
     auto cascades_buffer = crd::make_buffer(context, sizeof(Cascade[max_shadow_cascades]), crd::uniform_buffer);
     auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4) * 2, crd::uniform_buffer);
@@ -432,6 +448,7 @@ int main() {
 
         crd::resize_buffer(context, model_buffer[index], crd::size_bytes(scene.transforms));
         crd::resize_buffer(context, cascades_buffer[index], crd::size_bytes(cascades));
+        crd::resize_buffer(context, point_light_buffer[index], crd::size_bytes(point_lights));
         crd::resize_buffer(context, directional_light_buffer[index], crd::size_bytes(dir_lights));
         crd::resize_buffer(context, light_color_buffer[index], crd::size_bytes(light_colors));
 
@@ -440,7 +457,7 @@ int main() {
         cascades_buffer[index].write(cascades.data(), 0, crd::size_bytes(cascades));
         camera_buffer[index].write(glm::value_ptr(camera.projection), 0, sizeof camera.raw());
         camera_buffer[index].write(glm::value_ptr(camera.view), sizeof(glm::mat4), sizeof camera.raw());
-        point_light_buffer[index].write(nullptr, 0);
+        point_light_buffer[index].write(point_lights.data(), 0, crd::size_bytes(point_lights));
         directional_light_buffer[index].write(dir_lights.data(), 0, crd::size_bytes(dir_lights));
         light_color_buffer[index].write(light_colors.data(), 0, crd::size_bytes(light_colors));
         light_uniform_buffer[index].write(&camera.position, 0, sizeof camera.position);
@@ -515,7 +532,8 @@ int main() {
         }
         auto& light_cube = models[0]->submeshes[0];
         const std::uint32_t sizes[] = {
-            0, (std::uint32_t)dir_lights.size()
+            (std::uint32_t)point_lights.size(),
+            (std::uint32_t)dir_lights.size(),
         };
         commands
             .next_subpass()
@@ -527,7 +545,7 @@ int main() {
             .bind_pipeline(light_pipeline)
             .bind_descriptor_set(0, light_set[index])
             .bind_static_mesh(*light_cube.mesh)
-            .draw_indexed(light_cube.indices, dir_lights.size(), 0, 0, 0)
+            .draw_indexed(light_cube.indices, dir_lights.size() + point_lights.size(), 0, 0, 0)
             .end_render_pass()
             .transition_layout({
                 .image = &image,

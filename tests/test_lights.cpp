@@ -132,17 +132,24 @@ int main() {
         .dependencies = { {
             .source_subpass = crd::external_subpass,
             .dest_subpass   = 0,
-            .source_stage   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .dest_stage     = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .source_access  = {},
-            .dest_access    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+            .source_stage   = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .dest_stage     = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .source_access  = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dest_access    = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
         }, {
             .source_subpass = 0,
             .dest_subpass   = 1,
-            .source_stage   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .source_stage   = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
             .dest_stage     = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            .source_access  = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .source_access  = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
             .dest_access    = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT
+        }, {
+            .source_subpass = 1,
+            .dest_subpass   = crd::external_subpass,
+            .source_stage   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .dest_stage     = VK_PIPELINE_STAGE_TRANSFER_BIT,
+            .source_access  = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dest_access    = VK_ACCESS_TRANSFER_READ_BIT
         } },
         .framebuffers = {
             { { 0, 1, 2, 3, 4, 5 } }
@@ -160,13 +167,18 @@ int main() {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
         },
+        .attachments = {
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend
+        },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 0,
-        .blend = false,
         .depth = true
     });
     auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -181,13 +193,15 @@ int main() {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
         },
+        .attachments = {
+            crd::color_attachment_auto
+        },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 1,
-        .blend = false,
         .depth = true
     });
     auto combine_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -196,13 +210,15 @@ int main() {
         .fragment = "../data/shaders/combine.frag.spv",
         .render_pass = &deferred_pass,
         .attributes = {},
+        .attachments = {
+            crd::color_attachment_auto
+        },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
         },
         .cull = VK_CULL_MODE_NONE,
         .subpass = 1,
-        .blend = false,
         .depth = false
     });
     window.on_resize = [&]() {
@@ -346,9 +362,9 @@ int main() {
                 .image = &image,
                 .mip = 0,
                 .level = 0,
-                .source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                .source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                 .dest_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                .source_access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                .source_access = {},
                 .dest_access = VK_ACCESS_TRANSFER_WRITE_BIT,
                 .old_layout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL

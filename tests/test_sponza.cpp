@@ -172,13 +172,18 @@ int main() {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
         },
+        .attachments = {
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend
+        },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 0,
-        .blend = false,
         .depth = true
     });
     auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -193,13 +198,15 @@ int main() {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
         },
+        .attachments = {
+            crd::color_attachment_auto
+        },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 1,
-        .blend = false,
         .depth = true
     });
     auto combine_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -208,13 +215,15 @@ int main() {
         .fragment = "../data/shaders/combine.frag.spv",
         .render_pass = &deferred_pass,
         .attributes = {},
+        .attachments = {
+            crd::color_attachment_auto
+        },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
         },
         .cull = VK_CULL_MODE_NONE,
         .subpass = 1,
-        .blend = false,
         .depth = false
     });
     window.on_resize = [&]() {

@@ -121,13 +121,13 @@ int main() {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
         },
+        .attachments = {},
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
         },
         .cull = VK_CULL_MODE_FRONT_BIT,
         .subpass = 0,
-        .blend = false,
         .depth = true
     });
     auto main_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -142,13 +142,15 @@ int main() {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
         },
+        .attachments = {
+            crd::color_attachment_auto
+        },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 0,
-        .blend = false,
         .depth = true
     });
     auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
@@ -163,13 +165,15 @@ int main() {
             crd::vertex_attribute_vec3,
             crd::vertex_attribute_vec3
         },
+        .attachments = {
+            crd::color_attachment_auto
+        },
         .states = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR,
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 0,
-        .blend = false,
         .depth = true
     });
     window.on_resize = [&]() {
