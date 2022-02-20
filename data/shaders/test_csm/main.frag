@@ -185,7 +185,7 @@ vec3 calculate_shadow(vec3 color, vec3 normal, vec3 light_dir, vec3 frag_pos, ve
 
 vec3 filter_pcf(DirectionalLight light, vec3 color, vec3 normal, vec3 frag_pos, vec3 albedo, uint layer) {
     const ivec2 shadow_size = textureSize(shadow, 0).xy;
-    const vec2 texel = 0.15 / shadow_size;
+    const vec2 texel = 0.25 / shadow_size;
     const vec3 light_dir = normalize(light.direction);
     vec3 shadow = vec3(0.0);
     uint count = 0;

@@ -169,8 +169,8 @@ int main() {
     auto shadow_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
-                .width   = 4096,
-                .height  = 4096,
+                .width   = 2048,
+                .height  = 2048,
                 .mips    = 1,
                 .layers  = shadow_cascades,
                 .format  = VK_FORMAT_D32_SFLOAT,
@@ -379,15 +379,15 @@ int main() {
         } }
     } });*/
     std::vector<PointLight> point_lights;
-    point_lights.reserve(4);
-    for (int i = 0; i < 4; ++i) {
-        point_lights.push_back({
-            .position = glm::vec4(random(-20, 20), random(4, 16), random(-16, 16), 0.0f),
-            .falloff = glm::vec4(1.0f, 0.25f, 0.086f, 0.0f),
-            .diffuse = glm::vec4(1.0f),
-            .specular = glm::vec4(1.0f)
-        });
-    }
+    //point_lights.reserve(4);
+    //for (int i = 0; i < 4; ++i) {
+    //    point_lights.push_back({
+    //        .position = glm::vec4(random(-20, 20), random(4, 16), random(-16, 16), 0.0f),
+    //        .falloff = glm::vec4(1.0f, 0.25f, 0.086f, 0.0f),
+    //        .diffuse = glm::vec4(1.0f),
+    //        .specular = glm::vec4(1.0f)
+    //    });
+    //}
     std::vector<DirectionalLight> dir_lights = { {
         .direction = glm::vec4(0.0f),
         .diffuse = glm::vec4(0.3f),
@@ -457,7 +457,7 @@ int main() {
         cascades_buffer[index].write(cascades.data(), 0, crd::size_bytes(cascades));
         camera_buffer[index].write(glm::value_ptr(camera.projection), 0, sizeof camera.raw());
         camera_buffer[index].write(glm::value_ptr(camera.view), sizeof(glm::mat4), sizeof camera.raw());
-        point_light_buffer[index].write(point_lights.data(), 0, crd::size_bytes(point_lights));
+        point_light_buffer[index].write(nullptr, 0);
         directional_light_buffer[index].write(dir_lights.data(), 0, crd::size_bytes(dir_lights));
         light_color_buffer[index].write(light_colors.data(), 0, crd::size_bytes(light_colors));
         light_uniform_buffer[index].write(&camera.position, 0, sizeof camera.position);
@@ -467,10 +467,10 @@ int main() {
             .bind(context, shadow_pipeline.bindings["Cascades"], cascades_buffer[index].info())
             .bind(context, shadow_pipeline.bindings["textures"], scene.descriptors);
         gbuffer_set[index]
-            .bind(context, main_pipeline.bindings["i_position"], deferred_pass.image(1).sample(context.default_sampler))
-            .bind(context, main_pipeline.bindings["i_normal"], deferred_pass.image(2).sample(context.default_sampler))
-            .bind(context, main_pipeline.bindings["i_specular"], deferred_pass.image(3).sample(context.default_sampler))
-            .bind(context, main_pipeline.bindings["i_albedo"], deferred_pass.image(4).sample(context.default_sampler));
+            .bind(context, main_pipeline.bindings["i_position"], deferred_pass.image(1).info())
+            .bind(context, main_pipeline.bindings["i_normal"], deferred_pass.image(2).info())
+            .bind(context, main_pipeline.bindings["i_specular"], deferred_pass.image(3).info())
+            .bind(context, main_pipeline.bindings["i_albedo"], deferred_pass.image(4).info());
         deferred_set[index]
             .bind(context, deferred_pipeline.bindings["Uniforms"], camera_buffer[index].info())
             .bind(context, deferred_pipeline.bindings["Models"], model_buffer[index].info())

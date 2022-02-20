@@ -100,10 +100,17 @@ int main() {
         .dependencies = { {
             .source_subpass = crd::external_subpass,
             .dest_subpass = 0,
+            .source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+            .dest_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+            .source_access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            .dest_access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+        }, {
+            .source_subpass = 0,
+            .dest_subpass = crd::external_subpass,
             .source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .dest_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .source_access = {},
-            .dest_access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+            .dest_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+            .source_access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dest_access = VK_ACCESS_TRANSFER_READ_BIT
         } },
         .framebuffers = { {
             .attachments = { 0, 1 }
@@ -372,9 +379,9 @@ int main() {
                 .image = &image,
                 .mip = 0,
                 .level = 0,
-                .source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                .source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                 .dest_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                .source_access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                .source_access = {},
                 .dest_access = VK_ACCESS_TRANSFER_WRITE_BIT,
                 .old_layout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL

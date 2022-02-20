@@ -25,7 +25,6 @@ namespace crd {
         Async(Async&&) noexcept;
         Async& operator =(Async&&) noexcept;
 
-                      crd_module void            import(std::future<T>&&) noexcept;
         crd_nodiscard crd_module T&              get() noexcept;
         crd_nodiscard crd_module T&              operator *() noexcept;
         crd_nodiscard crd_module T*              operator ->() noexcept;
@@ -33,4 +32,6 @@ namespace crd {
         crd_nodiscard            std::future<T>* future() noexcept;
         crd_nodiscard            T*              object() noexcept;
     };
+
+    template <typename T> crd_nodiscard crd_module Async<T> make_async(std::future<T>&&) noexcept;
 } // namespace crd

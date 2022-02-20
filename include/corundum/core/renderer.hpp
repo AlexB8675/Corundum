@@ -42,6 +42,7 @@ namespace crd {
         std::array<VkSemaphore, in_flight> gfx_done;
         std::array<VkFence, in_flight> cmd_wait;
 
+        // TODO: Move to another structure (Cache<T>)
         std::vector<ComputeContext> compute_cache;
         std::unordered_map<std::size_t, VkDescriptorSetLayout> set_layout_cache;
 

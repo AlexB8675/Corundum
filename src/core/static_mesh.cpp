@@ -114,8 +114,6 @@ namespace crd {
                 indices
             };
         });
-        Async<StaticMesh> resource;
-        resource.import(task->get_future());
         context.scheduler->AddTask({
             .Function = [](ftl::TaskScheduler* scheduler, void* data) {
                 auto* task = static_cast<task_type*>(data);
@@ -124,7 +122,7 @@ namespace crd {
             },
             .ArgData = task
         }, ftl::TaskPriority::High);
-        return resource;
+        return make_async(task->get_future());
     }
 
     crd_module void destroy_static_mesh(const Context& context, StaticMesh& mesh) noexcept {

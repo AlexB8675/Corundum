@@ -286,6 +286,7 @@ int main() {
         const auto [commands, image, index] = renderer.acquire_frame(context, window, swapchain);
         const auto scene = build_scene(draw_cmds, black->info());
         const auto current_frame = crd::time();
+        camera.update(window, delta_time);
         ++frames;
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
@@ -319,10 +320,10 @@ int main() {
             // .bind(context, combine_pipeline.bindings["DirectionalLights"], directional_light_buffer[index].info())
             .bind(context, combine_pipeline.bindings["PointLights"], point_light_buffer[index].info());
         gbuffer_set
-            .bind(context, combine_pipeline.bindings["i_position"], deferred_pass.image(1).sample(context.default_sampler))
-            .bind(context, combine_pipeline.bindings["i_normal"], deferred_pass.image(2).sample(context.default_sampler))
-            .bind(context, combine_pipeline.bindings["i_specular"], deferred_pass.image(3).sample(context.default_sampler))
-            .bind(context, combine_pipeline.bindings["i_albedo"], deferred_pass.image(4).sample(context.default_sampler));
+            .bind(context, combine_pipeline.bindings["i_position"], deferred_pass.image(1).info())
+            .bind(context, combine_pipeline.bindings["i_normal"], deferred_pass.image(2).info())
+            .bind(context, combine_pipeline.bindings["i_specular"], deferred_pass.image(3).info())
+            .bind(context, combine_pipeline.bindings["i_albedo"], deferred_pass.image(4).info());
         commands
             .begin()
             .begin_render_pass(deferred_pass, 0)

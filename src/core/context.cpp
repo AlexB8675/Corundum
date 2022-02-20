@@ -200,17 +200,16 @@ namespace crd {
                 crd_force_assert("no suitable graphics queue found");
             }
 
-            if (auto queue = fetch_family(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0, 1.0f)) {
-                // Prefer another graphics queue since we can do async graphics that way.
+            if (auto queue = fetch_family(VK_QUEUE_COMPUTE_BIT, VK_QUEUE_GRAPHICS_BIT, 1.0f)) {
+                // Prefer a dedicated compute queue which doesn't support graphics.
                 families.compute = *queue;
-            } else if (auto fallback = fetch_family(VK_QUEUE_COMPUTE_BIT, VK_QUEUE_GRAPHICS_BIT, 1.0f)) {
-                // Fallback to a dedicated compute queue which doesn't support graphics.
+            } else if (auto fallback = fetch_family(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0, 1.0f)) {
+                // Fallback to another graphics queue but we can do async graphics that way.
                 families.compute = *fallback;
             } else {
                 // Finally, fallback to graphics queue
                 families.compute = families.graphics;
             }
-
 
             if (auto queue = fetch_family(VK_QUEUE_TRANSFER_BIT, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, 0.5f)) {
                 // Find a queue which only supports transfer.

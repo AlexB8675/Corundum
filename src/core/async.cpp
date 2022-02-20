@@ -25,6 +25,14 @@ namespace crd {
     }
 
     template <typename T>
+    crd_nodiscard crd_module Async<T> make_async(std::future<T>&& task) noexcept {
+        Async<T> async;
+        new (&async.storage) std::future(std::move(task));
+        async.tag = task_tag_running;
+        return async;
+    }
+
+    template <typename T>
     Async<T>::~Async() noexcept {
         destroy_async(this);
     }
@@ -49,13 +57,6 @@ namespace crd {
         }
         other.tag = task_tag_none;
         return *this;
-    }
-
-    template <typename T>
-    crd_module void Async<T>::import(std::future<T>&& future) noexcept {
-        crd_assert(tag == task_tag_none, "reuse of Async<T> not permitted");
-        new (&storage) std::future<T>(std::move(future));
-        tag = task_tag_running;
     }
 
     template <typename T>
@@ -99,4 +100,8 @@ namespace crd {
     template struct Async<StaticMesh>;
     template struct Async<StaticTexture>;
     template struct Async<StaticModel>;
+
+    template crd_module Async<StaticMesh> make_async(std::future<StaticMesh>&&);
+    template crd_module Async<StaticTexture> make_async(std::future<StaticTexture>&&);
+    template crd_module Async<StaticModel> make_async(std::future<StaticModel>&&);
 } // namespace crd
