@@ -2,7 +2,9 @@
 #define CORUNDUM_TESTS_COMMON_HPP
 
 #define max_shadow_cascades 16
+#define max_lights_per_tile 16
 #define shadow_cascades 4
+#define tile_size 16
 
 #include <corundum/core/descriptor_set.hpp>
 #include <corundum/core/static_texture.hpp>
@@ -143,9 +145,9 @@ struct DirectionalLight {
 
 struct PointLight {
     glm::vec4 position;
-    glm::vec4 falloff;
     glm::vec4 diffuse;
     glm::vec4 specular;
+    glm::vec4 falloff;
 };
 
 struct Rotation {
@@ -299,8 +301,8 @@ static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& cam
     };
     const float cascade_levels[shadow_cascades] = {
         camera.far / 12.5f,
-        camera.far / 5.0f,
-        camera.far / 2.5f,
+        camera.far / 7.5f,
+        camera.far / 3.3f,
         camera.far,
     };
     for (std::size_t i = 0; i < shadow_cascades; ++i) {

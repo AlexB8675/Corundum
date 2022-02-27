@@ -12,6 +12,7 @@
 namespace crd {
     enum Key {
         key_space      = GLFW_KEY_SPACE,
+        key_esc        = GLFW_KEY_ESCAPE,
         key_a          = GLFW_KEY_A,
         key_b          = GLFW_KEY_B,
         key_c          = GLFW_KEY_C,
@@ -62,6 +63,7 @@ namespace crd {
         key_callback_t key_callback;
 
         crd_nodiscard crd_module bool       is_closed() const noexcept;
+                      crd_module void       close() const noexcept;
         crd_nodiscard crd_module KeyState   key(Key) const noexcept;
         crd_nodiscard crd_module VkExtent2D viewport() noexcept;
                       crd_module void       toggle_fullscreen() noexcept;

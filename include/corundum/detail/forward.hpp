@@ -32,8 +32,4 @@ namespace crd {
     template <typename T>
     struct Async;
     struct Window;
-    template <typename T>
-    struct Handle {
-        std::size_t index;
-    };
 } // namespace crd

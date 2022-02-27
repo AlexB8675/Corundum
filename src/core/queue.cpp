@@ -35,24 +35,20 @@ namespace crd {
         queue = nullptr;
     }
 
-    crd_module void Queue::submit(const CommandBuffer& commands,
-                                  VkPipelineStageFlags stage,
-                                  std::vector<VkSemaphore> wait,
-                                  std::vector<VkSemaphore> signal,
-                                  VkFence fence) noexcept {
+    crd_module void Queue::submit(const SubmitInfo& submit) noexcept {
         VkSubmitInfo submit_info;
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submit_info.pNext = nullptr;
-        submit_info.waitSemaphoreCount = wait.size();
-        submit_info.pWaitSemaphores = wait.data();
-        submit_info.pWaitDstStageMask = &stage;
+        submit_info.waitSemaphoreCount = submit.waits.size();
+        submit_info.pWaitSemaphores = submit.waits.data();
+        submit_info.pWaitDstStageMask = submit.stages.data();
         submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &commands.handle;
-        submit_info.signalSemaphoreCount = signal.size();
-        submit_info.pSignalSemaphores = signal.data();
+        submit_info.pCommandBuffers = &submit.commands.handle;
+        submit_info.signalSemaphoreCount = submit.signals.size();
+        submit_info.pSignalSemaphores = submit.signals.data();
 
         std::lock_guard<std::mutex> guard(lock);
-        crd_vulkan_check(vkQueueSubmit(handle, 1, &submit_info, fence));
+        crd_vulkan_check(vkQueueSubmit(handle, 1, &submit_info, submit.done));
     }
 
     crd_module VkResult Queue::present(const Swapchain& swapchain, std::uint32_t image, std::vector<VkSemaphore> wait) noexcept {
@@ -73,5 +69,9 @@ namespace crd {
     crd_module void Queue::wait_idle() noexcept {
         std::lock_guard<std::mutex> guard(lock);
         crd_vulkan_check(vkQueueWaitIdle(handle));
+    }
+
+    crd_module void wait_fence(const Context& context, VkFence fence) noexcept {
+        crd_vulkan_check(vkWaitForFences(context.device, 1, &fence, true, -1));
     }
 } // namespace crd

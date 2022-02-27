@@ -1,4 +1,5 @@
 #version 460
+#extension GL_ARB_separate_shader_objects: enable
 
 #define max_shadow_cascades 16
 #define shadow_cascades 4

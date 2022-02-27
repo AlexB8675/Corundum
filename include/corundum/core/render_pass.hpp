@@ -63,7 +63,6 @@ namespace crd {
         };
         VkRenderPass handle;
         VkPipelineStageFlags stage;
-
         std::vector<Framebuffer> framebuffers;
         std::vector<AttachmentInfo> attachments;
 

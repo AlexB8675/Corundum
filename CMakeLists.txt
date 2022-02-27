@@ -92,6 +92,7 @@ target_compile_definitions(corundum PUBLIC
     $<$<CONFIG:Debug>:crd_debug>
     crd_debug_logging
     crd_debug_benchmark
+    crd_extra_validation
     crd_log_level=2
 
     $<$<BOOL:${WIN32}>:
@@ -128,11 +129,13 @@ add_library(tests-common INTERFACE tests/common.hpp)
 target_include_directories(tests-common INTERFACE tests)
 target_link_libraries(tests-common INTERFACE corundum)
 
+add_executable(test-fwd-plus tests/test_fwd_plus.cpp)
 add_executable(test-csm tests/test_csm.cpp)
 add_executable(test-lights tests/test_lights.cpp)
 add_executable(test-shadows tests/test_shadows.cpp)
 add_executable(test-sponza tests/test_sponza.cpp)
 
+target_link_libraries(test-fwd-plus PRIVATE tests-common)
 target_link_libraries(test-csm PRIVATE tests-common)
 target_link_libraries(test-lights PRIVATE tests-common)
 target_link_libraries(test-shadows PRIVATE tests-common)

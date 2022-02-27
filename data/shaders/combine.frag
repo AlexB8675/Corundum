@@ -16,9 +16,9 @@ struct DirectionalLight {
 
 struct PointLight {
     vec3 position;
-    vec3 falloff;
     vec3 diffuse;
     vec3 specular;
+    vec3 falloff;
 };
 
 layout (set = 1, binding = 0) uniform Uniforms {
@@ -62,7 +62,7 @@ vec3 calculate_point_light(PointLight light, vec3 color, vec3 normal, vec3 frag_
 
     // Combine.
     const vec3 result_diffuse = vec3(light.diffuse) * diffuse_comp * color;
-    const vec3 result_specular = vec3(light.specular) * specular_comp * (subpassLoad(i_specular).rgb * color);
+    const vec3 result_specular = vec3(light.specular) * specular_comp * subpassLoad(i_specular).rgb;
 
     return (result_diffuse + result_specular) * attenuation;
 }

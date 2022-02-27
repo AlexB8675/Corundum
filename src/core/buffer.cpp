@@ -5,22 +5,22 @@
 
 namespace crd {
     template <>
-    crd_nodiscard crd_module Buffer<1> make_buffer(const Context& context, std::size_t size, BufferType type) noexcept {
+    crd_nodiscard crd_module Buffer<1> make_buffer(const Context& context, Buffer<in_flight>::CreateInfo&& info) noexcept {
         Buffer<1> buffer;
         buffer.handle = make_static_buffer(context, {
-            .flags = static_cast<VkBufferUsageFlags>(type),
-            .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-            .capacity = size
+            .flags = static_cast<VkBufferUsageFlags>(info.type),
+            .usage = static_cast<VmaMemoryUsage>(info.usage),
+            .capacity = info.capacity
         });
-        buffer.size = size;
+        buffer.size = info.capacity;
         return buffer;
     }
 
     template <>
-    crd_nodiscard crd_module Buffer<in_flight> make_buffer(const Context& context, std::size_t size, BufferType type) noexcept {
+    crd_nodiscard crd_module Buffer<in_flight> make_buffer(const Context& context, Buffer<in_flight>::CreateInfo&& info) noexcept {
         Buffer<in_flight> buffer;
         for (auto& handle : buffer.handles) {
-            handle = make_buffer<1>(context, size, type);
+            handle = make_buffer<1>(context, std::move(info));
         }
         return buffer;
     }

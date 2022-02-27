@@ -186,7 +186,10 @@ namespace crd {
         const auto& f_attachments = framebuffers[index].attachments;
         result.reserve(f_attachments.size());
         for (const auto& each : f_attachments) {
-            result.emplace_back(as_vulkan(attachments[each].clear));
+            const auto& clear = attachments[each].clear;
+            crd_unlikely_if(clear.tag != clear_value_none) {
+                result.emplace_back(as_vulkan(clear));
+            }
         }
         return result;
     }

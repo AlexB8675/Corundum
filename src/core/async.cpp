@@ -48,7 +48,7 @@ namespace crd {
         tag = other.tag;
         switch (tag) {
             case task_tag_running: {
-                new (&storage) std::future<T>(std::move(*other.future()));
+                new (&storage) std::future(std::move(*other.future()));
             } break;
 
             case task_tag_completed: {

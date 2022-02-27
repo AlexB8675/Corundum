@@ -34,10 +34,10 @@ namespace crd {
             application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
             application_info.pNext = nullptr;
             application_info.pApplicationName = "Corundum Engine";
-            application_info.applicationVersion = VK_API_VERSION_1_3;
+            application_info.applicationVersion = VK_API_VERSION_1_2;
             application_info.pEngineName = "Corundum Engine";
-            application_info.engineVersion = VK_API_VERSION_1_3;
-            application_info.apiVersion = VK_API_VERSION_1_3;
+            application_info.engineVersion = VK_API_VERSION_1_2;
+            application_info.apiVersion = VK_API_VERSION_1_2;
 
             detail::log("Vulkan", detail::severity_verbose, detail::type_general, "enumerating extensions:");
             std::uint32_t extension_count;
@@ -61,6 +61,7 @@ namespace crd {
             instance_info.flags = {};
             instance_info.pApplicationInfo = &application_info;
 #if defined(crd_debug)
+    #if defined(crd_extra_validation)
             constexpr auto enabled_validation_features = std::to_array({
                 VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
             });
@@ -72,6 +73,7 @@ namespace crd {
             extra_validation.disabledValidationFeatureCount = 0;
             extra_validation.pDisabledValidationFeatures = nullptr;
             instance_info.pNext = &extra_validation;
+    #endif
             detail::log("Vulkan", detail::severity_info, detail::type_general, "debug mode active, requesting validation layers");
             const char* validation_layer = "VK_LAYER_KHRONOS_validation";
             instance_info.enabledLayerCount = 1;
@@ -265,9 +267,6 @@ namespace crd {
                 context.extensions.descriptor_indexing = true;
                 device_info.pNext = &descriptor_indexing;
             }
-            if (has_extension(extensions, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME)) {
-                extension_names.emplace_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
-            }
             device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
             device_info.flags = {};
             device_info.pQueueCreateInfos = queue_infos.data();
@@ -321,8 +320,8 @@ namespace crd {
             sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
             sampler_info.pNext = nullptr;
             sampler_info.flags = {};
-            sampler_info.magFilter = VK_FILTER_NEAREST;
-            sampler_info.minFilter = VK_FILTER_NEAREST;
+            sampler_info.magFilter = VK_FILTER_LINEAR;
+            sampler_info.minFilter = VK_FILTER_LINEAR;
             sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
             sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
             sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -358,7 +357,7 @@ namespace crd {
             allocator_info.pHeapSizeLimit = nullptr;
             allocator_info.pVulkanFunctions = nullptr;
             allocator_info.instance = context.instance;
-            allocator_info.vulkanApiVersion = VK_API_VERSION_1_3;
+            allocator_info.vulkanApiVersion = VK_API_VERSION_1_2;
             allocator_info.pTypeExternalMemoryHandleTypes = nullptr;
             crd_vulkan_check(vmaCreateAllocator(&allocator_info, &context.allocator));
             detail::log("Vulkan", detail::severity_info, detail::type_general, "allocator created successfully");

@@ -73,7 +73,13 @@ namespace crd {
             transfer_semaphore_info.flags = {};
             VkSemaphore transfer_done;
             crd_vulkan_check(vkCreateSemaphore(context.device, &transfer_semaphore_info, nullptr, &transfer_done));
-            context.transfer->submit(transfer_cmd, {}, {}, { transfer_done }, {});
+            context.transfer->submit({
+                .commands = transfer_cmd,
+                .stages   = {},
+                .waits    = {},
+                .signals  = { transfer_done },
+                .done     = {}
+            });
             auto ownership_cmd = make_command_buffer(context, {
                 .pool = graphics_pool,
                 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
@@ -101,7 +107,13 @@ namespace crd {
             done_fence_info.flags = {};
             VkFence request_done;
             crd_vulkan_check(vkCreateFence(context.device, &done_fence_info, nullptr, &request_done));
-            context.graphics->submit(ownership_cmd, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, { transfer_done }, {}, request_done);
+            context.graphics->submit({
+                .commands = ownership_cmd,
+                .stages   = { VK_PIPELINE_STAGE_VERTEX_INPUT_BIT },
+                .waits    = { transfer_done },
+                .signals  = {},
+                .done     = request_done
+            });
             vkWaitForFences(context.device, 1, &request_done, true, -1);
             vkDestroySemaphore(context.device, transfer_done, nullptr);
             vkDestroyFence(context.device, request_done, nullptr);

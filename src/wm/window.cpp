@@ -10,7 +10,11 @@ namespace crd {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         const auto handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
         crd_assert(handle, "cannot create window");
-
+        const auto video = glfwGetVideoMode(glfwGetPrimaryMonitor());
+        glfwSetWindowPos(
+            handle,
+            video->width / 2 - width / 2,
+            video->height / 2 - height / 2);
         Window window;
         window.handle = handle;
         window.width  = width;
@@ -40,6 +44,10 @@ namespace crd {
 
     crd_nodiscard crd_module bool Window::is_closed() const noexcept {
         return glfwWindowShouldClose(handle);
+    }
+
+    crd_module void Window::close() const noexcept {
+        glfwSetWindowShouldClose(handle, true);
     }
 
     crd_nodiscard crd_module KeyState Window::key(Key key) const noexcept {

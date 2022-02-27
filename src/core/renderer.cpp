@@ -73,83 +73,44 @@ namespace crd {
             vkDestroySemaphore(context.device, renderer.gfx_done[i], nullptr);
             vkDestroyFence(context.device, renderer.cmd_wait[i], nullptr);
         }
-        for (auto& cache : renderer.compute_cache) {
-            destroy_command_buffers(context, std::move(cache.commands));
-            for (std::size_t i = 0; i < in_flight; ++i) {
-                vkDestroySemaphore(context.device, cache.done[i], nullptr);
-                vkDestroyFence(context.device, cache.wait[i], nullptr);
-            }
-        }
         for (const auto [_, layout] : renderer.set_layout_cache) {
             vkDestroyDescriptorSetLayout(context.device, layout, nullptr);
         }
         destroy_command_buffers(context, std::move(renderer.gfx_cmds));
     }
 
-    crd_nodiscard crd_module FrameInfo Renderer::acquire_frame(const Context& context, Window& window, Swapchain& swapchain) noexcept {
-        const auto result = vkAcquireNextImageKHR(context.device, swapchain.handle, -1, img_ready[frame_idx], nullptr, &image_idx);
+    crd_nodiscard crd_module FrameInfo acquire_frame(const Context& context, Renderer& renderer, Window& window, Swapchain& swapchain) noexcept {
+        const auto result = vkAcquireNextImageKHR(context.device, swapchain.handle, -1, renderer.img_ready[renderer.frame_idx], nullptr, &renderer.image_idx);
         crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-            sync_renderer(context, *this);
+            sync_renderer(context, renderer);
             recreate_swapchain(context, window, swapchain);
         }
-        crd_vulkan_check(vkWaitForFences(context.device, 1, &cmd_wait[frame_idx], true, -1));
         return {
-            .commands = gfx_cmds[frame_idx],
-            .image = swapchain.images[image_idx],
-            .index = frame_idx
+            .commands = renderer.gfx_cmds[renderer.frame_idx],
+            .image    = swapchain.images[renderer.image_idx],
+            .index    = renderer.frame_idx,
+            .wait     = renderer.img_ready[renderer.frame_idx],
+            .signal   = renderer.gfx_done[renderer.frame_idx],
+            .done     = renderer.cmd_wait[renderer.frame_idx],
         };
     }
 
-    crd_module void Renderer::present_frame(const Context& context, PresentInfo&& info) noexcept {
-        auto [commands, window, swapchain, waits, stage] = info;
-        crd_vulkan_check(vkResetFences(context.device, 1, &cmd_wait[frame_idx]));
-        waits.emplace_back(img_ready[frame_idx]);
-        context.graphics->submit(commands, stage, std::move(waits), { gfx_done[frame_idx] }, cmd_wait[frame_idx]);
-        const auto result = context.graphics->present(swapchain, image_idx, { gfx_done[frame_idx] });
+    crd_module void present_frame(const Context& context, Renderer& renderer, PresentInfo&& info) noexcept {
+        auto [commands, window, swapchain, waits, stages] = info;
+        crd_vulkan_check(vkResetFences(context.device, 1, &renderer.cmd_wait[renderer.frame_idx]));
+        waits.emplace_back(renderer.img_ready[renderer.frame_idx]);
+        context.graphics->submit({
+            .commands = commands,
+            .stages   = stages,
+            .waits    = std::move(waits),
+            .signals  = { renderer.gfx_done[renderer.frame_idx] },
+            .done     = renderer.cmd_wait[renderer.frame_idx]
+        });
+        const auto result = context.graphics->present(swapchain, renderer.image_idx, { renderer.gfx_done[renderer.frame_idx] });
         crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-            sync_renderer(context, *this);
+            sync_renderer(context, renderer);
             recreate_swapchain(context, window, swapchain);
         }
-        frame_idx = (frame_idx + 1) % in_flight;
-    }
-
-    crd_nodiscard crd_module Handle<ComputeContext> make_compute_context(const Context& context, Renderer& renderer, bool semaphore) noexcept {
-        ComputeContext cmp;
-        cmp.commands = make_command_buffers(context, {
-            .count = in_flight,
-            .pool = context.compute->pool,
-            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
-        });
-        VkFenceCreateInfo fence_info;
-        fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fence_info.pNext = nullptr;
-        fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        VkSemaphoreCreateInfo semaphore_info;
-        semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        semaphore_info.pNext = nullptr;
-        semaphore_info.flags = {};
-        for (std::size_t i = 0; i < in_flight; ++i) {
-            cmp.done[i] = nullptr;
-            if (semaphore) {
-                crd_vulkan_check(vkCreateSemaphore(context.device, &semaphore_info, nullptr, &cmp.done[i]));
-            }
-            crd_vulkan_check(vkCreateFence(context.device, &fence_info, nullptr, &cmp.wait[i]));
-        }
-        renderer.compute_cache.emplace_back(cmp);
-        return { renderer.compute_cache.size() - 1 };
-    }
-
-    crd_nodiscard crd_module CommandBuffer& acquire_compute_commands(Renderer& renderer, Handle<ComputeContext> cmp_handle, std::uint32_t index) noexcept {
-        return renderer.compute_cache[cmp_handle.index].commands[index];
-    }
-
-    crd_module void wait_compute(const Context& context, Renderer& renderer, Handle<ComputeContext> cmp_handle, std::uint32_t index) noexcept {
-        crd_vulkan_check(vkWaitForFences(context.device, 1, &renderer.compute_cache[cmp_handle.index].wait[index], true, -1));
-    }
-
-    crd_module void submit_compute(const Context& context, Renderer& renderer, Handle<ComputeContext> cmp_handle, std::uint32_t index) noexcept {
-        auto& compute = renderer.compute_cache[cmp_handle.index];
-        crd_vulkan_check(vkResetFences(context.device, 1, &compute.wait[index]));
-        context.compute->submit(compute.commands[index], {}, {}, { compute.done[index] }, compute.wait[index]);
+        renderer.frame_idx = (renderer.frame_idx + 1) % in_flight;
     }
 } // namespace crd

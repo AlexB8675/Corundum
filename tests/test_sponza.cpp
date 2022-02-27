@@ -184,7 +184,10 @@ int main() {
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 0,
-        .depth = true
+        .depth = {
+            .test = true,
+            .write = true
+        }
     });
     auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "../data/shaders/light.vert.spv",
@@ -207,7 +210,10 @@ int main() {
         },
         .cull = VK_CULL_MODE_BACK_BIT,
         .subpass = 1,
-        .depth = true
+        .depth = {
+            .test = true,
+            .write = true
+        }
     });
     auto combine_pipeline = crd::make_graphics_pipeline(context, renderer, {
         .vertex = "../data/shaders/combine.vert.spv",
@@ -224,7 +230,10 @@ int main() {
         },
         .cull = VK_CULL_MODE_NONE,
         .subpass = 1,
-        .depth = false
+        .depth = {
+            .test = false,
+            .write = false
+        }
     });
     window.on_resize = [&]() {
         deferred_pass.resize(context, {
@@ -233,15 +242,16 @@ int main() {
             .attachments = { 0, 1, 2, 3, 4, 5 }
         });
     };
-    const auto nlights = 64;
+    const auto nlights = 4;
     std::vector<PointLight> lights = {};
     lights.reserve(nlights);
     for (int i = 0; i < nlights; ++i) {
+        const auto color = glm::vec4(random(0, 1), random(0, 1), random(0, 1), 0.0f);
         lights.push_back({
             .position = glm::vec4(random(-24, 24), random(0, 4), random(-16, 16), 0.0f),
+            .diffuse = color,
+            .specular = color,
             .falloff = glm::vec4(1.0f, 0.18f, 0.16f, 0.0f),
-            .diffuse = glm::vec4(random(0, 1), random(0, 1), random(0, 1), 0.0f),
-            .specular = glm::vec4(1.0f)
         });
     }
     std::vector<glm::vec4> light_colors;
@@ -274,13 +284,41 @@ int main() {
     for (const auto& light : lights) {
         light_ts.emplace_back(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f)));
     }
-    auto camera_buffer = crd::make_buffer(context, sizeof(glm::mat4) * 2, crd::uniform_buffer);
-    auto model_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
-    auto light_model_buffer = crd::make_buffer(context, crd::size_bytes(light_ts), crd::storage_buffer);
-    auto light_color_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
-    auto light_uniform_buffer = crd::make_buffer(context, sizeof(glm::vec4), crd::uniform_buffer);
-    auto point_light_buffer = crd::make_buffer(context, crd::size_bytes(lights), crd::storage_buffer);
-    auto directional_light_buffer = crd::make_buffer(context, sizeof(glm::mat4), crd::storage_buffer);
+    auto camera_buffer = crd::make_buffer(context, {
+        .type = crd::uniform_buffer,
+        .usage = crd::host_visible,
+        .capacity = sizeof(glm::mat4) * 2,
+    });
+    auto model_buffer = crd::make_buffer(context, {
+        .type = crd::storage_buffer,
+        .usage = crd::host_visible,
+        .capacity = sizeof(glm::mat4),
+    });
+    auto light_uniform_buffer = crd::make_buffer(context, {
+        .type = crd::uniform_buffer,
+        .usage = crd::host_visible,
+        .capacity = sizeof(glm::vec4),
+    });
+    auto point_light_buffer = crd::make_buffer(context, {
+        .type = crd::storage_buffer,
+        .usage = crd::host_visible,
+        .capacity = crd::size_bytes(lights),
+    });
+    auto directional_light_buffer = crd::make_buffer(context, {
+        .type = crd::uniform_buffer,
+        .usage = crd::host_visible,
+        .capacity = sizeof(glm::mat4),
+    });
+    auto light_model_buffer = crd::make_buffer(context, {
+        .type = crd::storage_buffer,
+        .usage = crd::host_visible,
+        .capacity = crd::size_bytes(light_ts),
+    });
+    auto light_color_buffer = crd::make_buffer(context, {
+        .type = crd::storage_buffer,
+        .usage = crd::host_visible,
+        .capacity = crd::size_bytes(lights),
+    });
     auto main_set = crd::make_descriptor_set(context, main_pipeline.layout.sets[0]);
     auto light_set = crd::make_descriptor_set(context, light_pipeline.layout.sets[0]);
     auto gbuffer_set = crd::make_descriptor_set<1>(context, combine_pipeline.layout.sets[0]);
@@ -288,7 +326,7 @@ int main() {
     std::size_t frames = 0;
     double delta_time = 0, last_frame = 0, fps = 0;
     while (!window.is_closed()) {
-        const auto [commands, image, index] = renderer.acquire_frame(context, window, swapchain);
+        auto [commands, image, index, wait, signal, done] = crd::acquire_frame(context, renderer, window, swapchain);
         const auto scene = build_scene(draw_cmds, black->info());
         const auto current_frame = crd::time();
         ++frames;
@@ -301,6 +339,7 @@ int main() {
             fps = 0;
         }
 
+        crd::wait_fence(context, done);
         crd::resize_buffer(context, model_buffer[index], crd::size_bytes(scene.transforms));
         crd::resize_buffer(context, point_light_buffer[index], crd::size_bytes(lights));
         crd::resize_buffer(context, light_color_buffer[index], crd::size_bytes(light_colors));
@@ -326,10 +365,10 @@ int main() {
             // .bind(context, combine_pipeline.bindings["DirectionalLights"], directional_light_buffer[index].info())
             .bind(context, combine_pipeline.bindings["PointLights"], point_light_buffer[index].info());
         gbuffer_set
-            .bind(context, combine_pipeline.bindings["i_position"], deferred_pass.image(1).sample(context.default_sampler))
-            .bind(context, combine_pipeline.bindings["i_normal"], deferred_pass.image(2).sample(context.default_sampler))
-            .bind(context, combine_pipeline.bindings["i_specular"], deferred_pass.image(3).sample(context.default_sampler))
-            .bind(context, combine_pipeline.bindings["i_albedo"], deferred_pass.image(4).sample(context.default_sampler));
+            .bind(context, combine_pipeline.bindings["i_position"], deferred_pass.image(1).info())
+            .bind(context, combine_pipeline.bindings["i_normal"], deferred_pass.image(2).info())
+            .bind(context, combine_pipeline.bindings["i_specular"], deferred_pass.image(3).info())
+            .bind(context, combine_pipeline.bindings["i_albedo"], deferred_pass.image(4).info());
         commands
             .begin()
             .begin_render_pass(deferred_pass, 0)
@@ -389,12 +428,12 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        renderer.present_frame(context, {
-            commands,
-            window,
-            swapchain,
-            {},
-            VK_PIPELINE_STAGE_TRANSFER_BIT
+        crd::present_frame(context, renderer, {
+            .commands = commands,
+            .window = window,
+            .swapchain = swapchain,
+            .waits = {},
+            .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT }
         });
         crd::poll_events();
         camera.update(window, delta_time);

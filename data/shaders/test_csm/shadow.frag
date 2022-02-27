@@ -1,5 +1,6 @@
 #version 460
 #extension GL_EXT_nonuniform_qualifier: enable
+#extension GL_ARB_separate_shader_objects: enable
 
 layout (set = 0, binding = 2) uniform sampler2D[] textures;
 

@@ -352,8 +352,8 @@ namespace crd {
         depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
         depth_stencil_state.pNext = nullptr;
         depth_stencil_state.flags = {};
-        depth_stencil_state.depthTestEnable = info.depth;
-        depth_stencil_state.depthWriteEnable = info.depth;
+        depth_stencil_state.depthTestEnable = info.depth.test;
+        depth_stencil_state.depthWriteEnable = info.depth.write;
         depth_stencil_state.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
         depth_stencil_state.depthBoundsTestEnable = true;
         depth_stencil_state.stencilTestEnable = false;
@@ -548,7 +548,7 @@ namespace crd {
             for (const auto& push_constant : resources.push_constant_buffers) {
                 const auto& type = compiler.get_type(push_constant.type_id);
                 push_constant_range.size = compiler.get_declared_struct_size(type);
-                push_constant_range.stageFlags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+                push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
             }
         }
         DescriptorSetLayouts set_layouts;

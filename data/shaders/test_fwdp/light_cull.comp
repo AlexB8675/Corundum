@@ -1,0 +1,155 @@
+#version 460
+
+#define tile_size 16
+#define max_lights_per_tile 16
+#define ndc_upper_left vec2(-1.0, -1.0)
+#define ndc_near_plane 0.0
+#define ndc_far_plane 1.0
+
+layout (local_size_x = 32) in;
+
+struct PointLight {
+    vec3 position;
+    vec3 diffuse;
+    vec3 specular;
+    float radius;
+};
+
+struct CameraData {
+    mat4 projection;
+    mat4 view;
+    vec3 position;
+};
+
+struct ViewFrustum {
+    vec4[6] planes;
+    vec3[8] points;
+};
+
+struct LightVisibility {
+    uint count;
+    uint[max_lights_per_tile] indices;
+};
+
+layout (std430, set = 0, binding = 0) writeonly buffer LightVisibilities {
+    LightVisibility[] light_visibilities;
+};
+
+layout (std430, set = 0, binding = 1) readonly buffer PointLights {
+    PointLight[] point_lights;
+};
+
+layout (set = 0, binding = 2) uniform CameraBuffer {
+    CameraData camera;
+};
+
+layout (set = 0, binding = 3) uniform sampler2D depth;
+
+layout (push_constant) uniform Constants {
+    ivec2 viewport;
+    ivec2 tiles;
+    uint point_light_count;
+};
+
+shared ViewFrustum frustum;
+shared uint tile_light_count;
+shared float min_depth;
+shared float max_depth;
+
+ViewFrustum make_frustum(ivec2 tile_id) {
+    const mat4 inverse_pv = inverse(camera.projection * camera.view);
+    const vec2 ndc_size_per_tile = 2.0 * vec2(tile_size, tile_size) / viewport;
+    vec2 ndc_pts[4];
+    ndc_pts[0] = ndc_upper_left + tile_id * ndc_size_per_tile;
+    ndc_pts[1] = vec2(ndc_pts[0].x + ndc_size_per_tile.x, ndc_pts[0].y);
+    ndc_pts[2] = ndc_pts[0] + ndc_size_per_tile;
+    ndc_pts[3] = vec2(ndc_pts[0].x, ndc_pts[0].y + ndc_size_per_tile.y);
+
+    ViewFrustum frustum;
+    vec4 temp;
+    for (int i = 0; i < 4; i++) {
+        temp = inverse_pv * vec4(ndc_pts[i], min_depth, 1.0);
+        frustum.points[i] = temp.xyz / temp.w;
+        temp = inverse_pv * vec4(ndc_pts[i], max_depth, 1.0);
+        frustum.points[i + 4] = temp.xyz / temp.w;
+    }
+
+    vec3 temp_normal;
+    for (int i = 0; i < 4; i++) {
+        temp_normal = cross(frustum.points[i] - camera.position, frustum.points[i + 1] - camera.position);
+        temp_normal = normalize(temp_normal);
+        frustum.planes[i] = vec4(temp_normal, - dot(temp_normal, frustum.points[i]));
+    }
+    // near plane
+    {
+        temp_normal = cross(frustum.points[1] - frustum.points[0], frustum.points[3] - frustum.points[0]);
+        temp_normal = normalize(temp_normal);
+        frustum.planes[4] = vec4(temp_normal, - dot(temp_normal, frustum.points[0]));
+    }
+    // far plane
+    {
+        temp_normal = cross(frustum.points[7] - frustum.points[4], frustum.points[5] - frustum.points[4]);
+        temp_normal = normalize(temp_normal);
+        frustum.planes[5] = vec4(temp_normal, - dot(temp_normal, frustum.points[4]));
+    }
+
+    return frustum;
+}
+
+bool check_light(PointLight light, ViewFrustum frustum) {
+    for (uint i = 0; i < 6; i++) {
+        if (dot(light.position, frustum.planes[i].xyz) + frustum.planes[i].w  < - light.radius) {
+            return false;
+        }
+    }
+
+    vec3 light_bbox_max = light.position + vec3(light.radius);
+    vec3 light_bbox_min = light.position - vec3(light.radius);
+    uint probe;
+    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].x > light_bbox_max.x); } if (probe == 8) { return false; }
+    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].x < light_bbox_min.x); } if (probe == 8) { return false; }
+    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].y > light_bbox_max.y); } if (probe == 8) { return false; }
+    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].y < light_bbox_min.y); } if (probe == 8) { return false; }
+    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].z > light_bbox_max.z); } if (probe == 8) { return false; }
+    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].z < light_bbox_min.z); } if (probe == 8) { return false; }
+    return true;
+}
+
+void main() {
+    const ivec2 tile_id = ivec2(gl_WorkGroupID.xy);
+    const uint tile_index = tile_id.y * tiles.x + tile_id.x;
+    if (gl_LocalInvocationIndex == 0) {
+        min_depth = 1.0;
+        max_depth = 0.0;
+        for (uint y = 0; y < tile_size; y++) {
+            for (uint x = 0; x < tile_size; x++) {
+                const vec2 texel = (vec2(tile_size, tile_size) * tile_id + vec2(x, y)) / viewport;
+                const float closest = texture(depth, texel).x;
+                min_depth = min(min_depth, closest);
+                max_depth = max(max_depth, closest);
+            }
+        }
+
+        if (min_depth >= max_depth) {
+            min_depth = max_depth;
+        }
+
+        frustum = make_frustum(tile_id);
+        tile_light_count = atomicExchange(tile_light_count, 0);
+    }
+    barrier();
+    for (uint i = gl_LocalInvocationIndex; i < point_light_count && tile_light_count < max_lights_per_tile; i += gl_WorkGroupSize.x) {
+        tile_light_count = atomicAdd(tile_light_count, 1);
+        if (check_light(point_lights[i], frustum)) {
+            const uint slot = atomicAdd(tile_light_count, 1);
+            if (slot >= max_lights_per_tile) {
+                break;
+            }
+            light_visibilities[tile_index].indices[slot] = i;
+        }
+    }
+    barrier();
+    if (gl_LocalInvocationIndex == 0) {
+        light_visibilities[tile_index].count = min(max_lights_per_tile, tile_light_count);
+    }
+}

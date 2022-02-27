@@ -62,7 +62,10 @@ namespace crd {
             std::vector<VkDynamicState> states;
             VkCullModeFlagBits cull;
             std::uint32_t subpass;
-            bool depth;
+            struct {
+                bool test;
+                bool write;
+            } depth;
         };
     };
 
