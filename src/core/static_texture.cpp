@@ -43,9 +43,9 @@ namespace crd {
                          VK_IMAGE_USAGE_SAMPLED_BIT
             });
             auto staging = make_static_buffer(context, {
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VMA_MEMORY_USAGE_CPU_ONLY,
-                (std::size_t)width * height * 4
+                .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                .usage = VMA_MEMORY_USAGE_CPU_ONLY,
+                .capacity = (std::size_t)width * height * 4
             });
             std::memcpy(staging.mapped, image_data, staging.capacity);
             stbi_image_free(image_data);

@@ -3,6 +3,7 @@
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/constants.hpp>
+#include <corundum/core/dispatch.hpp>
 #include <corundum/core/pipeline.hpp>
 #include <corundum/core/context.hpp>
 
@@ -35,6 +36,7 @@ namespace crd {
         CommandBuffer command_buffer;
         command_buffer.active_pass = nullptr;
         command_buffer.active_pipeline = nullptr;
+        command_buffer.active_framebuffer = nullptr;
         command_buffer.pool = info.pool;
 
         VkCommandBufferAllocateInfo allocate_info;
@@ -48,13 +50,9 @@ namespace crd {
     }
 
     crd_module void destroy_command_buffers(const Context& context, std::vector<CommandBuffer>&& commands) noexcept {
-        const auto pool = commands[0].pool;
-        std::vector<VkCommandBuffer> handles;
-        handles.reserve(commands.size());
-        for (const auto& each : commands) {
-            handles.emplace_back(each.handle);
+        for (auto& each : commands) {
+            destroy_command_buffer(context, each);
         }
-        vkFreeCommandBuffers(context.device, pool, handles.size(), handles.data());
     }
 
     crd_module void destroy_command_buffer(const Context& context, CommandBuffer& command) noexcept {
@@ -143,18 +141,24 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::bind_pipeline(const Pipeline& pipeline) noexcept {
-        const auto bind_point = pipeline.type == Pipeline::type_graphics ?
-            VK_PIPELINE_BIND_POINT_GRAPHICS :
-        VK_PIPELINE_BIND_POINT_COMPUTE;
+        VkPipelineBindPoint bind_point;
+        switch (pipeline.type) {
+            case Pipeline::type_graphics:   bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;        break;
+            case Pipeline::type_compute:    bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;         break;
+            case Pipeline::type_raytracing: bind_point = VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR; break;
+        }
         vkCmdBindPipeline(handle, bind_point, pipeline.handle);
         active_pipeline = &pipeline;
         return *this;
     }
 
     crd_module CommandBuffer& CommandBuffer::bind_descriptor_set(std::uint32_t index, const DescriptorSet<1>& set) noexcept {
-        const auto bind_point = active_pipeline->type == Pipeline::type_graphics ?
-            VK_PIPELINE_BIND_POINT_GRAPHICS :
-            VK_PIPELINE_BIND_POINT_COMPUTE;
+        VkPipelineBindPoint bind_point;
+        switch (active_pipeline->type) {
+            case Pipeline::type_graphics:   bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;        break;
+            case Pipeline::type_compute:    bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;         break;
+            case Pipeline::type_raytracing: bind_point = VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR; break;
+        }
         vkCmdBindDescriptorSets(handle, bind_point, active_pipeline->layout.pipeline, index, 1, &set.handle, 0, nullptr);
         return *this;
     }
@@ -181,16 +185,16 @@ namespace crd {
         return *this;
     }
 
+    crd_module CommandBuffer& CommandBuffer::dispatch(std::uint32_t x, std::uint32_t y, std::uint32_t z) noexcept {
+        vkCmdDispatch(handle, x, y, z);
+        return *this;
+    }
+
     crd_module CommandBuffer& CommandBuffer::draw(std::uint32_t vertices,
                                                   std::uint32_t instances,
                                                   std::uint32_t first_vertex,
                                                   std::uint32_t first_instance) noexcept {
         vkCmdDraw(handle, vertices, instances, first_vertex, first_instance);
-        return *this;
-    }
-
-    crd_module CommandBuffer& CommandBuffer::dispatch(std::uint32_t x, std::uint32_t y, std::uint32_t z) noexcept {
-        vkCmdDispatch(handle, x, y, z);
         return *this;
     }
 
@@ -203,11 +207,21 @@ namespace crd {
         return *this;
     }
 
+    crd_module CommandBuffer& CommandBuffer::trace_rays() noexcept {
+        return *this;
+    }
+
     crd_module CommandBuffer& CommandBuffer::end_render_pass() noexcept {
         active_framebuffer = nullptr;
         active_pipeline = nullptr;
         active_pass = nullptr;
         vkCmdEndRenderPass(handle);
+        return *this;
+    }
+
+    crd_module CommandBuffer& CommandBuffer::build_acceleration_structure(const VkAccelerationStructureBuildGeometryInfoKHR* geometry,
+                                                                          const VkAccelerationStructureBuildRangeInfoKHR* range) noexcept {
+        vkCmdBuildAccelerationStructuresKHR(handle, 1, geometry, &range);
         return *this;
     }
 

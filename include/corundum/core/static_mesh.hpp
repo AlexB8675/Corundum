@@ -1,5 +1,6 @@
 #pragma once
 
+#include <corundum/core/acceleration_structure.hpp>
 #include <corundum/core/static_buffer.hpp>
 
 #include <corundum/detail/forward.hpp>
@@ -18,6 +19,7 @@ namespace crd {
         };
         StaticBuffer geometry;
         StaticBuffer indices;
+        AccelerationStructure blas;
     };
 
     crd_nodiscard crd_module Async<StaticMesh> request_static_mesh(const Context&, StaticMesh::CreateInfo&&) noexcept;

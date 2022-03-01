@@ -37,6 +37,7 @@ add_subdirectory(ext/glm)
 
 set(CMAKE_CXX_STANDARD 20)
 add_library(corundum STATIC
+    include/corundum/core/acceleration_structure.hpp
     include/corundum/core/async.hpp
     include/corundum/core/buffer.hpp
     include/corundum/core/clear.hpp
@@ -44,6 +45,7 @@ add_library(corundum STATIC
     include/corundum/core/constants.hpp
     include/corundum/core/context.hpp
     include/corundum/core/descriptor_set.hpp
+    include/corundum/core/dispatch.hpp
     include/corundum/core/expected.hpp
     include/corundum/core/image.hpp
     include/corundum/core/pipeline.hpp
@@ -65,6 +67,7 @@ add_library(corundum STATIC
 
     include/corundum/wm/window.hpp
 
+    src/core/acceleration_structure.cpp
     src/core/async.cpp
     src/core/buffer.cpp
     src/core/clear.cpp
@@ -93,6 +96,7 @@ target_compile_definitions(corundum PUBLIC
     crd_debug_logging
     crd_debug_benchmark
     crd_extra_validation
+    crd_enable_raytracing
     crd_log_level=2
 
     $<$<BOOL:${WIN32}>:
@@ -129,12 +133,14 @@ add_library(tests-common INTERFACE tests/common.hpp)
 target_include_directories(tests-common INTERFACE tests)
 target_link_libraries(tests-common INTERFACE corundum)
 
+add_executable(test-raytracing tests/test_raytracing.cpp)
 add_executable(test-fwd-plus tests/test_fwd_plus.cpp)
 add_executable(test-csm tests/test_csm.cpp)
 add_executable(test-lights tests/test_lights.cpp)
 add_executable(test-shadows tests/test_shadows.cpp)
 add_executable(test-sponza tests/test_sponza.cpp)
 
+target_link_libraries(test-raytracing PRIVATE tests-common)
 target_link_libraries(test-fwd-plus PRIVATE tests-common)
 target_link_libraries(test-csm PRIVATE tests-common)
 target_link_libraries(test-lights PRIVATE tests-common)

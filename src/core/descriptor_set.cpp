@@ -26,7 +26,7 @@ namespace crd {
             allocate_info.pNext = &variable_count;
         }
         DescriptorSet<1> set;
-        set.bound.reserve(32);
+        set.bound.reserve(128);
         crd_vulkan_check(vkAllocateDescriptorSets(context.device, &allocate_info, &set.handle));
         return set;
     }
@@ -53,10 +53,14 @@ namespace crd {
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorBufferInfo buffer) noexcept {
-        const auto  buffer_hash      = detail::hash(0, buffer);
-        const auto  binding_hash     = detail::hash(0, binding);
-              auto& bound_descriptor = bound[binding_hash];
-        crd_unlikely_if(bound_descriptor != buffer_hash) {
+        const auto binding_hash = detail::hash(0, binding);
+        const auto descriptor_hash = detail::hash(0, buffer);
+        const auto is_bound =
+            std::find_if(bound.begin(), bound.end(), [=](const auto& each) {
+                return each.binding == binding_hash &&
+                       each.descriptor == descriptor_hash;
+            });
+        crd_unlikely_if(is_bound == bound.end()) {
             detail::log("Vulkan", detail::severity_info, detail::type_performance,
                         "updating buffer descriptor with binding: %d, handle: %p, range: %llu", binding.index, buffer.buffer, buffer.range);
             VkWriteDescriptorSet update;
@@ -71,16 +75,20 @@ namespace crd {
             update.pBufferInfo = &buffer;
             update.pTexelBufferView = nullptr;
             vkUpdateDescriptorSets(context.device, 1, &update, 0, nullptr);
-            bound_descriptor = buffer_hash;
+            bound.push_back({ binding_hash, descriptor_hash });
         }
         return *this;
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorImageInfo image) noexcept {
-        const auto  image_hash       = detail::hash(0, image);
-        const auto  binding_hash     = detail::hash(0, binding);
-              auto& bound_descriptor = bound[binding_hash];
-        crd_unlikely_if(bound_descriptor != image_hash) {
+        const auto binding_hash = detail::hash(0, binding);
+        const auto descriptor_hash = detail::hash(0, image);
+        const auto is_bound =
+            std::find_if(bound.begin(), bound.end(), [=](const auto& each) {
+                return each.binding == binding_hash &&
+                       each.descriptor == descriptor_hash;
+            });
+        crd_unlikely_if(is_bound == bound.end()) {
             detail::log("Vulkan", detail::severity_info, detail::type_performance,
                         "updating image descriptor with binding: %d, handle: %p", binding.index, image.imageView);
             VkWriteDescriptorSet update;
@@ -95,16 +103,20 @@ namespace crd {
             update.pBufferInfo = nullptr;
             update.pTexelBufferView = nullptr;
             vkUpdateDescriptorSets(context.device, 1, &update, 0, nullptr);
-            bound_descriptor = image_hash;
+            bound.push_back({ binding_hash, descriptor_hash });
         }
         return *this;
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, const std::vector<VkDescriptorImageInfo>& images) noexcept {
-        const auto  images_hash      = detail::hash(0, images);
-        const auto  binding_hash     = detail::hash(0, binding);
-              auto& bound_descriptor = bound[binding_hash];
-        crd_unlikely_if(bound_descriptor != images_hash) {
+        const auto binding_hash = detail::hash(0, binding);
+        const auto descriptor_hash = detail::hash(0, images);
+        const auto is_bound =
+            std::find_if(bound.begin(), bound.end(), [=](const auto& each) {
+                return each.binding == binding_hash &&
+                       each.descriptor == descriptor_hash;
+            });
+        crd_unlikely_if(is_bound == bound.end()) {
             detail::log("Vulkan", detail::severity_info, detail::type_performance,
                         "updating image dynamic descriptor with binding: %d, images: %llu", binding.index, images.size());
             VkWriteDescriptorSet update;
@@ -119,7 +131,7 @@ namespace crd {
             update.pBufferInfo = nullptr;
             update.pTexelBufferView = nullptr;
             vkUpdateDescriptorSets(context.device, 1, &update, 0, nullptr);
-            bound_descriptor = images_hash;
+            bound.push_back({ binding_hash, descriptor_hash });
         }
         return *this;
     }

@@ -32,7 +32,7 @@ namespace crd {
         return code;
     }
 
-    crd_nodiscard crd_module GraphicsPipeline make_graphics_pipeline(const Context& context, Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
+    crd_nodiscard crd_module GraphicsPipeline make_pipeline(const Context& context, Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
         detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading vertex shader: \"%s\"", info.vertex);
         if (info.geometry) {
             detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading geometry shader: \"%s\"", info.geometry);
@@ -476,7 +476,7 @@ namespace crd {
         return pipeline;
     }
 
-    crd_nodiscard crd_module ComputePipeline make_compute_pipeline(const Context& context, Renderer& renderer, ComputePipeline::CreateInfo&& info) noexcept {
+    crd_nodiscard crd_module ComputePipeline make_pipeline(const Context& context, Renderer& renderer, ComputePipeline::CreateInfo&& info) noexcept {
         ComputePipeline pipeline;
         detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading compute shader: \"%s\"", info.compute);
         const auto binary = import_spirv(info.compute);
@@ -628,13 +628,7 @@ namespace crd {
         return pipeline;
     }
 
-    crd_module void destroy_pipeline(const Context& context, GraphicsPipeline& pipeline) noexcept {
-        vkDestroyPipelineLayout(context.device, pipeline.layout.pipeline, nullptr);
-        vkDestroyPipeline(context.device, pipeline.handle, nullptr);
-        pipeline = {};
-    }
-
-    crd_module void destroy_pipeline(const Context& context, ComputePipeline& pipeline) noexcept {
+    crd_module void destroy_pipeline(const Context& context, Pipeline& pipeline) noexcept {
         vkDestroyPipelineLayout(context.device, pipeline.layout.pipeline, nullptr);
         vkDestroyPipeline(context.device, pipeline.handle, nullptr);
         pipeline = {};

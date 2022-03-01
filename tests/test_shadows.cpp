@@ -116,7 +116,7 @@ int main() {
             .attachments = { 0, 1 }
         } }
     });
-    auto shadow_pipeline = crd::make_graphics_pipeline(context, renderer, {
+    auto shadow_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "../data/shaders/test_shadows/shadow.vert.spv",
         .geometry = nullptr,
         .fragment = nullptr,
@@ -137,7 +137,7 @@ int main() {
         .subpass = 0,
         .depth = true
     });
-    auto main_pipeline = crd::make_graphics_pipeline(context, renderer, {
+    auto main_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "../data/shaders/test_shadows/main.vert.spv",
         .geometry = nullptr,
         .fragment = "../data/shaders/test_shadows/main.frag.spv",
@@ -160,7 +160,7 @@ int main() {
         .subpass = 0,
         .depth = true
     });
-    auto light_pipeline = crd::make_graphics_pipeline(context, renderer, {
+    auto light_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "../data/shaders/light.vert.spv",
         .geometry = nullptr,
         .fragment = "../data/shaders/light.frag.spv",

@@ -7,15 +7,18 @@
 
 #include <vulkan/vulkan.h>
 
-#include <unordered_map>
 #include <vector>
 #include <array>
 
 namespace crd {
     template <>
     struct DescriptorSet<1> {
+        struct Hashed {
+            std::size_t binding;
+            std::size_t descriptor;
+        };
         VkDescriptorSet handle;
-        std::unordered_map<std::size_t, std::size_t> bound;
+        std::vector<Hashed> bound;
 
         crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, VkDescriptorBufferInfo) noexcept;
         crd_module DescriptorSet<1>& bind(const Context&, const DescriptorBinding&, VkDescriptorImageInfo) noexcept;

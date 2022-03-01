@@ -41,7 +41,8 @@ namespace crd {
     struct Pipeline {
         enum {
             type_graphics,
-            type_compute
+            type_compute,
+            type_raytracing,
         } type;
         VkPipeline handle;
         DescriptorLayoutBindings bindings;
@@ -76,8 +77,7 @@ namespace crd {
         };
     };
 
-    crd_nodiscard crd_module GraphicsPipeline make_graphics_pipeline(const Context&, Renderer&, GraphicsPipeline::CreateInfo&&) noexcept;
-    crd_nodiscard crd_module ComputePipeline  make_compute_pipeline(const Context&, Renderer&, ComputePipeline::CreateInfo&&) noexcept;
-                  crd_module void             destroy_pipeline(const Context&, GraphicsPipeline&) noexcept;
-                  crd_module void             destroy_pipeline(const Context&, ComputePipeline&) noexcept;
+    crd_nodiscard crd_module GraphicsPipeline make_pipeline(const Context&, Renderer&, GraphicsPipeline::CreateInfo&&) noexcept;
+    crd_nodiscard crd_module ComputePipeline  make_pipeline(const Context&, Renderer&, ComputePipeline::CreateInfo&&) noexcept;
+                  crd_module void             destroy_pipeline(const Context&, Pipeline&) noexcept;
 } // namespace crd

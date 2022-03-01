@@ -21,12 +21,15 @@ namespace crd {
         VkDebugUtilsMessengerEXT validation;
 #endif
         struct {
-            VkPhysicalDeviceProperties properties;
+            VkPhysicalDeviceRayTracingPipelinePropertiesKHR raytracing_props;
+            VkPhysicalDeviceProperties main_props;
             VkPhysicalDeviceFeatures features;
             VkPhysicalDevice handle;
         } gpu;
         struct {
             bool descriptor_indexing;
+            bool buffer_address;
+            bool raytracing;
         } extensions;
         QueueFamilies families;
         VkDevice device;

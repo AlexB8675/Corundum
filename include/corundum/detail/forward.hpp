@@ -23,6 +23,7 @@ namespace crd {
     struct StaticBuffer;
     struct StaticMesh;
     struct StaticTexture;
+    struct StaticModel;
     struct DescriptorBinding;
     struct DescriptorSetLayout;
     template <std::size_t>

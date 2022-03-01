@@ -169,8 +169,8 @@ int main() {
     auto shadow_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
-                .width   = 2048,
-                .height  = 2048,
+                .width   = 4096,
+                .height  = 4096,
                 .mips    = 1,
                 .layers  = shadow_cascades,
                 .format  = VK_FORMAT_D32_SFLOAT,
@@ -211,7 +211,7 @@ int main() {
             .attachments = { 0 }
         } }
     });
-    auto shadow_pipeline = crd::make_graphics_pipeline(context, renderer, {
+    auto shadow_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "../data/shaders/test_csm/shadow.vert.spv",
         .geometry = "../data/shaders/test_csm/shadow.geom.spv",
         .fragment = "../data/shaders/test_csm/shadow.frag.spv",
@@ -235,7 +235,7 @@ int main() {
             .write = true
         }
     });
-    auto deferred_pipeline = crd::make_graphics_pipeline(context, renderer, {
+    auto deferred_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "../data/shaders/test_csm/gbuffer.vert.spv",
         .geometry = nullptr,
         .fragment = "../data/shaders/test_csm/gbuffer.frag.spv",
@@ -264,7 +264,7 @@ int main() {
             .write = true
         }
     });
-    auto main_pipeline = crd::make_graphics_pipeline(context, renderer, {
+    auto main_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "../data/shaders/test_csm/main.vert.spv",
         .geometry = nullptr,
         .fragment = "../data/shaders/test_csm/main.frag.spv",
@@ -371,15 +371,15 @@ int main() {
         } }
     } });*/
     std::vector<PointLight> point_lights;
-    point_lights.reserve(4);
-    for (int i = 0; i < 4; ++i) {
-        point_lights.push_back({
-            .position = glm::vec4(random(-20, 20), random(4, 16), random(-16, 16), 0.0f),
-            .diffuse = glm::vec4(random(0, 1), random(0, 1), random(0, 1), 1.0f),
-            .specular = glm::vec4(1.0f),
-            .falloff = glm::vec4(1.0f, 0.125f, 0.075f, 1.0f)
-        });
-    }
+    //point_lights.reserve(4);
+    //for (int i = 0; i < 4; ++i) {
+    //    point_lights.push_back({
+    //        .position = glm::vec4(random(-20, 20), random(4, 16), random(-16, 16), 0.0f),
+    //        .diffuse = glm::vec4(random(0, 1), random(0, 1), random(0, 1), 1.0f),
+    //        .specular = glm::vec4(1.0f),
+    //        .falloff = glm::vec4(1.0f, 0.125f, 0.075f, 1.0f)
+    //    });
+    //}
     std::vector<DirectionalLight> dir_lights = { {
         .direction = glm::vec4(1.0f),
         .diffuse = glm::vec4(0.3f),
@@ -409,7 +409,7 @@ int main() {
     auto point_light_buffer = crd::make_buffer(context, {
         .type = crd::storage_buffer,
         .usage = crd::host_visible,
-        .capacity = crd::size_bytes(point_lights),
+        .capacity = sizeof(glm::mat4),
     });
     auto directional_light_buffer = crd::make_buffer(context, {
         .type = crd::uniform_buffer,
@@ -449,7 +449,7 @@ int main() {
         cascades_buffer[index].write(cascades.data(), 0, crd::size_bytes(cascades));
         camera_buffer[index].write(glm::value_ptr(camera.projection), 0, sizeof camera.raw());
         camera_buffer[index].write(glm::value_ptr(camera.view), sizeof(glm::mat4), sizeof camera.raw());
-        point_light_buffer[index].write(point_lights.data(), 0, crd::size_bytes(point_lights));
+        point_light_buffer[index].write(point_lights.data(), 0, sizeof(glm::mat4));
         directional_light_buffer[index].write(dir_lights.data(), 0, crd::size_bytes(dir_lights));
         light_uniform_buffer[index].write(&camera.position, 0, sizeof camera.position);
 

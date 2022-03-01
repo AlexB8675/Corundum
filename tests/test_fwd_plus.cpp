@@ -128,7 +128,7 @@ int main() {
             { 0, 1 }
         } }
     });
-    auto depth_pipeline = crd::make_graphics_pipeline(context, renderer, {
+    auto depth_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "../data/shaders/test_fwdp/depth.vert.spv",
         .geometry = nullptr,
         .fragment = nullptr,
@@ -152,7 +152,7 @@ int main() {
             .write = true
         }
     });
-    auto final_pipeline = crd::make_graphics_pipeline(context, renderer, {
+    auto final_pipeline = crd::make_pipeline(context, renderer, {
         .vertex = "../data/shaders/test_fwdp/final.vert.spv",
         .geometry = nullptr,
         .fragment = "../data/shaders/test_fwdp/final.frag.spv",

@@ -11,6 +11,9 @@ namespace crd {
         buffer_info.flags = {};
         buffer_info.size = info.capacity;
         buffer_info.usage = info.flags;
+        if (context.extensions.buffer_address) {
+            buffer_info.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+        }
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         buffer_info.queueFamilyIndexCount = 0;
         buffer_info.pQueueFamilyIndices = nullptr;

@@ -49,7 +49,7 @@ struct Camera {
     float pitch = 0.0f;
     float aspect = 0.0f;
     const float near = 0.1f;
-    const float far = 128.0f;
+    const float far = 256.0f;
 
     void update(const crd::Window& window, double delta_time) noexcept {
         _process_keyboard(window, delta_time);
@@ -172,17 +172,17 @@ static inline float random(float min, float max) {
     return std::uniform_real_distribution<float>(min, max)(engine);
 }
 
-static inline Scene build_scene(std::span<Draw> models, VkDescriptorImageInfo fallback) noexcept {
+static inline Scene build_scene(std::span<Draw> draws, VkDescriptorImageInfo fallback) noexcept {
     Scene scene;
     scene.descriptors = { fallback };
     std::unordered_map<void*, std::uint32_t> cache;
     std::size_t t_size = 0;
-    for (const auto& [_, transforms] : models) {
+    for (const auto& [_, transforms] : draws) {
         t_size += transforms.size();
     }
     scene.transforms.reserve(t_size);
     std::size_t offset = 0;
-    for (std::uint32_t i = 0; auto [model, transforms] : models) {
+    for (std::uint32_t i = 0; auto [model, transforms] : draws) {
         crd_likely_if(model->is_ready()) {
             const auto submeshes_size = (*model)->submeshes.size();
             auto& handle = scene.models.emplace_back();
@@ -300,9 +300,9 @@ static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& cam
         return light_proj * light_view;
     };
     const float cascade_levels[shadow_cascades] = {
-        camera.far / 12.5f,
-        camera.far / 7.5f,
-        camera.far / 3.3f,
+        camera.far / 25.0f,
+        camera.far / 6.0f,
+        camera.far / 2.0f,
         camera.far,
     };
     for (std::size_t i = 0; i < shadow_cascades; ++i) {

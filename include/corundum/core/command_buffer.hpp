@@ -67,10 +67,13 @@ namespace crd {
         crd_module CommandBuffer& bind_index_buffer(const StaticBuffer&) noexcept;
         crd_module CommandBuffer& bind_static_mesh(const StaticMesh&) noexcept;
         crd_module CommandBuffer& push_constants(VkShaderStageFlags, const void*, std::size_t) noexcept;
-        crd_module CommandBuffer& draw(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) noexcept;
         crd_module CommandBuffer& dispatch(std::uint32_t = 1, std::uint32_t = 1, std::uint32_t = 1) noexcept;
+        crd_module CommandBuffer& draw(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) noexcept;
         crd_module CommandBuffer& draw_indexed(std::uint32_t, std::uint32_t, std::uint32_t, std::int32_t, std::uint32_t) noexcept;
+        crd_module CommandBuffer& trace_rays() noexcept;
         crd_module CommandBuffer& end_render_pass() noexcept;
+        crd_module CommandBuffer& build_acceleration_structure(const VkAccelerationStructureBuildGeometryInfoKHR*,
+                                                               const VkAccelerationStructureBuildRangeInfoKHR*) noexcept;
         crd_module CommandBuffer& copy_image(const Image&, const Image&) noexcept;
         crd_module CommandBuffer& blit_image(const ImageBlit&) noexcept;
         crd_module CommandBuffer& copy_buffer(const StaticBuffer&, const StaticBuffer&) noexcept;

@@ -1,3 +1,4 @@
+#include <corundum/core/dispatch.hpp>
 #include <corundum/core/context.hpp>
 
 #include <corundum/detail/logger.hpp>
@@ -12,8 +13,6 @@
 #include <array>
 #include <span>
 
-#define load_instance_function(instance, fn) const auto fn = reinterpret_cast<PFN_##fn>(vkGetInstanceProcAddr(instance, #fn))
-
 namespace crd {
     crd_nodiscard static inline bool has_extension(std::span<VkExtensionProperties> extensions, const char* extension) noexcept {
         for (const auto& [name, _] : extensions) {
@@ -24,12 +23,29 @@ namespace crd {
         return false;
     }
 
+    template <typename T, typename U>
+    static inline void append_to_chain(T& object, U& next) noexcept {
+        if (!object.pNext) {
+            object.pNext = &next;
+            return;
+        }
+        next.pNext = const_cast<void*>(object.pNext);
+        object.pNext = &next;
+    }
+
+    static inline void initialize_dynamic_dispatcher(const Context& context) noexcept {
+#if defined(crd_enable_raytracing)
+        vkGetAccelerationStructureBuildSizesKHR = crd_load_device_function(context.device, vkGetAccelerationStructureBuildSizesKHR);
+        vkCmdBuildAccelerationStructuresKHR = crd_load_device_function(context.device, vkCmdBuildAccelerationStructuresKHR);
+        vkCreateAccelerationStructureKHR = crd_load_device_function(context.device, vkCreateAccelerationStructureKHR);
+#endif
+    }
 
     crd_nodiscard Context make_context() noexcept {
         detail::log("Vulkan", detail::severity_info, detail::type_general, "vulkan initialization started");
         Context context = {};
         { // Creates a VkInstance.
-            detail::log("Vulkan", detail::severity_info, detail::type_general, "requesting vulkan version 1.3");
+            detail::log("Vulkan", detail::severity_info, detail::type_general, "requesting vulkan version 1.2");
             VkApplicationInfo application_info;
             application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
             application_info.pNext = nullptr;
@@ -131,7 +147,7 @@ namespace crd {
             validation_info.pUserData = nullptr;
 
             detail::log("Vulkan", detail::severity_info, detail::type_general, "loading validation function: vkCreateDebugUtilsMessengerEXT");
-            load_instance_function(context.instance, vkCreateDebugUtilsMessengerEXT);
+            const auto vkCreateDebugUtilsMessengerEXT = crd_load_instance_function(context.instance, vkCreateDebugUtilsMessengerEXT);
             crd_assert(vkCreateDebugUtilsMessengerEXT, "failed loading validation function");
             crd_vulkan_check(vkCreateDebugUtilsMessengerEXT(context.instance, &validation_info, nullptr, &context.validation));
             detail::log("Vulkan", detail::severity_info, detail::type_general, "validation layers enabled successfully");
@@ -145,24 +161,31 @@ namespace crd {
 
             detail::log("Vulkan", detail::severity_info, detail::type_general, "enumerating physical devices:");
             for (const auto& gpu : devices) {
-                VkPhysicalDeviceProperties properties;
-                vkGetPhysicalDeviceProperties(gpu, &properties);
-                detail::log("Vulkan", detail::severity_info, detail::type_general, "  - found device: %s", properties.deviceName);
+                VkPhysicalDeviceProperties main_props;
+                vkGetPhysicalDeviceProperties(gpu, &main_props);
+#if defined(crd_enable_raytracing)
+                context.gpu.raytracing_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+                VkPhysicalDeviceProperties2 next_props;
+                next_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+                next_props.pNext = &context.gpu.raytracing_props;
+                vkGetPhysicalDeviceProperties2(gpu, &next_props);
+#endif
+                detail::log("Vulkan", detail::severity_info, detail::type_general, "  - found device: %s", main_props.deviceName);
                 const auto device_criteria =
                     VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU |
                     VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU   |
                     VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU;
-                crd_likely_if(properties.deviceType & device_criteria) {
-                    detail::log("Vulkan", detail::severity_info, detail::type_general, "  - chosen device: %s", properties.deviceName);
-                    const auto driver_major = VK_VERSION_MAJOR(properties.driverVersion);
-                    const auto driver_minor = VK_VERSION_MINOR(properties.driverVersion);
-                    const auto driver_patch = VK_VERSION_PATCH(properties.driverVersion);
-                    const auto vulkan_major = VK_API_VERSION_MAJOR(properties.apiVersion);
-                    const auto vulkan_minor = VK_API_VERSION_MINOR(properties.apiVersion);
-                    const auto vulkan_patch = VK_API_VERSION_PATCH(properties.apiVersion);
+                crd_likely_if(main_props.deviceType & device_criteria) {
+                    detail::log("Vulkan", detail::severity_info, detail::type_general, "  - chosen device: %s", main_props.deviceName);
+                    const auto driver_major = VK_VERSION_MAJOR(main_props.driverVersion);
+                    const auto driver_minor = VK_VERSION_MINOR(main_props.driverVersion);
+                    const auto driver_patch = VK_VERSION_PATCH(main_props.driverVersion);
+                    const auto vulkan_major = VK_API_VERSION_MAJOR(main_props.apiVersion);
+                    const auto vulkan_minor = VK_API_VERSION_MINOR(main_props.apiVersion);
+                    const auto vulkan_patch = VK_API_VERSION_PATCH(main_props.apiVersion);
                     detail::log("Vulkan", detail::severity_info, detail::type_general, "  - driver version: %d.%d.%d", driver_major, driver_minor, driver_patch);
                     detail::log("Vulkan", detail::severity_info, detail::type_general, "  - vulkan version: %d.%d.%d", vulkan_major, vulkan_minor, vulkan_patch);
-                    context.gpu.properties = properties;
+                    context.gpu.main_props = main_props;
                     context.gpu.handle = gpu;
                     break;
                 }
@@ -265,8 +288,48 @@ namespace crd {
             if (has_extension(extensions, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME)) {
                 extension_names.emplace_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
                 context.extensions.descriptor_indexing = true;
-                device_info.pNext = &descriptor_indexing;
+                append_to_chain(device_info, descriptor_indexing);
+            } else {
+                detail::log("Vulkan", detail::severity_warning, detail::type_validation, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME"not available");
             }
+            VkPhysicalDeviceBufferDeviceAddressFeatures buffer_address_features = {};
+            buffer_address_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+            buffer_address_features.bufferDeviceAddress = true;
+            if (has_extension(extensions, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME)) {
+                extension_names.emplace_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+                context.extensions.buffer_address = true;
+                append_to_chain(device_info, buffer_address_features);
+            }
+#if defined(crd_enable_raytracing)
+            VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {};
+            acceleration_structure_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+            acceleration_structure_features.accelerationStructure = true;
+            acceleration_structure_features.descriptorBindingAccelerationStructureUpdateAfterBind = true;
+            if (has_extension(extensions, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME)) {
+                extension_names.emplace_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+                append_to_chain(device_info, acceleration_structure_features);
+            } else {
+                detail::log("Vulkan", detail::severity_warning, detail::type_validation, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME" not available");
+            }
+            VkPhysicalDeviceRayTracingPipelineFeaturesKHR raytracing_features = {};
+            raytracing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+            raytracing_features.pNext = nullptr;
+            raytracing_features.rayTracingPipeline = true;
+            raytracing_features.rayTracingPipelineTraceRaysIndirect = true;
+            raytracing_features.rayTraversalPrimitiveCulling = true;
+            if (has_extension(extensions, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME)) {
+                context.extensions.raytracing = true;
+                extension_names.emplace_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+                append_to_chain(device_info, raytracing_features);
+            } else {
+                detail::log("Vulkan", detail::severity_warning, detail::type_validation, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME" not available");
+            }
+            if (has_extension(extensions, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME)) {
+                extension_names.emplace_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+            } else {
+                detail::log("Vulkan", detail::severity_warning, detail::type_validation, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME" not available");
+            }
+#endif
             device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
             device_info.flags = {};
             device_info.pQueueCreateInfos = queue_infos.data();
@@ -291,7 +354,7 @@ namespace crd {
             });
         }
         { // Creates a Descriptor Pool.
-            const auto& limits          = context.gpu.properties.limits;
+            const auto& limits          = context.gpu.main_props.limits;
             const auto max_samplers     = std::min<std::uint32_t>(16384, limits.maxDescriptorSetSampledImages);
             const auto max_uniforms     = std::min<std::uint32_t>(8192, limits.maxDescriptorSetUniformBuffers);
             const auto max_storage      = std::min<std::uint32_t>(8192, limits.maxDescriptorSetStorageBuffers);
@@ -349,6 +412,9 @@ namespace crd {
             detail::log("Vulkan", detail::severity_info, detail::type_general, "creating allocator");
             VmaAllocatorCreateInfo allocator_info;
             allocator_info.flags = {};
+            if (context.extensions.buffer_address) {
+                allocator_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+            }
             allocator_info.physicalDevice = context.gpu.handle;
             allocator_info.device = context.device;
             allocator_info.preferredLargeHeapBlockSize = 0;
@@ -362,6 +428,8 @@ namespace crd {
             crd_vulkan_check(vmaCreateAllocator(&allocator_info, &context.allocator));
             detail::log("Vulkan", detail::severity_info, detail::type_general, "allocator created successfully");
         }
+        detail::log("Vulkan", detail::severity_info, detail::type_general, "initializing dynamic dispatcher");
+        initialize_dynamic_dispatcher(context);
         detail::log("Vulkan", detail::severity_info, detail::type_general, "vulkan initialization completed");
         return context;
     }
@@ -378,7 +446,7 @@ namespace crd {
         vmaDestroyAllocator(context.allocator);
         vkDestroyDevice(context.device, nullptr);
 #if defined(crd_debug)
-        load_instance_function(context.instance, vkDestroyDebugUtilsMessengerEXT);
+        const auto vkDestroyDebugUtilsMessengerEXT = crd_load_instance_function(context.instance, vkDestroyDebugUtilsMessengerEXT);
         vkDestroyDebugUtilsMessengerEXT(context.instance, context.validation, nullptr);
 #endif
         vkDestroyInstance(context.instance, nullptr);
@@ -387,6 +455,6 @@ namespace crd {
     }
 
     crd_nodiscard crd_module std::uint32_t max_bound_samplers(const Context& context) noexcept {
-        return std::min<std::uint32_t>(context.gpu.properties.limits.maxPerStageDescriptorSampledImages, 1024);
+        return std::min<std::uint32_t>(context.gpu.main_props.limits.maxPerStageDescriptorSampledImages, 1024);
     }
 } //namespace crd

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <corundum/core/acceleration_structure.hpp>
 #include <corundum/core/static_texture.hpp>
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/async.hpp>

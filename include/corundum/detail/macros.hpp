@@ -19,9 +19,11 @@
 #if crd_cpp_version >= 201703l
     #define crd_nodiscard [[nodiscard]]
     #define crd_noreturn [[noreturn]]
+    #define crd_maybe_unused [[maybe_unused]]
 #else
     #define crd_nodiscard
     #define crd_noreturn
+    #define crd_maybe_unused
 #endif
 
 #if crd_cpp_version >= 202002l
@@ -83,3 +85,6 @@
     #define crd_benchmark_timestamp()
     #define crd_benchmark_convert(...)
 #endif
+
+#define crd_load_instance_function(instance, fn) reinterpret_cast<PFN_##fn>(vkGetInstanceProcAddr(instance, #fn))
+#define crd_load_device_function(device, fn) reinterpret_cast<PFN_##fn>(vkGetDeviceProcAddr(device, #fn))

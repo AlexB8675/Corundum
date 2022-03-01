@@ -197,7 +197,7 @@ namespace crd {
             const auto scene = importer.ReadFile(path, post_process);
             crd_assert(scene && !scene->mFlags && scene->mRootNode, "failed to load model");
             TextureCache cache;
-            cache.reserve(32);
+            cache.reserve(128);
             StaticModel model;
             process_node(context, scene, scene->mRootNode, model, cache, fs::path(path).parent_path());
             detail::log("Vulkan", detail::severity_info, detail::type_general, "StaticModel \"%s\" was loaded successfully", path.c_str());
