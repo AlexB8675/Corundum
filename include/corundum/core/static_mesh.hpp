@@ -19,7 +19,10 @@ namespace crd {
         };
         StaticBuffer geometry;
         StaticBuffer indices;
-        AccelerationStructure blas;
+#if defined(crd_enable_raytracing)
+        BottomLevelAS blas;
+        TopLevelAS tlas;
+#endif
     };
 
     crd_nodiscard crd_module Async<StaticMesh> request_static_mesh(const Context&, StaticMesh::CreateInfo&&) noexcept;

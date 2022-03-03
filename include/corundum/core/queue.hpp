@@ -9,6 +9,12 @@
 #include <mutex>
 
 namespace crd {
+    enum QueueType {
+        queue_type_graphics,
+        queue_type_transfer,
+        queue_type_compute,
+    };
+
     struct QueueFamily {
         std::uint32_t family;
         std::uint32_t index;
@@ -44,4 +50,6 @@ namespace crd {
                   crd_module void   destroy_queue(const Context&, Queue*&) noexcept;
 
                   crd_module void   wait_fence(const Context&, VkFence) noexcept;
+                  crd_module void   immediate_submit(const Context&, const CommandBuffer&, QueueType) noexcept;
+
 } // namespace crd

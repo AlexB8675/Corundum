@@ -191,7 +191,7 @@ namespace crd {
                 .signals  = {},
                 .done     = request_done
             });
-            vkWaitForFences(context.device, 1, &request_done, true, -1);
+            wait_fence(context, request_done);
             vkDestroySemaphore(context.device, transfer_done, nullptr);
             vkDestroyFence(context.device, request_done, nullptr);
             destroy_static_buffer(context, staging);

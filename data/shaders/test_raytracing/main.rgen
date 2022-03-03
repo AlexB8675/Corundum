@@ -1,0 +1,31 @@
+#version 460
+#extension GL_EXT_ray_tracing: enable
+#extension GL_EXT_nonuniform_qualifier: enable
+
+layout(set = 0, binding = 0) uniform Camera {
+    mat4 projection;
+    mat4 view;
+} camera;
+
+layout (set = 0, binding = 1, rgba8) uniform image2D image;
+
+layout (set = 0, binding = 2) uniform accelerationStructureEXT tlas;
+
+layout (location = 0) rayPayloadEXT vec3 hit;
+
+void main() {
+	const vec2 center = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
+	const vec2 uvs = (center / vec2(gl_LaunchSizeEXT.xy)) * 2.0 - 1.0;
+
+	const vec4 origin = camera.view * vec4(0.0, 0.0, 0.0, 1.0);
+	const vec4 target = camera.projection * vec4(uvs.x, uvs.y, 1.0, 1.0);
+	const vec4 direction = camera.view * vec4(normalize(target.xyz), 0.0);
+
+	const float t_min = 0.001;
+	const float t_max = 10000.0;
+
+    hit = vec3(0.0);
+
+    traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, origin.xyz, t_min, direction.xyz, t_max, 0);
+	imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(hit, 0.0));
+}

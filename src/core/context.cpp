@@ -12,6 +12,7 @@
 #include <string>
 #include <array>
 #include <span>
+#include "corundum/core/context.hpp"
 
 namespace crd {
     crd_nodiscard static inline bool has_extension(std::span<VkExtensionProperties> extensions, const char* extension) noexcept {
@@ -38,6 +39,10 @@ namespace crd {
         vkGetAccelerationStructureBuildSizesKHR = crd_load_device_function(context.device, vkGetAccelerationStructureBuildSizesKHR);
         vkCmdBuildAccelerationStructuresKHR = crd_load_device_function(context.device, vkCmdBuildAccelerationStructuresKHR);
         vkCreateAccelerationStructureKHR = crd_load_device_function(context.device, vkCreateAccelerationStructureKHR);
+        vkGetAccelerationStructureDeviceAddressKHR = crd_load_device_function(context.device, vkGetAccelerationStructureDeviceAddressKHR);
+        vkCreateRayTracingPipelinesKHR = crd_load_device_function(context.device, vkCreateRayTracingPipelinesKHR);
+        vkGetRayTracingShaderGroupHandlesKHR = crd_load_device_function(context.device, vkGetRayTracingShaderGroupHandlesKHR);
+        vkCmdTraceRaysKHR = crd_load_device_function(context.device, vkCmdTraceRaysKHR);
 #endif
     }
 
@@ -164,7 +169,9 @@ namespace crd {
                 VkPhysicalDeviceProperties main_props;
                 vkGetPhysicalDeviceProperties(gpu, &main_props);
 #if defined(crd_enable_raytracing)
+                context.gpu.as_limits.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
                 context.gpu.raytracing_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+                context.gpu.raytracing_props.pNext = &context.gpu.as_limits;
                 VkPhysicalDeviceProperties2 next_props;
                 next_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
                 next_props.pNext = &context.gpu.raytracing_props;
@@ -355,13 +362,20 @@ namespace crd {
         }
         { // Creates a Descriptor Pool.
             const auto& limits          = context.gpu.main_props.limits;
+            const auto& as_limits       = context.gpu.as_limits;
             const auto max_samplers     = std::min<std::uint32_t>(16384, limits.maxDescriptorSetSampledImages);
-            const auto max_uniforms     = std::min<std::uint32_t>(8192, limits.maxDescriptorSetUniformBuffers);
-            const auto max_storage      = std::min<std::uint32_t>(8192, limits.maxDescriptorSetStorageBuffers);
+            const auto max_uniforms     = std::min<std::uint32_t>(16384, limits.maxDescriptorSetUniformBuffers);
+            const auto max_storage      = std::min<std::uint32_t>(16384, limits.maxDescriptorSetStorageBuffers);
+            const auto max_images       = std::min<std::uint32_t>(16384, limits.maxDescriptorSetStorageImages);
+            const auto max_as           = std::min<std::uint32_t>(16384, as_limits.maxDescriptorSetAccelerationStructures);
             const auto descriptor_sizes = std::to_array<VkDescriptorPoolSize>({
-                { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         max_uniforms },
-                { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         max_storage  },
-                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, max_samplers },
+                { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             max_uniforms },
+                { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             max_storage  },
+                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     max_samplers },
+                { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              max_images   },
+#if defined(crd_enable_raytracing)
+                { VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, max_as       },
+#endif
             });
             auto total_size = 0;
             for (auto size : descriptor_sizes) {

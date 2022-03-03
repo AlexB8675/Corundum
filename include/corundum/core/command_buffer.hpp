@@ -11,6 +11,13 @@
 #include <vector>
 
 namespace crd {
+    struct MemoryBarrier {
+        VkPipelineStageFlags source_stage;
+        VkPipelineStageFlags dest_stage;
+        VkAccessFlags source_access;
+        VkAccessFlags dest_access;
+    };
+
     struct BufferMemoryBarrier {
         const StaticBuffer* buffer;
         VkPipelineStageFlags source_stage;
@@ -70,7 +77,7 @@ namespace crd {
         crd_module CommandBuffer& dispatch(std::uint32_t = 1, std::uint32_t = 1, std::uint32_t = 1) noexcept;
         crd_module CommandBuffer& draw(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) noexcept;
         crd_module CommandBuffer& draw_indexed(std::uint32_t, std::uint32_t, std::uint32_t, std::int32_t, std::uint32_t) noexcept;
-        crd_module CommandBuffer& trace_rays() noexcept;
+        crd_module CommandBuffer& trace_rays(std::uint32_t, std::uint32_t) noexcept;
         crd_module CommandBuffer& end_render_pass() noexcept;
         crd_module CommandBuffer& build_acceleration_structure(const VkAccelerationStructureBuildGeometryInfoKHR*,
                                                                const VkAccelerationStructureBuildRangeInfoKHR*) noexcept;
@@ -81,6 +88,7 @@ namespace crd {
         crd_module CommandBuffer& barrier(const BufferMemoryBarrier&) noexcept;
         crd_module CommandBuffer& barrier(const ImageMemoryBarrier&) noexcept;
         crd_module CommandBuffer& barrier(VkPipelineStageFlags, VkPipelineStageFlags) noexcept;
+        crd_module CommandBuffer& memory_barrier(const MemoryBarrier&) noexcept;
         crd_module CommandBuffer& transfer_ownership(const BufferMemoryBarrier&, const Queue&, const Queue&) noexcept;
         crd_module CommandBuffer& transfer_ownership(const ImageMemoryBarrier&, const Queue&, const Queue&) noexcept;
         crd_module CommandBuffer& transition_layout(const ImageMemoryBarrier&) noexcept;

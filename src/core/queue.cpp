@@ -74,4 +74,28 @@ namespace crd {
     crd_module void wait_fence(const Context& context, VkFence fence) noexcept {
         crd_vulkan_check(vkWaitForFences(context.device, 1, &fence, true, -1));
     }
+
+    crd_module void immediate_submit(const Context& context, const CommandBuffer& commands, QueueType type) noexcept {
+        VkFenceCreateInfo fence_info;
+        fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fence_info.pNext = nullptr;
+        fence_info.flags = {};
+        VkFence fence;
+        crd_vulkan_check(vkCreateFence(context.device, &fence_info, nullptr, &fence));
+        Queue* queue;
+        switch (type) {
+            case queue_type_graphics: queue = context.graphics; break;
+            case queue_type_transfer: queue = context.transfer; break;
+            case queue_type_compute:  queue = context.compute;  break;
+        }
+        queue->submit({
+            .commands = commands,
+            .stages = {},
+            .waits = {},
+            .signals = {},
+            .done = fence
+        });
+        wait_fence(context, fence);
+        vkDestroyFence(context.device, fence, nullptr);
+    }
 } // namespace crd

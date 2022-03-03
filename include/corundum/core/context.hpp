@@ -22,6 +22,7 @@ namespace crd {
 #endif
         struct {
             VkPhysicalDeviceRayTracingPipelinePropertiesKHR raytracing_props;
+            VkPhysicalDeviceAccelerationStructurePropertiesKHR as_limits;
             VkPhysicalDeviceProperties main_props;
             VkPhysicalDeviceFeatures features;
             VkPhysicalDevice handle;

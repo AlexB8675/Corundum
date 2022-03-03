@@ -9,5 +9,9 @@ namespace crd {
     crd_module inline PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR;
     crd_module inline PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR;
     crd_module inline PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR;
+    crd_module inline PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR;
+    crd_module inline PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
+    crd_module inline PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
+    crd_module inline PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR;
 #endif
 } // namespace crd

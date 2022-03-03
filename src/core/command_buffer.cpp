@@ -207,7 +207,16 @@ namespace crd {
         return *this;
     }
 
-    crd_module CommandBuffer& CommandBuffer::trace_rays() noexcept {
+    crd_module CommandBuffer& CommandBuffer::trace_rays(std::uint32_t x, std::uint32_t y) noexcept {
+        const RayTracingPipeline& pipeline = *static_cast<const RayTracingPipeline*>(active_pipeline);
+        VkStridedDeviceAddressRegionKHR empty = {};
+        vkCmdTraceRaysKHR(
+            handle,
+            &pipeline.sbt.raygen.region,
+            &pipeline.sbt.raymiss.region,
+            &pipeline.sbt.raychit.region,
+            &empty,
+            x, y, 1);
         return *this;
     }
 
@@ -350,6 +359,23 @@ namespace crd {
             dest_stage,
             VK_DEPENDENCY_BY_REGION_BIT,
             0, nullptr,
+            0, nullptr,
+            0, nullptr);
+        return *this;
+    }
+
+    crd_module CommandBuffer& CommandBuffer::memory_barrier(const MemoryBarrier& info) noexcept {
+        VkMemoryBarrier barrier;
+        barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+        barrier.pNext = nullptr;
+        barrier.srcAccessMask = info.source_access;
+        barrier.dstAccessMask = info.dest_access;
+        vkCmdPipelineBarrier(
+            handle,
+            info.source_stage,
+            info.dest_stage,
+            VK_DEPENDENCY_BY_REGION_BIT,
+            1, &barrier,
             0, nullptr,
             0, nullptr);
         return *this;

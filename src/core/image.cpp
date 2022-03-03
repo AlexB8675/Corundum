@@ -30,7 +30,7 @@ namespace crd {
         image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         image_info.queueFamilyIndexCount = 1;
         image_info.pQueueFamilyIndices = &context.families.graphics.family;
-        image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        image_info.initialLayout = info.layout;
 
         VmaAllocationCreateInfo allocation_info;
         allocation_info.flags = {};
@@ -91,7 +91,11 @@ namespace crd {
         };
     }
 
-    VkDescriptorImageInfo Image::info() const noexcept {
-        return sample(nullptr);
+    VkDescriptorImageInfo Image::info(VkImageLayout layout) const noexcept {
+        return {
+            .sampler = nullptr,
+            .imageView = view,
+            .imageLayout = layout
+        };
     }
 } // namespace crd

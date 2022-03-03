@@ -1,5 +1,7 @@
 #pragma once
 
+#include <corundum/core/static_buffer.hpp>
+
 #include <corundum/detail/forward.hpp>
 #include <corundum/detail/macros.hpp>
 
@@ -32,11 +34,22 @@ namespace crd {
 
     struct DescriptorSetLayout {
         VkDescriptorSetLayout handle;
+        std::uint32_t dyn_binds;
         bool dynamic;
     };
 
     using DescriptorSetLayouts     = std::vector<DescriptorSetLayout>;
     using DescriptorLayoutBindings = std::unordered_map<std::string, DescriptorBinding>;
+
+    struct ShaderBindingTable {
+        struct Handle {
+            StaticBuffer storage;
+            VkStridedDeviceAddressRegionKHR region;
+        };
+        Handle raygen;
+        Handle raymiss;
+        Handle raychit;
+    };
 
     struct Pipeline {
         enum {
@@ -77,7 +90,18 @@ namespace crd {
         };
     };
 
-    crd_nodiscard crd_module GraphicsPipeline make_pipeline(const Context&, Renderer&, GraphicsPipeline::CreateInfo&&) noexcept;
-    crd_nodiscard crd_module ComputePipeline  make_pipeline(const Context&, Renderer&, ComputePipeline::CreateInfo&&) noexcept;
-                  crd_module void             destroy_pipeline(const Context&, Pipeline&) noexcept;
+    struct RayTracingPipeline : Pipeline {
+        struct CreateInfo {
+            const char* raygen;
+            const char* raymiss;
+            const char* raychit;
+            std::vector<VkDynamicState> states;
+        };
+        ShaderBindingTable sbt;
+    };
+
+    crd_nodiscard crd_module GraphicsPipeline   make_pipeline(const Context&, Renderer&, GraphicsPipeline::CreateInfo&&) noexcept;
+    crd_nodiscard crd_module ComputePipeline    make_pipeline(const Context&, Renderer&, ComputePipeline::CreateInfo&&) noexcept;
+    crd_nodiscard crd_module RayTracingPipeline make_pipeline(const Context&, Renderer&, RayTracingPipeline::CreateInfo&&) noexcept;
+                  crd_module void               destroy_pipeline(const Context&, Pipeline&) noexcept;
 } // namespace crd

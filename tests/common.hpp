@@ -6,6 +6,9 @@
 #define shadow_cascades 4
 #define tile_size 16
 
+#if defined(crd_enable_raytracing)
+    #include <corundum/core/acceleration_structure.hpp>
+#endif
 #include <corundum/core/descriptor_set.hpp>
 #include <corundum/core/static_texture.hpp>
 #include <corundum/core/static_model.hpp>

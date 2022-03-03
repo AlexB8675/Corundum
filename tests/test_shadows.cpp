@@ -16,7 +16,7 @@ int main() {
                 .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-                           VK_IMAGE_USAGE_SAMPLED_BIT
+                           VK_IMAGE_USAGE_SAMPLED_BIT,
             }),
             .layout = {
                 .initial = VK_IMAGE_LAYOUT_UNDEFINED,
