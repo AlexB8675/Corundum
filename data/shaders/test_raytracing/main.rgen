@@ -9,9 +9,13 @@ layout(set = 0, binding = 0) uniform Camera {
 
 layout (set = 0, binding = 1, rgba8) uniform image2D image;
 
-layout (set = 0, binding = 2) uniform accelerationStructureEXT tlas;
+layout (set = 0, binding = 2) uniform accelerationStructureEXT[] tlas;
 
 layout (location = 0) rayPayloadEXT vec3 hit;
+
+layout (push_constant) uniform Indices {
+    uint tlas_index;
+};
 
 void main() {
 	const vec2 center = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
@@ -26,6 +30,6 @@ void main() {
 
     hit = vec3(0.0);
 
-    traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, origin.xyz, t_min, direction.xyz, t_max, 0);
-	imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(hit, 0.0));
+    traceRayEXT(tlas[tlas_index], gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, origin.xyz, t_min, direction.xyz, t_max, 0);
+	imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(hit, 1.0));
 }

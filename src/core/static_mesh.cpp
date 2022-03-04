@@ -196,20 +196,20 @@ namespace crd {
                     &as_build_sizes);
 
                 detail::log("Vulkan", detail::severity_info, detail::type_general, "creating BLAS, requesting: %llu bytes", as_build_sizes.accelerationStructureSize);
-                auto create_scratch_buffer = make_static_buffer(context, {
+                result.blas.buffer = make_static_buffer(context, {
                     .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                     .usage = VMA_MEMORY_USAGE_GPU_ONLY,
                     .capacity = as_build_sizes.accelerationStructureSize
                 });
 
-                buffer_address.buffer = create_scratch_buffer.handle;
+                buffer_address.buffer = result.blas.buffer.handle;
                 VkAccelerationStructureCreateInfoKHR as_info = {};
                 as_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
                 as_info.createFlags = {};
-                as_info.buffer = create_scratch_buffer.handle;
+                as_info.buffer = result.blas.buffer.handle;
                 as_info.offset = 0;
-                as_info.size = create_scratch_buffer.capacity;
+                as_info.size = result.blas.buffer.capacity;
                 as_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
                 as_info.deviceAddress = 0;
                 crd_vulkan_check(vkCreateAccelerationStructureKHR(context.device, &as_info, nullptr, &result.blas.handle));
@@ -246,7 +246,6 @@ namespace crd {
                     .end();
                 immediate_submit(context, build_blas_commands, queue_type_graphics);
                 vkDestroySemaphore(context.device, ownership_done, nullptr);
-                destroy_static_buffer(context, create_scratch_buffer);
                 destroy_static_buffer(context, build_scratch_buffer);
                 destroy_command_buffer(context, build_blas_commands);
             }
@@ -299,20 +298,20 @@ namespace crd {
                     &as_build_sizes_info);
 
                 detail::log("Vulkan", detail::severity_info, detail::type_general, "creating TLAS, requesting: %llu bytes", as_build_sizes_info.accelerationStructureSize);
-                auto create_scratch_buffer = make_static_buffer(context, {
+                result.tlas.buffer = make_static_buffer(context, {
                     .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                     .usage = VMA_MEMORY_USAGE_GPU_ONLY,
                     .capacity = as_build_sizes_info.accelerationStructureSize
                 });
 
-                buffer_address.buffer = create_scratch_buffer.handle;
+                buffer_address.buffer = result.tlas.buffer.handle;
                 VkAccelerationStructureCreateInfoKHR as_info = {};
                 as_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
                 as_info.createFlags = {};
-                as_info.buffer = create_scratch_buffer.handle;
+                as_info.buffer = result.tlas.buffer.handle;
                 as_info.offset = 0;
-                as_info.size = create_scratch_buffer.capacity;
+                as_info.size = result.tlas.buffer.capacity;
                 as_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
                 as_info.deviceAddress = 0;
                 crd_vulkan_check(vkCreateAccelerationStructureKHR(context.device, &as_info, nullptr, &result.tlas.handle));
@@ -349,7 +348,6 @@ namespace crd {
                     .build_acceleration_structure(&as_build_geometry_info, &as_build_range_info)
                     .end();
                 immediate_submit(context, build_tlas_commands, queue_type_graphics);
-                destroy_static_buffer(context, build_scratch_buffer);
                 destroy_static_buffer(context, build_scratch_buffer);
                 destroy_command_buffer(context, build_tlas_commands);
             }

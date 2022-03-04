@@ -694,6 +694,7 @@ namespace crd {
     }
 
     crd_nodiscard crd_module RayTracingPipeline make_pipeline(const Context& context, Renderer& renderer, RayTracingPipeline::CreateInfo&& info) noexcept {
+#if defined(crd_enable_raytracing)
         RayTracingPipeline pipeline;
 
         std::vector<VkRayTracingShaderGroupCreateInfoKHR> pipeline_groups;
@@ -1073,6 +1074,9 @@ namespace crd {
         std::memcpy(pipeline.sbt.raychit.storage.mapped, s_table_storage.data() + handle_size_aligned * 2, handle_size);
 
         return pipeline;
+#else
+        return {};
+#endif
     }
 
     crd_module void destroy_pipeline(const Context& context, Pipeline& pipeline) noexcept {

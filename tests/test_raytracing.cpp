@@ -75,12 +75,14 @@ int main() {
 
         camera.update(window, delta_time);
         CameraUniform camera_data;
-        camera_data.projection = glm::inverse(camera.projection);
+        camera_data.projection = camera.projection;
+        camera_data.projection[1][1] *= -1;
+        camera_data.projection = glm::inverse(camera_data.projection);
         camera_data.view = glm::inverse(camera.view);
 
         crd::wait_fence(context, done);
 
-        camera_buffer.write(&camera_data, 0);
+        camera_buffer.write(&camera_data, 0, sizeof camera_data);
 
         main_set[index]
             .bind(context, main_pipeline.bindings["Camera"], camera_buffer[index].info())
@@ -89,10 +91,12 @@ int main() {
                 models[0]->submeshes[0].mesh->tlas.handle,
             });
 
+        std::uint32_t tlas_index = 0;
         commands
             .begin()
             .bind_pipeline(main_pipeline)
             .bind_descriptor_set(0, main_set[index])
+            .push_constants(VK_SHADER_STAGE_RAYGEN_BIT_KHR, &tlas_index, sizeof tlas_index)
             .trace_rays(window.width, window.height)
             .transition_layout({
                 .image = &result,

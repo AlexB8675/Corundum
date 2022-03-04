@@ -71,7 +71,7 @@ namespace crd {
             extension_names.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
             for (const auto& [name, _] : extensions_props) {
-                crd_likely_if(std::string_view(name).find("debug") == std::string::npos) {
+                crd_likely_if(std::string_view(name).find("VK_NV") == std::string::npos) {
                     detail::log("Vulkan", detail::severity_verbose, detail::type_general, "  - %s", name);
                     extension_names.emplace_back(name);
                 }

@@ -208,6 +208,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::trace_rays(std::uint32_t x, std::uint32_t y) noexcept {
+#if defined(crd_enable_raytracing)
         const RayTracingPipeline& pipeline = *static_cast<const RayTracingPipeline*>(active_pipeline);
         VkStridedDeviceAddressRegionKHR empty = {};
         vkCmdTraceRaysKHR(
@@ -217,6 +218,7 @@ namespace crd {
             &pipeline.sbt.raychit.region,
             &empty,
             x, y, 1);
+#endif
         return *this;
     }
 
@@ -230,7 +232,9 @@ namespace crd {
 
     crd_module CommandBuffer& CommandBuffer::build_acceleration_structure(const VkAccelerationStructureBuildGeometryInfoKHR* geometry,
                                                                           const VkAccelerationStructureBuildRangeInfoKHR* range) noexcept {
+#if defined(crd_enable_raytracing)
         vkCmdBuildAccelerationStructuresKHR(handle, 1, geometry, &range);
+#endif
         return *this;
     }
 

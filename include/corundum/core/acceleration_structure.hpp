@@ -12,6 +12,7 @@ namespace crd {
         VkAccelerationStructureKHR handle;
         VkAccelerationStructureTypeKHR type;
         VkDeviceAddress address;
+        StaticBuffer buffer;
     protected:
         AccelerationStructure(VkAccelerationStructureTypeKHR) noexcept;
     };
