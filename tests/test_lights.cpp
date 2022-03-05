@@ -285,7 +285,7 @@ int main() {
     while (!window.is_closed()) {
         const auto [commands, image, index] = renderer.acquire_frame(context, window, swapchain);
         const auto scene = build_scene(draw_cmds, black->info());
-        const auto current_frame = crd::time();
+        const auto current_frame = crd::current_time();
         camera.update(window, delta_time);
         ++frames;
         delta_time = current_frame - last_frame;

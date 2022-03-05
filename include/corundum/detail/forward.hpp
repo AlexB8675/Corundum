@@ -15,6 +15,7 @@ namespace crd {
     struct Framebuffer;
     struct RenderPass;
     struct Pipeline;
+    struct ClearValue;
     struct GraphicsPipeline;
     struct ComputePipeline;
     struct Queue;

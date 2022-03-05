@@ -12,11 +12,15 @@ namespace crd {
     enum BufferType {
         uniform_buffer = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         storage_buffer = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+#if defined(crd_enable_raytracing)
+        acceleration_structure_instance = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+#endif
     };
 
     enum MemoryUsage {
         device_local = VMA_MEMORY_USAGE_GPU_ONLY,
-        host_visible = VMA_MEMORY_USAGE_CPU_TO_GPU
+        host_visible = VMA_MEMORY_USAGE_CPU_TO_GPU,
+        host_only = VMA_MEMORY_USAGE_CPU_ONLY
     };
 
     template <>

@@ -43,6 +43,7 @@ namespace crd {
         vkCreateRayTracingPipelinesKHR = crd_load_device_function(context.device, vkCreateRayTracingPipelinesKHR);
         vkGetRayTracingShaderGroupHandlesKHR = crd_load_device_function(context.device, vkGetRayTracingShaderGroupHandlesKHR);
         vkCmdTraceRaysKHR = crd_load_device_function(context.device, vkCmdTraceRaysKHR);
+        vkDestroyAccelerationStructureKHR = crd_load_device_function(context.device, vkDestroyAccelerationStructureKHR);
 #endif
     }
 
@@ -71,7 +72,8 @@ namespace crd {
             extension_names.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
             for (const auto& [name, _] : extensions_props) {
-                crd_likely_if(std::string_view(name).find("VK_NV") == std::string::npos) {
+                crd_likely_if(!std::string_view(name).starts_with("VK_NV") ||
+                              (std::string_view(name) != VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
                     detail::log("Vulkan", detail::severity_verbose, detail::type_general, "  - %s", name);
                     extension_names.emplace_back(name);
                 }

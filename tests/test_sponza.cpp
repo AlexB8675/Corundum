@@ -328,7 +328,7 @@ int main() {
     while (!window.is_closed()) {
         auto [commands, image, index, wait, signal, done] = crd::acquire_frame(context, renderer, window, swapchain);
         const auto scene = build_scene(draw_cmds, black->info());
-        const auto current_frame = crd::time();
+        const auto current_frame = crd::current_time();
         ++frames;
         delta_time = current_frame - last_frame;
         last_frame = current_frame;

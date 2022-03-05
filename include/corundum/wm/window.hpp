@@ -71,7 +71,7 @@ namespace crd {
     };
 
     crd_nodiscard crd_module Window       make_window(std::uint32_t, std::uint32_t, const char*) noexcept;
-    crd_nodiscard crd_module float        time() noexcept;
+    crd_nodiscard crd_module float        current_time() noexcept;
                   crd_module void         poll_events() noexcept;
     crd_nodiscard crd_module VkSurfaceKHR make_vulkan_surface(const Context&, const Window&) noexcept;
                   crd_module void         destroy_window(Window&) noexcept;

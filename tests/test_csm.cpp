@@ -427,16 +427,16 @@ int main() {
     while (!window.is_closed()) {
         const auto [commands, image, index, wait, signal, done] = crd::acquire_frame(context, renderer, window, swapchain);
         const auto scene = build_scene(draw_cmds, black->info());
-        const auto current_frame = crd::time();
+        const auto current_frame = crd::current_time();
         const auto delta_time = current_frame - last_frame;
         last_frame = current_frame;
         camera.update(window, delta_time);
         fps += delta_time;
         ++frames;
         dir_lights[0].direction = glm::vec4(
-            35.0f * std::cos(crd::time() / 6),
+            35.0f * std::cos(crd::current_time() / 6),
             150.0f,
-            35.0f * std::sin(crd::time() / 6),
+            35.0f * std::sin(crd::current_time() / 6),
             1.0f);
         const auto cascades = calculate_cascades(camera, dir_lights[0].direction);
 

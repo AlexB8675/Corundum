@@ -85,6 +85,7 @@ add_library(corundum STATIC
     src/core/static_texture.cpp
     src/core/stb_image.cpp
     src/core/swapchain.cpp
+    src/core/utilities.cpp
     src/core/vma.cpp
 
     src/detail/file_view.cpp

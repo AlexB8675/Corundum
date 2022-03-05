@@ -18,6 +18,7 @@
 #include <corundum/core/swapchain.hpp>
 #include <corundum/core/constants.hpp>
 #include <corundum/core/renderer.hpp>
+#include <corundum/core/dispatch.hpp>
 #include <corundum/core/pipeline.hpp>
 #include <corundum/core/context.hpp>
 #include <corundum/core/buffer.hpp>
@@ -304,8 +305,8 @@ static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& cam
     };
     const float cascade_levels[shadow_cascades] = {
         camera.far / 25.0f,
-        camera.far / 6.0f,
-        camera.far / 2.0f,
+        camera.far / 7.5f,
+        camera.far / 3.3f,
         camera.far,
     };
     for (std::size_t i = 0; i < shadow_cascades; ++i) {

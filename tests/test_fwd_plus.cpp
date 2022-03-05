@@ -1,5 +1,4 @@
 #include <common.hpp>
-#include "corundum/core/pipeline.hpp"
 
 struct LightVisibility {
     std::uint32_t count;
@@ -206,7 +205,7 @@ int main() {
     while (!window.is_closed()) {
         crd::poll_events();
         auto [commands, image, index, wait, signal, done] = crd::acquire_frame(context, renderer, window, swapchain);
-        const auto current_time = crd::time();
+        const auto current_time = crd::current_time();
         const auto delta_time = current_time - last_time;
         last_time = current_time;
         camera.update(window, delta_time);

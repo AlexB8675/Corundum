@@ -1016,7 +1016,7 @@ namespace crd {
         pipeline_info.pStages = pipeline_stages.data();
         pipeline_info.groupCount = (std::uint32_t)pipeline_groups.size();
         pipeline_info.pGroups = pipeline_groups.data();
-        pipeline_info.maxPipelineRayRecursionDepth = 4;
+        pipeline_info.maxPipelineRayRecursionDepth = std::min(2u, context.gpu.raytracing_props.maxRayRecursionDepth);
         pipeline_info.pLibraryInfo = nullptr;
         pipeline_info.pLibraryInterface = nullptr;
         pipeline_info.pDynamicState = &pipeline_dynamic_states;
@@ -1039,12 +1039,8 @@ namespace crd {
             s_table_storage.data()));
 
         const auto make_strided_region = [&](const StaticBuffer& buffer) {
-            VkBufferDeviceAddressInfo buffer_info;
-            buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-            buffer_info.pNext = nullptr;
-            buffer_info.buffer = buffer.handle;
             VkStridedDeviceAddressRegionKHR result;
-            result.deviceAddress = vkGetBufferDeviceAddress(context.device, &buffer_info);
+            result.deviceAddress = device_address(context, buffer);
             result.stride = handle_size_aligned;
             result.size = handle_size_aligned;
             return result;

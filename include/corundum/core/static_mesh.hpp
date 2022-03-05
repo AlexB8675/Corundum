@@ -21,7 +21,6 @@ namespace crd {
         StaticBuffer indices;
 #if defined(crd_enable_raytracing)
         BottomLevelAS blas;
-        TopLevelAS tlas;
 #endif
     };
 

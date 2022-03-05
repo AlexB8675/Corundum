@@ -13,6 +13,10 @@
 #include <array>
 
 namespace crd {
+    template <typename T>
+    using in_flight_array = std::array<T, in_flight>;
+
+
     struct FrameInfo {
         CommandBuffer& commands;
         const Image& image;
@@ -35,9 +39,9 @@ namespace crd {
         std::uint32_t frame_idx;
 
         std::vector<CommandBuffer> gfx_cmds;
-        std::array<VkSemaphore, in_flight> img_ready;
-        std::array<VkSemaphore, in_flight> gfx_done;
-        std::array<VkFence, in_flight> cmd_wait;
+        in_flight_array<VkSemaphore> img_ready;
+        in_flight_array<VkSemaphore> gfx_done;
+        in_flight_array<VkFence> cmd_wait;
 
         // TODO: Move to another structure (Cache<T>)
         std::unordered_map<std::size_t, VkDescriptorSetLayout> set_layout_cache;

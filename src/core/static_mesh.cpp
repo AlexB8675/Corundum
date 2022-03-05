@@ -156,15 +156,10 @@ namespace crd {
             result.geometry = geometry;
             result.indices = indices;
 #if defined(crd_enable_raytracing)
-            VkBufferDeviceAddressInfo buffer_address;
-            buffer_address.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-            buffer_address.pNext = nullptr;
             // BLAS
             {
-                buffer_address.buffer = geometry.handle;
-                const auto vertex_address = vkGetBufferDeviceAddress(context.device, &buffer_address);
-                buffer_address.buffer = indices.handle;
-                const auto index_address = vkGetBufferDeviceAddress(context.device, &buffer_address);
+                const auto vertex_address = device_address(context, geometry);
+                const auto index_address = device_address(context, indices);
                 const auto triangles = (std::uint32_t)info.indices.size() / 3;
 
                 VkAccelerationStructureGeometryKHR as_geometry = {};
@@ -203,7 +198,6 @@ namespace crd {
                     .capacity = as_build_sizes.accelerationStructureSize
                 });
 
-                buffer_address.buffer = result.blas.buffer.handle;
                 VkAccelerationStructureCreateInfoKHR as_info = {};
                 as_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
                 as_info.createFlags = {};
@@ -226,10 +220,10 @@ namespace crd {
                     .usage = VMA_MEMORY_USAGE_GPU_ONLY,
                     .capacity = as_build_sizes.buildScratchSize
                 });
-                buffer_address.buffer = build_scratch_buffer.handle;
+
                 as_build_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
                 as_build_info.dstAccelerationStructure = result.blas.handle;
-                as_build_info.scratchData.deviceAddress = vkGetBufferDeviceAddress(context.device, &buffer_address);
+                as_build_info.scratchData.deviceAddress = device_address(context, build_scratch_buffer);
 
                 VkAccelerationStructureBuildRangeInfoKHR as_build_range;
                 as_build_range.primitiveCount = triangles;
@@ -248,108 +242,6 @@ namespace crd {
                 vkDestroySemaphore(context.device, ownership_done, nullptr);
                 destroy_static_buffer(context, build_scratch_buffer);
                 destroy_command_buffer(context, build_blas_commands);
-            }
-            // TLAS
-            {
-                VkAccelerationStructureInstanceKHR as_instance;
-                as_instance.transform = {
-                    1.0f, 0.0f, 0.0f, 0.0f,
-                    0.0f, 1.0f, 0.0f, 0.0f,
-                    0.0f, 0.0f, 1.0f, 0.0f
-                };
-                as_instance.instanceCustomIndex = 0;
-                as_instance.mask = 0xff;
-                as_instance.instanceShaderBindingTableRecordOffset = 0;
-                as_instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-                as_instance.accelerationStructureReference = result.blas.address;
-
-                result.tlas.instance = make_static_buffer(context, {
-                    .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-                    .usage = VMA_MEMORY_USAGE_CPU_ONLY,
-                    .capacity = sizeof as_instance,
-                });
-                buffer_address.buffer = result.tlas.instance.handle;
-                std::memcpy(result.tlas.instance.mapped, &as_instance, sizeof as_instance);
-                result.tlas.dirty = false;
-
-                VkAccelerationStructureGeometryKHR as_geometry_info = {};
-                as_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-                as_geometry_info.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
-                as_geometry_info.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
-                as_geometry_info.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
-                as_geometry_info.geometry.instances.arrayOfPointers = false;
-                as_geometry_info.geometry.instances.data.deviceAddress = vkGetBufferDeviceAddress(context.device, &buffer_address);
-
-                VkAccelerationStructureBuildGeometryInfoKHR as_build_geometry_info = {};
-                as_build_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
-                as_build_geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-                as_build_geometry_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
-                as_build_geometry_info.geometryCount = 1;
-                as_build_geometry_info.pGeometries = &as_geometry_info;
-
-                std::uint32_t primitive_count = 1;
-                VkAccelerationStructureBuildSizesInfoKHR as_build_sizes_info = {};
-                as_build_sizes_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
-                vkGetAccelerationStructureBuildSizesKHR(
-                    context.device,
-                    VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-                    &as_build_geometry_info,
-                    &primitive_count,
-                    &as_build_sizes_info);
-
-                detail::log("Vulkan", detail::severity_info, detail::type_general, "creating TLAS, requesting: %llu bytes", as_build_sizes_info.accelerationStructureSize);
-                result.tlas.buffer = make_static_buffer(context, {
-                    .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
-                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                    .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-                    .capacity = as_build_sizes_info.accelerationStructureSize
-                });
-
-                buffer_address.buffer = result.tlas.buffer.handle;
-                VkAccelerationStructureCreateInfoKHR as_info = {};
-                as_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-                as_info.createFlags = {};
-                as_info.buffer = result.tlas.buffer.handle;
-                as_info.offset = 0;
-                as_info.size = result.tlas.buffer.capacity;
-                as_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-                as_info.deviceAddress = 0;
-                crd_vulkan_check(vkCreateAccelerationStructureKHR(context.device, &as_info, nullptr, &result.tlas.handle));
-                VkAccelerationStructureDeviceAddressInfoKHR as_address_info;
-                as_address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-                as_address_info.pNext = nullptr;
-                as_address_info.accelerationStructure = result.tlas.handle;
-                result.tlas.address = vkGetAccelerationStructureDeviceAddressKHR(context.device, &as_address_info);
-
-                detail::log("Vulkan", detail::severity_info, detail::type_general, "building TLAS, requesting: %llu bytes", as_build_sizes_info.buildScratchSize);
-                auto build_scratch_buffer = make_static_buffer(context, {
-                    .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
-                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                    .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-                    .capacity = as_build_sizes_info.buildScratchSize
-                });
-                buffer_address.buffer = build_scratch_buffer.handle;
-
-                as_build_geometry_info.dstAccelerationStructure = result.tlas.handle;
-                as_build_geometry_info.scratchData.deviceAddress = vkGetBufferDeviceAddress(context.device, &buffer_address);
-
-                VkAccelerationStructureBuildRangeInfoKHR as_build_range_info;
-                as_build_range_info.primitiveCount = 1;
-                as_build_range_info.primitiveOffset = 0;
-                as_build_range_info.firstVertex = 0;
-                as_build_range_info.transformOffset = 0;
-
-                auto build_tlas_commands = make_command_buffer(context, {
-                    .pool = graphics_pool,
-                    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
-                });
-                build_tlas_commands
-                    .begin()
-                    .build_acceleration_structure(&as_build_geometry_info, &as_build_range_info)
-                    .end();
-                immediate_submit(context, build_tlas_commands, queue_type_graphics);
-                destroy_static_buffer(context, build_scratch_buffer);
-                destroy_command_buffer(context, build_tlas_commands);
             }
 #else
             wait_fence(context, request_done);

@@ -24,7 +24,7 @@ namespace crd {
     struct TopLevelAS : AccelerationStructure {
         TopLevelAS() noexcept;
 
-        StaticBuffer instance;
-        bool dirty;
+        StaticBuffer instances;
+        StaticBuffer build;
     };
 } // namespace crd

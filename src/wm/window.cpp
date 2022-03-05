@@ -23,7 +23,7 @@ namespace crd {
         return window;
     }
 
-    crd_nodiscard crd_module float time() noexcept {
+    crd_nodiscard crd_module float current_time() noexcept {
         return glfwGetTime();
     }
 

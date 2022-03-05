@@ -13,5 +13,6 @@ namespace crd {
     crd_module inline PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
     crd_module inline PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
     crd_module inline PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR;
+    crd_module inline PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR;
 #endif
 } // namespace crd

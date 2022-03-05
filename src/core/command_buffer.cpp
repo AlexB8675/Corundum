@@ -6,6 +6,7 @@
 #include <corundum/core/dispatch.hpp>
 #include <corundum/core/pipeline.hpp>
 #include <corundum/core/context.hpp>
+#include <corundum/core/clear.hpp>
 
 #include <vector>
 #include <corundum/core/static_buffer.hpp>
@@ -182,6 +183,18 @@ namespace crd {
 
     crd_module CommandBuffer& CommandBuffer::push_constants(VkShaderStageFlags flags, const void* data, std::size_t size) noexcept {
         vkCmdPushConstants(handle, active_pipeline->layout.pipeline, flags, 0, size, data);
+        return *this;
+    }
+
+    crd_module CommandBuffer& CommandBuffer::clear_image(const Image& image, const ClearValue& clear) noexcept {
+        const auto value = as_vulkan(clear);
+        VkImageSubresourceRange subresource;
+        subresource.aspectMask = image.aspect;
+        subresource.baseMipLevel = 0;
+        subresource.levelCount = image.mips;
+        subresource.baseArrayLayer = 0;
+        subresource.layerCount = image.layers;
+        vkCmdClearColorImage(handle, image.handle, VK_IMAGE_LAYOUT_GENERAL, &value.color, 1, &subresource);
         return *this;
     }
 
@@ -460,7 +473,8 @@ namespace crd {
         return *this;
     }
 
-    crd_module void CommandBuffer::end() const noexcept {
+    crd_module CommandBuffer& CommandBuffer::end() noexcept {
         crd_vulkan_check(vkEndCommandBuffer(handle));
+        return *this;
     }
 } // namespace crd

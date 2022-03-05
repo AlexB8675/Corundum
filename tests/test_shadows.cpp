@@ -270,7 +270,7 @@ int main() {
     while (!window.is_closed()) {
         const auto [commands, image, index] = renderer.acquire_frame(context, window, swapchain);
         const auto scene = build_scene(draw_cmds, black->info());
-        const auto current_frame = crd::time();
+        const auto current_frame = crd::current_time();
         const auto delta_time = current_frame - last_frame;
         last_frame = current_frame;
         fps += delta_time;
@@ -281,9 +281,9 @@ int main() {
             fps = 0;
         }
         lights[0].position = glm::vec4(
-            8.0f * std::sin(crd::time() / 4),
+            8.0f * std::sin(crd::current_time() / 4),
             6.0f,
-            8.0f * std::cos(crd::time() / 4),
+            8.0f * std::cos(crd::current_time() / 4),
             0.0f);
         for (std::size_t i = 0; const auto& light : lights) {
             light_ts[i++] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(light.position)), glm::vec3(0.1f));
