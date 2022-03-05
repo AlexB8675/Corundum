@@ -7,7 +7,6 @@ struct CameraUniform {
 
 struct RTScene {
     crd::in_flight_array<crd::TopLevelAS> tlas;
-    crd::in_flight_array<std::size_t> cache;
 };
 
 static inline VkTransformMatrixKHR as_vulkan(glm::mat4 matrix) noexcept {
@@ -18,35 +17,8 @@ static inline VkTransformMatrixKHR as_vulkan(glm::mat4 matrix) noexcept {
 }
 
 static inline void make_scene(const crd::Context& context, RTScene& scene, crd::CommandBuffer& commands, std::span<Draw> draw_cmds, std::uint32_t index) noexcept {
-    std::size_t t_size = 0;
-    for (auto& draw_cmd : draw_cmds) {
-        auto& model = *draw_cmd.model;
-        crd_likely_if(model.is_ready()) {
-            for (auto& submesh : model->submeshes) {
-                crd_likely_if(submesh.mesh.is_ready()) {
-                    t_size += draw_cmd.transforms.size();
-                }
-            }
-        }
-    }
     auto& tlas = scene.tlas[index];
-    auto instances_capacity = sizeof(VkAccelerationStructureInstanceKHR);
-    if (t_size) {
-        instances_capacity *= t_size;
-    }
-    crd_unlikely_if(tlas.instances.handle && tlas.instances.capacity < instances_capacity) {
-        crd::destroy_static_buffer(context, tlas.buffer);
-    }
-    crd_unlikely_if(!tlas.instances.handle) {
-        tlas.instances = crd::make_static_buffer(context, {
-            .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
-                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-            .capacity = instances_capacity
-        });
-    }
-    std::memset(tlas.instances.mapped, 0, instances_capacity);
-    std::uint32_t offset = 0;
+    std::vector<VkAccelerationStructureInstanceKHR> instances;
     for (const auto& draw_cmd : draw_cmds) {
         auto& model = *draw_cmd.model;
         crd_likely_if(model.is_ready()) {
@@ -66,13 +38,28 @@ static inline void make_scene(const crd::Context& context, RTScene& scene, crd::
                         }
                         result = glm::scale(result, transform.scale);
                         as_instance.transform = as_vulkan(result);
-                        std::memcpy(static_cast<char*>(tlas.instances.mapped) + offset, &as_instance, sizeof as_instance);
-                        offset += sizeof(VkAccelerationStructureInstanceKHR);
+                        instances.emplace_back(as_instance);
                     }
                 }
             }
         }
     }
+    crd_unlikely_if(instances.empty()) {
+        instances.emplace_back();
+    }
+    const auto instances_capacity = crd::size_bytes(instances);
+    crd_unlikely_if(tlas.instances.handle && tlas.instances.capacity < instances_capacity) {
+        crd::destroy_static_buffer(context, tlas.instances);
+    }
+    crd_unlikely_if(!tlas.instances.handle) {
+        tlas.instances = crd::make_static_buffer(context, {
+            .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+            .capacity = instances_capacity
+        });
+    }
+    std::memcpy(tlas.instances.mapped, instances.data(), instances_capacity);
 
     VkAccelerationStructureGeometryKHR as_geometry_info = {};
     as_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
@@ -86,6 +73,7 @@ static inline void make_scene(const crd::Context& context, RTScene& scene, crd::
     as_build_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
     as_build_geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
     as_build_geometry_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    as_build_geometry_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     as_build_geometry_info.geometryCount = 1;
     as_build_geometry_info.pGeometries = &as_geometry_info;
 
@@ -99,11 +87,9 @@ static inline void make_scene(const crd::Context& context, RTScene& scene, crd::
         &primitive_count,
         &as_build_sizes_info);
 
-    const auto hash = std::hash<std::string>()(std::string((const char*)tlas.instances.mapped, instances_capacity));
-    if (scene.cache[index] != hash) {
+    crd_unlikely_if(!tlas.handle) {
         crd::detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "creating TLAS, requesting: %llu bytes", as_build_sizes_info.accelerationStructureSize);
         crd_unlikely_if(tlas.buffer.handle && tlas.buffer.capacity < as_build_sizes_info.accelerationStructureSize) {
-            crd::vkDestroyAccelerationStructureKHR(context.device, tlas.handle, nullptr);
             crd::destroy_static_buffer(context, tlas.buffer);
         }
         if (!tlas.buffer.handle) {
@@ -129,7 +115,6 @@ static inline void make_scene(const crd::Context& context, RTScene& scene, crd::
         as_address_info.accelerationStructure = tlas.handle;
         tlas.address = crd::vkGetAccelerationStructureDeviceAddressKHR(context.device, &as_address_info);
     }
-    scene.cache[index] = hash;
 
     crd_unlikely_if(tlas.build.handle && tlas.build.capacity < as_build_sizes_info.buildScratchSize) {
         crd::destroy_static_buffer(context, tlas.build);
@@ -147,7 +132,7 @@ static inline void make_scene(const crd::Context& context, RTScene& scene, crd::
     as_build_geometry_info.dstAccelerationStructure = tlas.handle;
     as_build_geometry_info.scratchData.deviceAddress = crd::device_address(context, tlas.build);
     VkAccelerationStructureBuildRangeInfoKHR as_build_range_info;
-    as_build_range_info.primitiveCount = t_size;
+    as_build_range_info.primitiveCount = instances.size();
     as_build_range_info.primitiveOffset = 0;
     as_build_range_info.firstVertex = 0;
     as_build_range_info.transformOffset = 0;

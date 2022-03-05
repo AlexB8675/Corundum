@@ -3,7 +3,8 @@
 
 namespace crd {
     AccelerationStructure::AccelerationStructure(VkAccelerationStructureTypeKHR type) noexcept
-        : type(type),
+        : handle(),
+          type(type),
           buffer() {}
 
     BottomLevelAS::BottomLevelAS() noexcept
