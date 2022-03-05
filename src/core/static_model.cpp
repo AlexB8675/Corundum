@@ -203,6 +203,7 @@ namespace crd {
             detail::log("Vulkan", detail::severity_info, detail::type_general, "StaticModel \"%s\" was loaded successfully", path.c_str());
             return model;
         });
+        auto future = task->get_future();
         context.scheduler->AddTask({
             .Function = +[](ftl::TaskScheduler*, void* data) {
                 auto* task = static_cast<task_type*>(data);
@@ -211,7 +212,7 @@ namespace crd {
             },
             .ArgData = task
         }, ftl::TaskPriority::High);
-        return make_async(task->get_future());
+        return make_async(std::move(future));
     }
 
     crd_module void destroy_static_model(const Context& context, StaticModel& model) noexcept {

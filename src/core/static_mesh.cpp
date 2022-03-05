@@ -101,14 +101,14 @@ namespace crd {
                     .source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                     .dest_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
                     .source_access = {},
-                    .dest_access = {}
+                    .dest_access = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR
                 }, *context.transfer, *context.graphics)
                 .transfer_ownership({
                     .buffer = &indices,
                     .source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                     .dest_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
                     .source_access = {},
-                    .dest_access = {}
+                    .dest_access = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR
                 }, *context.transfer, *context.graphics)
 #else
                 .transfer_ownership({
@@ -131,17 +131,6 @@ namespace crd {
             fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
             fence_info.pNext = nullptr;
             fence_info.flags = {};
-#if defined(crd_enable_raytracing)
-            VkSemaphore ownership_done;
-            crd_vulkan_check(vkCreateSemaphore(context.device, &semaphore_info, nullptr, &ownership_done));
-            context.graphics->submit({
-                .commands = ownership_cmd,
-                .stages   = { VK_PIPELINE_STAGE_TRANSFER_BIT },
-                .waits    = { transfer_done },
-                .signals  = { ownership_done },
-                .done     = nullptr
-            });
-#else
             VkFence request_done;
             crd_vulkan_check(vkCreateFence(context.device, &fence_info, nullptr, &request_done));
             context.graphics->submit({
@@ -151,7 +140,7 @@ namespace crd {
                 .signals  = {},
                 .done     = request_done
             });
-#endif
+            wait_fence(context, request_done);
             StaticMesh result;
             result.geometry = geometry;
             result.indices = indices;
@@ -178,6 +167,7 @@ namespace crd {
                 as_build_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
                 as_build_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
                 as_build_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+                as_build_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
                 as_build_info.geometryCount = 1;
                 as_build_info.pGeometries = &as_geometry;
 
@@ -192,8 +182,7 @@ namespace crd {
 
                 detail::log("Vulkan", detail::severity_info, detail::type_general, "creating BLAS, requesting: %llu bytes", as_build_sizes.accelerationStructureSize);
                 result.blas.buffer = make_static_buffer(context, {
-                    .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
-                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                    .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
                     .usage = VMA_MEMORY_USAGE_GPU_ONLY,
                     .capacity = as_build_sizes.accelerationStructureSize
                 });
@@ -215,8 +204,7 @@ namespace crd {
 
                 detail::log("Vulkan", detail::severity_info, detail::type_general, "building BLAS, requesting: %llu bytes", as_build_sizes.buildScratchSize);
                 auto build_scratch_buffer = make_static_buffer(context, {
-                    .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
-                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                    .flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                     .usage = VMA_MEMORY_USAGE_GPU_ONLY,
                     .capacity = as_build_sizes.buildScratchSize
                 });
@@ -237,9 +225,14 @@ namespace crd {
                 build_blas_commands
                     .begin()
                     .build_acceleration_structure(&as_build_info, &as_build_range)
+                    .memory_barrier({
+                        .source_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                        .dest_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                        .source_access = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
+                        .dest_access = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+                    })
                     .end();
                 immediate_submit(context, build_blas_commands, queue_type_graphics);
-                vkDestroySemaphore(context.device, ownership_done, nullptr);
                 destroy_static_buffer(context, build_scratch_buffer);
                 destroy_command_buffer(context, build_blas_commands);
             }
@@ -254,6 +247,7 @@ namespace crd {
             destroy_command_buffer(context, transfer_cmd);
             return result;
         });
+        auto future = task->get_future();
         context.scheduler->AddTask({
             .Function = [](ftl::TaskScheduler* scheduler, void* data) {
                 auto* task = static_cast<task_type*>(data);
@@ -262,7 +256,7 @@ namespace crd {
             },
             .ArgData = task
         }, ftl::TaskPriority::High);
-        return make_async(task->get_future());
+        return make_async(std::move(future));
     }
 
     crd_module void destroy_static_mesh(const Context& context, StaticMesh& mesh) noexcept {

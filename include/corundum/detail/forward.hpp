@@ -1,5 +1,7 @@
 #pragma once
 
+#include <corundum/detail/macros.hpp>
+
 #include <cstddef>
 
 struct GLFWwindow;
@@ -27,6 +29,9 @@ namespace crd {
     struct StaticModel;
     struct DescriptorBinding;
     struct DescriptorSetLayout;
+#if defined(crd_enable_raytracing)
+    struct AccelerationStructure;
+#endif
     template <std::size_t>
     struct Buffer;
     template <std::size_t>

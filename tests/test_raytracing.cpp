@@ -7,6 +7,7 @@ struct CameraUniform {
 
 struct RTScene {
     crd::in_flight_array<crd::TopLevelAS> tlas;
+    crd::in_flight_array<std::size_t> cache;
 };
 
 static inline VkTransformMatrixKHR as_vulkan(glm::mat4 matrix) noexcept {
@@ -44,22 +45,21 @@ static inline void make_scene(const crd::Context& context, RTScene& scene, crd::
             }
         }
     }
-    crd_unlikely_if(instances.empty()) {
-        instances.emplace_back();
-    }
+
     const auto instances_capacity = crd::size_bytes(instances);
-    crd_unlikely_if(tlas.instances.handle && tlas.instances.capacity < instances_capacity) {
-        crd::destroy_static_buffer(context, tlas.instances);
+    crd_unlikely_if(!instances.empty()) {
+        crd_unlikely_if(tlas.instances.handle && tlas.instances.capacity < instances_capacity) {
+            crd::destroy_static_buffer(context, tlas.instances);
+        }
+        crd_unlikely_if(!tlas.instances.handle) {
+            tlas.instances = crd::make_static_buffer(context, {
+                .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+                .usage = VMA_MEMORY_USAGE_CPU_ONLY,
+                .capacity = instances_capacity
+            });
+        }
+        std::memcpy(tlas.instances.mapped, instances.data(), instances_capacity);
     }
-    crd_unlikely_if(!tlas.instances.handle) {
-        tlas.instances = crd::make_static_buffer(context, {
-            .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
-                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-            .capacity = instances_capacity
-        });
-    }
-    std::memcpy(tlas.instances.mapped, instances.data(), instances_capacity);
 
     VkAccelerationStructureGeometryKHR as_geometry_info = {};
     as_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
@@ -67,7 +67,7 @@ static inline void make_scene(const crd::Context& context, RTScene& scene, crd::
     as_geometry_info.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
     as_geometry_info.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
     as_geometry_info.geometry.instances.arrayOfPointers = false;
-    as_geometry_info.geometry.instances.data.deviceAddress = crd::device_address(context, tlas.instances);
+    as_geometry_info.geometry.instances.data.deviceAddress = instances.empty() ? 0 : crd::device_address(context, tlas.instances);
 
     VkAccelerationStructureBuildGeometryInfoKHR as_build_geometry_info = {};
     as_build_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -77,7 +77,7 @@ static inline void make_scene(const crd::Context& context, RTScene& scene, crd::
     as_build_geometry_info.geometryCount = 1;
     as_build_geometry_info.pGeometries = &as_geometry_info;
 
-    std::uint32_t primitive_count = 1;
+    std::uint32_t primitive_count = instances.size();
     VkAccelerationStructureBuildSizesInfoKHR as_build_sizes_info = {};
     as_build_sizes_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
     crd::vkGetAccelerationStructureBuildSizesKHR(
@@ -87,19 +87,23 @@ static inline void make_scene(const crd::Context& context, RTScene& scene, crd::
         &primitive_count,
         &as_build_sizes_info);
 
-    crd_unlikely_if(!tlas.handle) {
+    const auto current_hash = std::hash<std::string_view>()({
+        (const char*)tlas.instances.mapped,
+        tlas.instances.capacity
+    });
+    crd_unlikely_if(scene.cache[index] != current_hash) {
         crd::detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "creating TLAS, requesting: %llu bytes", as_build_sizes_info.accelerationStructureSize);
-        crd_unlikely_if(tlas.buffer.handle && tlas.buffer.capacity < as_build_sizes_info.accelerationStructureSize) {
+        crd_likely_if(tlas.handle) {
+            crd::vkDestroyAccelerationStructureKHR(context.device, tlas.handle, nullptr);
+        }
+        crd_likely_if(tlas.buffer.handle) {
             crd::destroy_static_buffer(context, tlas.buffer);
         }
-        if (!tlas.buffer.handle) {
-            tlas.buffer = crd::make_static_buffer(context, {
-                .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
-                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-                .capacity = as_build_sizes_info.accelerationStructureSize
-            });
-        }
+        tlas.buffer = crd::make_static_buffer(context, {
+            .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
+            .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+            .capacity = as_build_sizes_info.accelerationStructureSize
+        });
         VkAccelerationStructureCreateInfoKHR as_info = {};
         as_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
         as_info.createFlags = {};
@@ -115,20 +119,16 @@ static inline void make_scene(const crd::Context& context, RTScene& scene, crd::
         as_address_info.accelerationStructure = tlas.handle;
         tlas.address = crd::vkGetAccelerationStructureDeviceAddressKHR(context.device, &as_address_info);
     }
+    scene.cache[index] = current_hash;
 
-    crd_unlikely_if(tlas.build.handle && tlas.build.capacity < as_build_sizes_info.buildScratchSize) {
+    crd_likely_if(tlas.build.handle) {
         crd::destroy_static_buffer(context, tlas.build);
     }
-    if (!tlas.build.handle) {
-        tlas.build = crd::make_static_buffer(context, {
-            .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
-                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-            .capacity = as_build_sizes_info.buildScratchSize
-        });
-        crd::detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "building TLAS, requesting: %llu bytes", as_build_sizes_info.buildScratchSize);
-    }
-
+    tlas.build = crd::make_static_buffer(context, {
+        .flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+        .capacity = as_build_sizes_info.buildScratchSize
+    });
     as_build_geometry_info.dstAccelerationStructure = tlas.handle;
     as_build_geometry_info.scratchData.deviceAddress = crd::device_address(context, tlas.build);
     VkAccelerationStructureBuildRangeInfoKHR as_build_range_info;
@@ -152,19 +152,19 @@ int main() {
     auto renderer = crd::make_renderer(context);
     auto swapchain = crd::make_swapchain(context, window);
     std::vector<crd::Async<crd::StaticModel>> models;
-    models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/plane/plane.obj"));
-    //models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.obj"));
-    /*std::vector<Draw> draw_cmds = { {
+    //models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
+    //models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
+    //models.emplace_back(crd::request_static_model(context, "../data/models/plane/plane.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.obj"));
+    std::vector<Draw> draw_cmds = { {
         .model = &models[0],
         .transforms = { {
             .position = glm::vec3(0.0f),
             .rotation = {},
             .scale = glm::vec3(0.02f)
         } }
-    } };*/
-    std::vector<Draw> draw_cmds = { {
+    } };
+    /*std::vector<Draw> draw_cmds = { {
         .model = &models[0],
         .transforms = { {
             .position = glm::vec3(0.0f),
@@ -185,7 +185,7 @@ int main() {
             .rotation = {},
             .scale = glm::vec3(1.0f)
         } }
-    } };
+    } };*/
 
     auto result = crd::make_image(context, {
         .width   = window.width,
@@ -258,15 +258,12 @@ int main() {
 
         camera_buffer.write(&camera_data, 0, sizeof camera_data);
 
-        commands.begin();
-        make_scene(context, scene, commands, draw_cmds, index);
+        make_scene(context, scene, commands.begin(), draw_cmds, index);
 
         main_set[index]
             .bind(context, main_pipeline.bindings["Camera"], camera_buffer[index].info())
             .bind(context, main_pipeline.bindings["image"], result.info(VK_IMAGE_LAYOUT_GENERAL))
-            .bind(context, main_pipeline.bindings["tlas"], std::vector{
-                scene.tlas[index].handle
-            });
+            .bind(context, main_pipeline.bindings["tlas"], scene.tlas[index]);
 
         commands
             .bind_pipeline(main_pipeline)
