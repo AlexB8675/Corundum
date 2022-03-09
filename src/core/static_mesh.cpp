@@ -196,11 +196,7 @@ namespace crd {
                 as_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
                 as_info.deviceAddress = 0;
                 crd_vulkan_check(vkCreateAccelerationStructureKHR(context.device, &as_info, nullptr, &result.blas.handle));
-                VkAccelerationStructureDeviceAddressInfoKHR as_address_info;
-                as_address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-                as_address_info.pNext = nullptr;
-                as_address_info.accelerationStructure = result.blas.handle;
-                result.blas.address = vkGetAccelerationStructureDeviceAddressKHR(context.device, &as_address_info);
+                result.blas.address = device_address(context, result.blas);
 
                 detail::log("Vulkan", detail::severity_info, detail::type_general, "building BLAS, requesting: %llu bytes", as_build_sizes.buildScratchSize);
                 auto build_scratch_buffer = make_static_buffer(context, {

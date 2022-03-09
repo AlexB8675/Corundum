@@ -3,6 +3,8 @@
 
 #include <corundum/detail/logger.hpp>
 
+#include <GLFW/glfw3.h>
+
 #include <string_view>
 #include <optional>
 #include <utility>
@@ -12,7 +14,6 @@
 #include <string>
 #include <array>
 #include <span>
-#include "corundum/core/context.hpp"
 
 namespace crd {
     crd_nodiscard static inline bool has_extension(std::span<VkExtensionProperties> extensions, const char* extension) noexcept {
@@ -66,18 +67,14 @@ namespace crd {
             vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
             std::vector<VkExtensionProperties> extensions_props(extension_count);
             vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions_props.data());
+            std::uint32_t surface_extension_count = 0;
+            const char** surface_extensions = glfwGetRequiredInstanceExtensions(&surface_extension_count);
             std::vector<const char*> extension_names;
             extension_names.reserve(extension_count);
 #if defined(crd_debug)
             extension_names.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
-            for (const auto& [name, _] : extensions_props) {
-                crd_likely_if(!std::string_view(name).starts_with("VK_NV") ||
-                              (std::string_view(name) != VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
-                    detail::log("Vulkan", detail::severity_verbose, detail::type_general, "  - %s", name);
-                    extension_names.emplace_back(name);
-                }
-            }
+            extension_names.insert(extension_names.end(), surface_extensions, surface_extensions + surface_extension_count);
             VkInstanceCreateInfo instance_info;
             instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
             instance_info.pNext = nullptr;

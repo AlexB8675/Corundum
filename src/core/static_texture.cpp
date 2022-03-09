@@ -165,13 +165,17 @@ namespace crd {
                     });
                 }
             }
+            VkPipelineStageFlags final_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+#if defined(crd_enable_raytracing)
+            final_stage |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+#endif
             ownership_cmd
                 .transition_layout({
                     .image = &image,
                     .mip = 0,
                     .level = std::max(image.mips - 1, 1u),
                     .source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    .dest_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    .dest_stage = final_stage,
                     .source_access = VK_ACCESS_TRANSFER_READ_BIT,
                     .dest_access = VK_ACCESS_SHADER_READ_BIT,
                     .old_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,

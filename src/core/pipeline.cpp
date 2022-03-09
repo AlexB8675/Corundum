@@ -747,7 +747,7 @@ namespace crd {
                             .dynamic = false,
                             .index = binding,
                             .count = 1,
-                            .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                            .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                             .stage = stage
                         });
                 }

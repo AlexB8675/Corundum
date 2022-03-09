@@ -101,10 +101,8 @@ namespace crd {
     template struct Async<StaticMesh>;
     template struct Async<StaticTexture>;
     template struct Async<StaticModel>;
-    template struct Async<AccelerationStructure>;
 
     template crd_module Async<StaticMesh> make_async(std::future<StaticMesh>&&);
     template crd_module Async<StaticTexture> make_async(std::future<StaticTexture>&&);
     template crd_module Async<StaticModel> make_async(std::future<StaticModel>&&);
-    template crd_module Async<AccelerationStructure> make_async(std::future<AccelerationStructure>&&);
 } // namespace crd

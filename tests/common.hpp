@@ -312,7 +312,7 @@ static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& cam
     for (std::size_t i = 0; i < shadow_cascades; ++i) {
         float near;
         float far;
-        if (i == 0) {
+        crd_unlikely_if(i == 0) {
             near = camera.near;
             far = cascade_levels[i];
         } else {
