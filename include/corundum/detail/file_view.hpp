@@ -4,7 +4,7 @@
 
 #include <cstddef>
 
-namespace crd::detail {
+namespace crd::dtl {
     struct FileView {
 #if defined(_WIN32)
         void* handle;
@@ -18,4 +18,4 @@ namespace crd::detail {
 
     crd_nodiscard FileView make_file_view(const char*) noexcept;
                   void     destroy_file_view(FileView&) noexcept;
-} // namespace crd::detail
+} // namespace crd::dtl

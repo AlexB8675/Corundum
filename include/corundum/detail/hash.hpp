@@ -13,12 +13,12 @@
 #include <vector>
 #include <span>
 
-namespace crd::detail {
+namespace crd::dtl {
     template <typename... Args>
     crd_nodiscard std::size_t hash(std::size_t seed, Args&&... args) noexcept {
         return ((seed ^= std::hash<std::remove_cvref_t<Args>>()(args) + 0x9e3779b9 + (seed << 6) + (seed >> 2)), ...);
     }
-} // namespace crd::detail
+} // namespace crd::dtl
 
 namespace std {
     crd_make_hashable(crd::DescriptorBinding, value, value.dynamic, value.index, value.count, value.type, value.stage);
@@ -33,7 +33,7 @@ namespace std {
         crd_nodiscard size_t operator ()(const vector<T>& value) const noexcept {
             size_t seed = 0;
             for (const auto& each : value) {
-                seed = crd::detail::hash(seed, each);
+                seed = crd::dtl::hash(seed, each);
             }
             return seed;
         }
@@ -44,7 +44,7 @@ namespace std {
         crd_nodiscard size_t operator ()(span<T> value) const noexcept {
             size_t seed = 0;
             for (const auto& each : value) {
-                seed = crd::detail::hash(seed, each);
+                seed = crd::dtl::hash(seed, each);
             }
             return seed;
         }

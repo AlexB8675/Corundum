@@ -14,7 +14,7 @@ namespace crd {
         VkDeviceAddress address;
         StaticBuffer buffer;
     protected:
-        AccelerationStructure(VkAccelerationStructureTypeKHR) noexcept;
+        explicit AccelerationStructure(VkAccelerationStructureTypeKHR) noexcept;
     };
 
     struct BottomLevelAS : AccelerationStructure {

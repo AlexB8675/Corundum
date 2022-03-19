@@ -1,5 +1,4 @@
 #include <corundum/core/acceleration_structure.hpp>
-#include <corundum/core/context.hpp>
 
 namespace crd {
     AccelerationStructure::AccelerationStructure(VkAccelerationStructureTypeKHR type) noexcept

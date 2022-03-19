@@ -25,20 +25,20 @@ namespace crd {
     }
 
     crd_nodiscard static inline std::vector<std::uint32_t> import_spirv(const char* path) noexcept {
-        auto file = detail::make_file_view(path);
+        auto file = dtl::make_file_view(path);
         std::vector<std::uint32_t> code(file.size / sizeof(std::uint32_t));
         std::memcpy(code.data(), file.data, file.size);
-        detail::destroy_file_view(file);
+        dtl::destroy_file_view(file);
         return code;
     }
 
     crd_nodiscard crd_module GraphicsPipeline make_pipeline(const Context& context, Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
-        detail::log("Vulkan", detail::severity_info, detail::type_general, "loading vertex shader: \"%s\"", info.vertex);
+        dtl::log("Vulkan", dtl::severity_info, dtl::type_general, "loading vertex shader: \"%s\"", info.vertex);
         if (info.geometry) {
-            detail::log("Vulkan", detail::severity_info, detail::type_general, "loading geometry shader: \"%s\"", info.geometry);
+            dtl::log("Vulkan", dtl::severity_info, dtl::type_general, "loading geometry shader: \"%s\"", info.geometry);
         }
         if (info.fragment) {
-            detail::log("Vulkan", detail::severity_info, detail::type_general, "loading fragment shader: \"%s\"", info.fragment);
+            dtl::log("Vulkan", dtl::severity_info, dtl::type_general, "loading fragment shader: \"%s\"", info.fragment);
         }
         GraphicsPipeline pipeline;
 
@@ -450,7 +450,7 @@ namespace crd {
         for (const auto& [index, descriptors] : pipeline_descriptor_layout) {
             bool dynamic = false;
             std::uint32_t max_bindings = 0;
-            const auto layout_hash = detail::hash(0, descriptors);
+            const auto layout_hash = dtl::hash(0, descriptors);
             auto& layout = renderer.set_layout_cache[layout_hash];
             crd_unlikely_if(!layout) {
                 std::vector<VkDescriptorBindingFlags> flags;
@@ -541,7 +541,7 @@ namespace crd {
 
     crd_nodiscard crd_module ComputePipeline make_pipeline(const Context& context, Renderer& renderer, ComputePipeline::CreateInfo&& info) noexcept {
         ComputePipeline pipeline;
-        detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "loading compute shader: \"%s\"", info.compute);
+        dtl::log("Vulkan", crd::dtl::severity_info, crd::dtl::type_general, "loading compute shader: \"%s\"", info.compute);
         const auto binary = import_spirv(info.compute);
         VkShaderModuleCreateInfo compute_module;
         compute_module.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -621,7 +621,7 @@ namespace crd {
         for (const auto& [index, descriptors] : pipeline_descriptor_layout) {
             bool dynamic = false;
             std::uint32_t max_bindings = 0;
-            const auto layout_hash = detail::hash(0, descriptors);
+            const auto layout_hash = dtl::hash(0, descriptors);
             auto& layout = renderer.set_layout_cache[layout_hash];
             crd_unlikely_if(!layout) {
                 std::vector<VkDescriptorBindingFlags> flags;
@@ -689,7 +689,7 @@ namespace crd {
         pipeline_info.basePipelineIndex = -1;
         crd_vulkan_check(vkCreateComputePipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
         vkDestroyShaderModule(context.device, compute_stage.module, nullptr);
-        detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "pipeline created successfully");
+        dtl::log("Vulkan", crd::dtl::severity_info, crd::dtl::type_general, "pipeline created successfully");
         return pipeline;
     }
 
@@ -943,7 +943,7 @@ namespace crd {
         for (const auto& [index, descriptors] : pipeline_descriptor_layout) {
             bool dynamic = false;
             std::uint32_t max_bindings = 0;
-            const auto layout_hash = detail::hash(0, descriptors);
+            const auto layout_hash = dtl::hash(0, descriptors);
             auto& layout = renderer.set_layout_cache[layout_hash];
             crd_unlikely_if(!layout) {
                 std::vector<VkDescriptorBindingFlags> flags;

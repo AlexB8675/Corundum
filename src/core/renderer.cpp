@@ -34,7 +34,7 @@ namespace crd {
     }
 
     static inline void recreate_swapchain(const Context& context, Window& window, Swapchain& swapchain) noexcept {
-        detail::log("Vulkan", detail::severity_warning, detail::type_performance, "window resized, recreating swapchain");
+        dtl::log("Vulkan", dtl::severity_warning, dtl::type_performance, "window resized, recreating swapchain");
         swapchain = make_swapchain(context, window, &swapchain);
         window.on_resize();
     }

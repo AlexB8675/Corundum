@@ -334,7 +334,7 @@ int main() {
         last_frame = current_frame;
         fps += delta_time;
         if (fps >= 1.6) {
-            crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf", 1 / (fps / frames));
+            crd::dtl::log("Scene", crd::dtl::severity_info, crd::dtl::type_performance, "Average FPS: %lf", 1 / (fps / frames));
             frames = 0;
             fps = 0;
         }

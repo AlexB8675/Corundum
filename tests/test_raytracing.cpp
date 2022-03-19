@@ -63,13 +63,6 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
                     as_instance.instanceShaderBindingTableRecordOffset = 0;
                     as_instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
                     as_instance.accelerationStructureReference = submesh.mesh->blas.address;
-                    object_addresses.push_back({
-                        emplace_descriptor(submesh.diffuse),
-                        emplace_descriptor(submesh.normal),
-                        emplace_descriptor(submesh.specular),
-                        crd::device_address(context, submesh.mesh->geometry),
-                        crd::device_address(context, submesh.mesh->indices)
-                    });
                     for (const auto& transform : draw_cmd.transforms) {
                         auto result = glm::mat4(1.0f);
                         result = glm::translate(result, transform.position);
@@ -79,6 +72,13 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
                         result = glm::scale(result, transform.scale);
                         as_instance.transform = as_vulkan(result);
                         instances.emplace_back(as_instance);
+                        object_addresses.push_back({
+                            emplace_descriptor(submesh.diffuse),
+                            emplace_descriptor(submesh.normal),
+                            emplace_descriptor(submesh.specular),
+                            crd::device_address(context, submesh.mesh->geometry),
+                            crd::device_address(context, submesh.mesh->indices)
+                        });
                     }
                 }
             }
@@ -140,7 +140,7 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
         &as_build_sizes_info);
 
     crd_unlikely_if(scene.cache[index] != primitive_count) {
-        crd::detail::log("Vulkan", crd::detail::severity_info, crd::detail::type_general, "creating TLAS, requesting: %llu bytes", as_build_sizes_info.accelerationStructureSize);
+        crd::dtl::log("Vulkan", crd::dtl::severity_info, crd::dtl::type_general, "creating TLAS, requesting: %llu bytes", as_build_sizes_info.accelerationStructureSize);
         crd_likely_if(tlas.handle) {
             crd::vkDestroyAccelerationStructureKHR(context.device, tlas.handle, nullptr);
         }
@@ -197,48 +197,50 @@ int main() {
     auto swapchain = crd::make_swapchain(context, window);
     auto black = crd::request_static_texture(context, "../data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
-    /*models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/plane/plane.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/deccer-cubes/SM_Deccer_Cubes_Textured.obj"));*/
-    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.obj"));
-    std::vector<Draw> draw_cmds = { {
+    //models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.gltf"));
+    //models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
+    //models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
+    auto draw_cmds = std::to_array<Draw>({/* {
         .model = &models[0],
         .transforms = { {
-            .position = glm::vec3(0.0f),
+            .position = glm::vec3(0.0f, 1.5f, 0.0f),
             .rotation = {},
-            .scale = glm::vec3(0.02f)
+            .scale = glm::vec3(0.5f)
+        }, {
+            .position = glm::vec3(2.0f, 0.0f, 1.0f),
+            .rotation = {},
+            .scale = glm::vec3(0.5f)
+        }, {
+            .position = glm::vec3(-1.0f, 0.0f, 2.0f),
+            .rotation = {
+                .axis = glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)),
+                .angle = glm::radians(45.0f)
+            },
+            .scale = glm::vec3(0.25f)
         } }
-    } };
-    /*std::vector<Draw> draw_cmds = { {
+    }, */{
         .model = &models[0],
-        .transforms = { {
-            .position = glm::vec3(0.0f),
-            .rotation = {},
-            .scale = glm::vec3(1.0f)
-        } }
-    }, {
-        .model = &models[1],
-        .transforms = { {
-            .position = glm::vec3(3.0f, 1.0f, 0.0f),
-            .rotation = {},
-            .scale = glm::vec3(3.0f)
-        } }
-    }, {
-        .model = &models[2],
         .transforms = { {
             .position = glm::vec3(0.0f, -0.5f, 0.0f),
             .rotation = {},
-            .scale = glm::vec3(1.0f)
+            .scale = glm::vec3(0.02f)
+        } }
+    }/*, {
+        .model = &models[2],
+        .transforms = { {
+            .position = glm::vec3(-4.0f, 1.0f, 0.0f),
+            .rotation = {},
+            .scale = glm::vec3(2.0f)
         } }
     }, {
         .model = &models[3],
         .transforms = { {
-            .position = glm::vec3(-5.0f, 2.0f, 0.0f),
+            .position = glm::vec3(4.0f, 1.0f, 0.0f),
             .rotation = {},
-            .scale = glm::vec3(1.0f)
+            .scale = glm::vec3(0.5f)
         } }
-    } };*/
+    }*/ });
 
     auto result = crd::make_image(context, {
         .width   = window.width,
@@ -381,7 +383,7 @@ int main() {
             .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT }
         });
         if (fps >= 1.6) {
-            crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
+            crd::dtl::log("Scene", crd::dtl::severity_info, crd::dtl::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
             frames = 0;
             fps = 0;
         }

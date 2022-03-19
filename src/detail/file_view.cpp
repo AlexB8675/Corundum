@@ -9,7 +9,7 @@
     #include <fcntl.h>
 #endif
 
-namespace crd::detail {
+namespace crd::dtl {
     crd_nodiscard FileView make_file_view(const char* path) noexcept {
         FileView file;
 #if defined(_WIN32)
@@ -39,4 +39,4 @@ namespace crd::detail {
 #endif
         file = {};
     }
-} // namespace crd::detail
+} // namespace crd::dtl

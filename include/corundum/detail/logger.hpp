@@ -8,7 +8,7 @@
 #include <chrono>
 #include <cstdio>
 
-namespace crd::detail {
+namespace crd::dtl {
     enum Severity {
         severity_verbose = 1 << 0,
         severity_info    = 1 << 1,
@@ -57,4 +57,4 @@ namespace crd::detail {
         }
 #endif
     }
-} // namespace crd::detail
+} // namespace crd::dtl

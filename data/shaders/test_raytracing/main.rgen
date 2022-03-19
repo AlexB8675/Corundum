@@ -2,6 +2,12 @@
 #extension GL_EXT_ray_tracing: enable
 #extension GL_EXT_nonuniform_qualifier: enable
 
+struct RayPayload {
+    vec3 ray_xdir;
+    vec3 ray_ydir;
+    vec3 color;
+};
+
 layout (set = 0, binding = 0) uniform Camera {
     mat4 projection;
     mat4 view;
@@ -11,7 +17,7 @@ layout (set = 0, binding = 1, rgba8) uniform image2D image;
 
 layout (set = 0, binding = 2) uniform accelerationStructureEXT tlas;
 
-layout (location = 0) rayPayloadEXT vec3 hit;
+layout (location = 0) rayPayloadEXT RayPayload payload;
 
 void main() {
 	const vec2 center = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
@@ -25,14 +31,13 @@ void main() {
 	const float t_max = 10000.0;
     const float gamma = 2.4;
 
-    hit = vec3(0.0);
     traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, origin.xyz, t_min, direction.xyz, t_max, 0);
     for (int i = 0; i < 3; ++i) {
-        if (hit[i] <= 0.0031308) {
-            hit[i] *= 12.92;
+        if (payload.color[i] <= 0.0031308) {
+            payload.color[i] *= 12.92;
         } else  {
-            hit[i] = 1.055 * pow(hit[i], 1.0 / gamma) - 0.055;
+            payload.color[i] = 1.055 * pow(payload.color[i], 1.0 / gamma) - 0.055;
         }
     }
-	imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(hit, 1.0));
+	imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(payload.color, 1.0));
 }

@@ -30,47 +30,47 @@ namespace crd {
     namespace fs = std::filesystem;
 
     struct FileViewStream : Assimp::IOStream {
-        detail::FileView handle;
-        std::size_t ptr;
+        dtl::FileView handle;
+        std::size_t offset;
 
         FileViewStream() noexcept = default;
 
-        explicit FileViewStream(detail::FileView handle) noexcept
+        explicit FileViewStream(dtl::FileView handle) noexcept
             : handle(handle),
-              ptr() {}
+              offset() {}
 
         ~FileViewStream() noexcept override {
-            detail::destroy_file_view(handle);
+            dtl::destroy_file_view(handle);
         }
 
         crd_nodiscard std::size_t Read(void* buffer, std::size_t size, std::size_t count) noexcept override {
-            crd_unlikely_if(ptr == handle.size) {
+            crd_unlikely_if(offset == handle.size) {
                 return 0;
             }
             auto bytes = size * count;
-            crd_unlikely_if(ptr + bytes >= handle.size) {
-                bytes = handle.size - ptr;
+            crd_unlikely_if(offset + bytes >= handle.size) {
+                bytes = handle.size - offset;
             }
-            std::memcpy(buffer, static_cast<const char*>(handle.data) + ptr, bytes);
-            ptr += bytes;
-            return bytes;
+            std::memcpy(buffer, static_cast<const char*>(handle.data) + offset, bytes);
+            offset += bytes;
+            return count;
         }
 
-        crd_nodiscard std::size_t Write(const void*, std::size_t size, std::size_t count) noexcept override {
-            return size * count;
+        crd_nodiscard std::size_t Write(const void*, std::size_t, std::size_t) noexcept override {
+            return 0;
         }
 
-        crd_nodiscard aiReturn Seek(std::size_t offset, aiOrigin origin) noexcept override {
+        crd_nodiscard aiReturn Seek(std::size_t where, aiOrigin origin) noexcept override {
             switch (origin) {
-                case aiOrigin_SET: { ptr  = offset; } break;
-                case aiOrigin_CUR: { ptr += offset; } break;
-                case aiOrigin_END: { ptr -= offset; } break;
+                case aiOrigin_SET: { offset  = where; } break;
+                case aiOrigin_CUR: { offset += where; } break;
+                case aiOrigin_END: { offset -= where; } break;
             }
             return aiReturn_SUCCESS;
         }
 
         crd_nodiscard std::size_t Tell() const noexcept override {
-            return ptr;
+            return offset;
         }
 
         crd_nodiscard std::size_t FileSize() const noexcept override {
@@ -86,11 +86,11 @@ namespace crd {
         }
 
         crd_nodiscard char getOsSeparator() const noexcept override {
-            return Assimp::DefaultIOSystem().getOsSeparator();
+            return (char)fs::path::preferred_separator;
         }
 
-        crd_nodiscard Assimp::IOStream* Open(const char* path, const char* mode) noexcept override {
-            return new FileViewStream(detail::make_file_view(path));
+        crd_nodiscard Assimp::IOStream* Open(const char* path, const char*) noexcept override {
+            return new FileViewStream(dtl::make_file_view(path));
         }
 
         void Close(Assimp::IOStream* stream) noexcept override {
@@ -184,7 +184,7 @@ namespace crd {
     }
 
     crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context& context, std::string&& path) noexcept {
-        detail::log("Core", detail::severity_info, detail::type_general, "loading model: \"%s\"", path.c_str());
+        dtl::log("Core", dtl::severity_info, dtl::type_general, "loading model: \"%s\"", path.c_str());
         using task_type = std::packaged_task<StaticModel()>;
         auto* task = new task_type([&context, path = std::move(path)]() noexcept -> StaticModel {
             Assimp::Importer importer;
@@ -195,12 +195,15 @@ namespace crd {
                 aiProcess_CalcTangentSpace;
             importer.SetIOHandler(new FileViewSystem());
             const auto scene = importer.ReadFile(path, post_process);
-            crd_assert(scene && !scene->mFlags && scene->mRootNode, "failed to load model");
+            crd_unlikely_if(!scene || !scene->mRootNode) {
+                dtl::log("Core", dtl::severity_error, dtl::type_validation, "Failed to load model \"%s\", error: %s", path.c_str(), importer.GetErrorString());
+                crd_panic();
+            }
             TextureCache cache;
             cache.reserve(128);
             StaticModel model;
             process_node(context, scene, scene->mRootNode, model, cache, fs::path(path).parent_path());
-            detail::log("Vulkan", detail::severity_info, detail::type_general, "StaticModel \"%s\" was loaded successfully", path.c_str());
+            dtl::log("Vulkan", dtl::severity_info, dtl::type_general, "StaticModel \"%s\" was loaded successfully", path.c_str());
             return model;
         });
         auto future = task->get_future();

@@ -309,7 +309,7 @@ int main() {
     auto black = crd::request_static_texture(context, "../data/textures/black.png", crd::texture_srgb);
     auto models = std::vector<crd::Async<crd::StaticModel>>();
     models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.gltf"));
     models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
     models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
     //models.emplace_back(crd::request_static_model(context, "../data/models/deccer-cubes/SM_Deccer_Cubes_Textured.obj"));
@@ -434,9 +434,9 @@ int main() {
         fps += delta_time;
         ++frames;
         dir_lights[0].direction = glm::vec4(
-            35.0f * std::cos(crd::current_time() / 6),
+            75.0f * std::cos(crd::current_time() / 6),
             150.0f,
-            35.0f * std::sin(crd::current_time() / 6),
+            75.0f * std::sin(crd::current_time() / 6),
             1.0f);
         const auto cascades = calculate_cascades(camera, dir_lights[0].direction);
 
@@ -562,7 +562,7 @@ int main() {
             .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT }
         });
         if (fps >= 1.6) {
-            crd::detail::log("Scene", crd::detail::severity_info, crd::detail::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
+            crd::dtl::log("Scene", crd::dtl::severity_info, crd::dtl::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
             frames = 0;
             fps = 0;
         }

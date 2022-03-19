@@ -60,11 +60,17 @@
         crd_unreachable();      \
     } while (false)
 
+#define crd_panic()                 \
+    do {                            \
+        crd_assert(false, "panic"); \
+        crd_unreachable();          \
+    } while (false)
+
 #define crd_make_hashable(T, name, ...)                                  \
     template <>                                                          \
     struct hash<T> {                                                     \
         crd_nodiscard size_t operator ()(const T& name) const noexcept { \
-            return crd::detail::hash(0, __VA_ARGS__);                    \
+            return crd::dtl::hash(0, __VA_ARGS__);                    \
         }                                                                \
     }
 
@@ -76,7 +82,7 @@
             (f)(__VA_ARGS__);                                                                 \
             const auto end = crd_benchmark_timestamp();                                       \
             const auto milli = crd_benchmark_convert(std::chrono::milliseconds, start, end);  \
-            detail::log("Core", detail::severity_info, detail::type_performance, msg, milli); \
+            dtl::log("Core", dtl::severity_info, dtl::type_performance, msg, milli); \
         } while (false)
     #define crd_benchmark_timestamp() std::chrono::high_resolution_clock::now()
     #define crd_benchmark_convert(to, start, end) std::chrono::duration_cast<to>((end) - (start)).count()

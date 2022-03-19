@@ -53,15 +53,15 @@ namespace crd {
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorBufferInfo buffer) noexcept {
-        const auto binding_hash = detail::hash(0, binding);
-        const auto descriptor_hash = detail::hash(0, buffer);
+        const auto binding_hash = dtl::hash(0, binding);
+        const auto descriptor_hash = dtl::hash(0, buffer);
         const auto is_bound =
             std::find_if(bound.begin(), bound.end(), [=](const auto& each) {
                 return each.binding == binding_hash;
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            detail::log("Vulkan", detail::severity_info, detail::type_performance,
+            dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
                         "updating buffer descriptor with binding: %d, handle: %p, range: %llu", binding.index, buffer.buffer, buffer.range);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -85,15 +85,15 @@ namespace crd {
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorImageInfo image) noexcept {
-        const auto binding_hash = detail::hash(0, binding);
-        const auto descriptor_hash = detail::hash(0, image);
+        const auto binding_hash = dtl::hash(0, binding);
+        const auto descriptor_hash = dtl::hash(0, image);
         const auto is_bound =
             std::find_if(bound.begin(), bound.end(), [=](const auto& each) {
                 return each.binding == binding_hash;
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            detail::log("Vulkan", detail::severity_info, detail::type_performance,
+            dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
                         "updating image descriptor with binding: %d, handle: %p", binding.index, image.imageView);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -118,15 +118,15 @@ namespace crd {
 
 #if defined(crd_enable_raytracing)
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, const AccelerationStructure& tlas) noexcept {
-        const auto binding_hash = detail::hash(0, binding);
-        const auto descriptor_hash = detail::hash(0, tlas);
+        const auto binding_hash = dtl::hash(0, binding);
+        const auto descriptor_hash = dtl::hash(0, tlas);
         const auto is_bound =
             std::find_if(bound.begin(), bound.end(), [=](const auto& each) {
                 return each.binding == binding_hash;
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            detail::log("Vulkan", detail::severity_info, detail::type_performance,
+            dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
                         "updating TLAS descriptor with binding: %d, handle: %p", binding.index, tlas.handle);
             VkWriteDescriptorSetAccelerationStructureKHR as_update;
             as_update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
@@ -156,15 +156,15 @@ namespace crd {
 #endif
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, const std::vector<VkDescriptorImageInfo>& images) noexcept {
-        const auto binding_hash = detail::hash(0, binding);
-        const auto descriptor_hash = detail::hash(0, images);
+        const auto binding_hash = dtl::hash(0, binding);
+        const auto descriptor_hash = dtl::hash(0, images);
         const auto is_bound =
             std::find_if(bound.begin(), bound.end(), [=](const auto& each) {
                 return each.binding == binding_hash;
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            detail::log("Vulkan", detail::severity_info, detail::type_performance,
+            dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
                         "updating image dynamic descriptor with binding: %d, images: %llu", binding.index, images.size());
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

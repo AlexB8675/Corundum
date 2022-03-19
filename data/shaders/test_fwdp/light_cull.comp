@@ -74,22 +74,18 @@ ViewFrustum make_frustum(ivec2 tile_id) {
         frustum.points[i + 4] = temp.xyz / temp.w;
     }
 
-    vec3 temp_normal;
     for (int i = 0; i < 4; i++) {
-        temp_normal = cross(frustum.points[i] - camera.position, frustum.points[i + 1] - camera.position);
-        temp_normal = normalize(temp_normal);
+        const vec3 temp_normal = normalize(cross(frustum.points[i] - camera.position, frustum.points[i + 1] - camera.position));
         frustum.planes[i] = vec4(temp_normal, - dot(temp_normal, frustum.points[i]));
     }
     // near plane
     {
-        temp_normal = cross(frustum.points[1] - frustum.points[0], frustum.points[3] - frustum.points[0]);
-        temp_normal = normalize(temp_normal);
+        const vec3 temp_normal = normalize(cross(frustum.points[1] - frustum.points[0], frustum.points[3] - frustum.points[0]));
         frustum.planes[4] = vec4(temp_normal, - dot(temp_normal, frustum.points[0]));
     }
     // far plane
     {
-        temp_normal = cross(frustum.points[7] - frustum.points[4], frustum.points[5] - frustum.points[4]);
-        temp_normal = normalize(temp_normal);
+        const vec3 temp_normal = normalize(cross(frustum.points[7] - frustum.points[4], frustum.points[5] - frustum.points[4]));
         frustum.planes[5] = vec4(temp_normal, - dot(temp_normal, frustum.points[4]));
     }
 
