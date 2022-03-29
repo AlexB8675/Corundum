@@ -13,6 +13,8 @@ layout (set = 0, binding = 2) uniform sampler2D[] textures;
 layout (push_constant) uniform Indices {
     uint model_index;
     uint diffuse_index;
+    uint normal_index;
+    uint specular_index;
 };
 
 void main() {

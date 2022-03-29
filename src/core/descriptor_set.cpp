@@ -62,7 +62,7 @@ namespace crd {
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
             dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
-                        "updating buffer descriptor with binding: %d, handle: %p, range: %llu", binding.index, buffer.buffer, buffer.range);
+                     "updating buffer descriptor with binding: %d, handle: %p, range: %llu", binding.index, buffer.buffer, buffer.range);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
@@ -94,7 +94,7 @@ namespace crd {
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
             dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
-                        "updating image descriptor with binding: %d, handle: %p", binding.index, image.imageView);
+                     "updating image descriptor with binding: %d, handle: %p", binding.index, image.imageView);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
@@ -107,7 +107,7 @@ namespace crd {
             update.pBufferInfo = nullptr;
             update.pTexelBufferView = nullptr;
             vkUpdateDescriptorSets(context.device, 1, &update, 0, nullptr);
-            if (found_binding) {
+            crd_likely_if(found_binding) {
                 is_bound->descriptor = descriptor_hash;
             } else {
                 bound.push_back({ binding_hash, descriptor_hash });
@@ -127,7 +127,7 @@ namespace crd {
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
             dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
-                        "updating TLAS descriptor with binding: %d, handle: %p", binding.index, tlas.handle);
+                     "updating TLAS descriptor with binding: %d, handle: %p", binding.index, tlas.handle);
             VkWriteDescriptorSetAccelerationStructureKHR as_update;
             as_update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
             as_update.pNext = nullptr;
@@ -165,7 +165,7 @@ namespace crd {
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
             dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
-                        "updating image dynamic descriptor with binding: %d, images: %llu", binding.index, images.size());
+                     "updating image dynamic descriptor with binding: %d, images: %llu", binding.index, images.size());
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;

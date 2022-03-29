@@ -20,7 +20,7 @@ namespace crd {
             const auto vertex_bytes  = size_bytes(info.geometry);
             const auto index_bytes   = size_bytes(info.indices);
             dtl::log("Vulkan", dtl::severity_verbose, dtl::type_general,
-                        "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", vertex_bytes * index_bytes);
+                     "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", vertex_bytes * index_bytes);
             auto vertex_staging = make_static_buffer(context, {
                 .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 .usage = VMA_MEMORY_USAGE_CPU_ONLY,
@@ -147,8 +147,6 @@ namespace crd {
 #if defined(crd_enable_raytracing)
             // BLAS
             {
-                const auto vertex_address = device_address(context, geometry);
-                const auto index_address = device_address(context, indices);
                 const auto triangles = (std::uint32_t)info.indices.size() / 3;
 
                 VkAccelerationStructureGeometryKHR as_geometry = {};
@@ -157,11 +155,11 @@ namespace crd {
                 as_geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
                 as_geometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
                 as_geometry.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
-                as_geometry.geometry.triangles.vertexData.deviceAddress = vertex_address;
+                as_geometry.geometry.triangles.vertexData.deviceAddress = geometry.address;
                 as_geometry.geometry.triangles.maxVertex = vertex_bytes / vertex_size;
                 as_geometry.geometry.triangles.vertexStride = vertex_size;
                 as_geometry.geometry.triangles.indexType = VK_INDEX_TYPE_UINT32;
-                as_geometry.geometry.triangles.indexData.deviceAddress = index_address;
+                as_geometry.geometry.triangles.indexData.deviceAddress = indices.address;
 
                 VkAccelerationStructureBuildGeometryInfoKHR as_build_info = {};
                 as_build_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;

@@ -1,5 +1,87 @@
 #include <common.hpp>
 
+static inline crd::GraphicsPipeline::CreateInfo shadow_pipeline_info(const crd::RenderPass& pass) noexcept {
+    return {
+        .vertex = "../data/shaders/test_csm/shadow.vert.spv",
+        .geometry = "../data/shaders/test_csm/shadow.geom.spv",
+        .fragment = "../data/shaders/test_csm/shadow.frag.spv",
+        .render_pass = &pass,
+        .attributes = {
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec2,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3
+        },
+        .attachments = {},
+        .states = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        },
+        .cull = VK_CULL_MODE_FRONT_BIT,
+        .subpass = 0,
+        .depth = {
+            .test = true,
+            .write = true
+        }
+    };
+}
+
+static inline crd::GraphicsPipeline::CreateInfo deferred_pipeline_info(const crd::RenderPass& pass) noexcept {
+    return {
+        .vertex = "../data/shaders/test_csm/gbuffer.vert.spv",
+        .geometry = nullptr,
+        .fragment = "../data/shaders/test_csm/gbuffer.frag.spv",
+        .render_pass = &pass,
+        .attributes = {
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec2,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3
+        },
+        .attachments = {
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend,
+            crd::color_attachment_disable_blend
+        },
+        .states = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        },
+        .cull = VK_CULL_MODE_BACK_BIT,
+        .subpass = 0,
+        .depth = {
+            .test = true,
+            .write = true
+        }
+    };
+}
+
+static inline crd::GraphicsPipeline::CreateInfo main_pipeline_info(const crd::RenderPass& pass) noexcept {
+    return {
+        .vertex = "../data/shaders/test_csm/main.vert.spv",
+        .geometry = nullptr,
+        .fragment = "../data/shaders/test_csm/main.frag.spv",
+        .render_pass = &pass,
+        .attributes = {},
+        .attachments = {
+            crd::color_attachment_auto
+        },
+        .states = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        },
+        .cull = VK_CULL_MODE_NONE,
+        .subpass = 1,
+        .depth = {
+            .test = false,
+            .write = false
+        }
+    };
+}
+
 int main() {
     auto window = crd::make_window(1280, 720, "Cascaded Shadows Test");
     auto context = crd::make_context();
@@ -169,8 +251,8 @@ int main() {
     auto shadow_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
-                .width   = 4096,
-                .height  = 4096,
+                .width   = 2048,
+                .height  = 2048,
                 .mips    = 1,
                 .layers  = shadow_cascades,
                 .format  = VK_FORMAT_D32_SFLOAT,
@@ -211,79 +293,9 @@ int main() {
             .attachments = { 0 }
         } }
     });
-    auto shadow_pipeline = crd::make_pipeline(context, renderer, {
-        .vertex = "../data/shaders/test_csm/shadow.vert.spv",
-        .geometry = "../data/shaders/test_csm/shadow.geom.spv",
-        .fragment = "../data/shaders/test_csm/shadow.frag.spv",
-        .render_pass = &shadow_pass,
-        .attributes = {
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec2,
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec3
-        },
-        .attachments = {},
-        .states = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
-        },
-        .cull = VK_CULL_MODE_FRONT_BIT,
-        .subpass = 0,
-        .depth = {
-            .test = true,
-            .write = true
-        }
-    });
-    auto deferred_pipeline = crd::make_pipeline(context, renderer, {
-        .vertex = "../data/shaders/test_csm/gbuffer.vert.spv",
-        .geometry = nullptr,
-        .fragment = "../data/shaders/test_csm/gbuffer.frag.spv",
-        .render_pass = &deferred_pass,
-        .attributes = {
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec2,
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec3
-        },
-        .attachments = {
-            crd::color_attachment_disable_blend,
-            crd::color_attachment_disable_blend,
-            crd::color_attachment_disable_blend,
-            crd::color_attachment_disable_blend
-        },
-        .states = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
-        },
-        .cull = VK_CULL_MODE_BACK_BIT,
-        .subpass = 0,
-        .depth = {
-            .test = true,
-            .write = true
-        }
-    });
-    auto main_pipeline = crd::make_pipeline(context, renderer, {
-        .vertex = "../data/shaders/test_csm/main.vert.spv",
-        .geometry = nullptr,
-        .fragment = "../data/shaders/test_csm/main.frag.spv",
-        .render_pass = &deferred_pass,
-        .attributes = {},
-        .attachments = {
-            crd::color_attachment_auto
-        },
-        .states = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
-        },
-        .cull = VK_CULL_MODE_NONE,
-        .subpass = 1,
-        .depth = {
-            .test = false,
-            .write = false
-        }
-    });
+    auto shadow_pipeline = crd::make_pipeline(context, renderer, shadow_pipeline_info(shadow_pass));
+    auto deferred_pipeline = crd::make_pipeline(context, renderer, deferred_pipeline_info(deferred_pass));
+    auto main_pipeline = crd::make_pipeline(context, renderer, main_pipeline_info(deferred_pass));
     window.on_resize = [&]() {
         deferred_pass.resize(context, {
             .size = { swapchain.width, swapchain.height },
@@ -296,6 +308,14 @@ int main() {
             case crd::key_f: {
                 if (state == crd::key_pressed) {
                     window.toggle_fullscreen();
+                }
+            } break;
+
+            case crd::key_r: {
+                crd_unlikely_if(state == crd::key_pressed) {
+                    shadow_pipeline = reload_pipelines(context, renderer, shadow_pipeline, shadow_pipeline_info(shadow_pass));
+                    deferred_pipeline = reload_pipelines(context, renderer, deferred_pipeline, deferred_pipeline_info(deferred_pass));
+                    main_pipeline = reload_pipelines(context, renderer, main_pipeline, main_pipeline_info(deferred_pass));
                 }
             } break;
 

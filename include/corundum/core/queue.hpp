@@ -42,7 +42,7 @@ namespace crd {
         std::mutex lock;
 
         crd_module void     submit(const SubmitInfo&) noexcept;
-        crd_module VkResult present(const Swapchain&, std::uint32_t, std::vector<VkSemaphore>) noexcept;
+        crd_module VkResult present(const Swapchain&, std::uint32_t, std::vector<VkSemaphore>&&) noexcept;
         crd_module void     wait_idle() noexcept;
     };
 

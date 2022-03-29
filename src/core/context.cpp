@@ -144,7 +144,7 @@ namespace crd {
                 dtl::log("Vulkan", severity_string, type_string, data->pMessage);
                 const auto fatal_bits = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
                 crd_unlikely_if(severity & fatal_bits) {
-                    crd_force_assert("Fatal Vulkan error has occurred");
+                    crd_panic();
                 }
                 return 0;
             };
@@ -164,7 +164,7 @@ namespace crd {
             vkEnumeratePhysicalDevices(context.instance, &device_count, devices.data());
 
             dtl::log("Vulkan", dtl::severity_info, dtl::type_general, "enumerating physical devices:");
-            for (const auto& gpu : devices) {
+            for (const auto gpu : devices) {
                 VkPhysicalDeviceProperties main_props;
                 vkGetPhysicalDeviceProperties(gpu, &main_props);
 #if defined(crd_enable_raytracing)
@@ -255,7 +255,7 @@ namespace crd {
 
             context.families = families;
             dtl::log("Vulkan", dtl::severity_info, dtl::type_general, "chosen families: %d, %d, %d",
-                        families.graphics.family, families.transfer.family, families.compute.family);
+                     families.graphics.family, families.transfer.family, families.compute.family);
             std::vector<VkDeviceQueueCreateInfo> queue_infos;
             for (std::uint32_t family = 0; family < families_count; family++) {
                 crd_unlikely_if(queue_sizes[family] == 0) {
@@ -296,7 +296,7 @@ namespace crd {
                 context.extensions.descriptor_indexing = true;
                 append_to_chain(device_info, descriptor_indexing);
             } else {
-                dtl::log("Vulkan", dtl::severity_warning, dtl::type_validation, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME"not available");
+                dtl::log("Vulkan", dtl::severity_warning, dtl::type_validation, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME" not available");
             }
             VkPhysicalDeviceBufferDeviceAddressFeatures buffer_address_features = {};
             buffer_address_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;

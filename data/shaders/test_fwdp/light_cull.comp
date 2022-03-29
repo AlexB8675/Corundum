@@ -102,12 +102,12 @@ bool check_light(PointLight light, ViewFrustum frustum) {
     vec3 light_bbox_max = light.position + vec3(light.radius);
     vec3 light_bbox_min = light.position - vec3(light.radius);
     uint probe;
-    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].x > light_bbox_max.x); } if (probe == 8) { return false; }
-    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].x < light_bbox_min.x); } if (probe == 8) { return false; }
-    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].y > light_bbox_max.y); } if (probe == 8) { return false; }
-    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].y < light_bbox_min.y); } if (probe == 8) { return false; }
-    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].z > light_bbox_max.z); } if (probe == 8) { return false; }
-    probe = 0; for (uint i = 0; i < 8; i++) { probe += uint(frustum.points[i].z < light_bbox_min.z); } if (probe == 8) { return false; }
+    probe = 0; for (uint i = 0; i < 8; ++i) { probe += uint(frustum.points[i].x > light_bbox_max.x); } if (probe == 8) { return false; }
+    probe = 0; for (uint i = 0; i < 8; ++i) { probe += uint(frustum.points[i].x < light_bbox_min.x); } if (probe == 8) { return false; }
+    probe = 0; for (uint i = 0; i < 8; ++i) { probe += uint(frustum.points[i].y > light_bbox_max.y); } if (probe == 8) { return false; }
+    probe = 0; for (uint i = 0; i < 8; ++i) { probe += uint(frustum.points[i].y < light_bbox_min.y); } if (probe == 8) { return false; }
+    probe = 0; for (uint i = 0; i < 8; ++i) { probe += uint(frustum.points[i].z > light_bbox_max.z); } if (probe == 8) { return false; }
+    probe = 0; for (uint i = 0; i < 8; ++i) { probe += uint(frustum.points[i].z < light_bbox_min.z); } if (probe == 8) { return false; }
     return true;
 }
 

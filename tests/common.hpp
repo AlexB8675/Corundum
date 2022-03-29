@@ -235,7 +235,7 @@ static inline Scene build_scene(std::span<Draw> draws, VkDescriptorImageInfo fal
     return scene;
 }
 
-static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& camera, glm::vec3 light_pos) noexcept {
+static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& camera, glm::vec3 light_pos) noexcept {
     std::array<Cascade, shadow_cascades> cascades;
     const auto calculate_cascade = [&camera, &light_pos](float near, float far) {
         const auto perspective = glm::perspective(glm::radians(90.0f), camera.aspect, near, far);
@@ -322,6 +322,22 @@ static std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& cam
         cascades[i] = { calculate_cascade(near, far), far };
     }
     return cascades;
+}
+
+template <typename T>
+static inline T reload_pipelines(const crd::Context& context, crd::Renderer& renderer, T& pipeline, typename T::CreateInfo&& info) noexcept {
+    switch (pipeline.type) {
+        case T::type_graphics:
+        case T::type_raytracing: {
+            context.graphics->wait_idle();
+        } break;
+
+        case T::type_compute: {
+            context.compute->wait_idle();
+        } break;
+    }
+    crd::destroy_pipeline(context, pipeline);
+    return crd::make_pipeline(context, renderer, std::move(info));
 }
 
 #endif //CORUNDUM_TESTS_COMMON_HPP

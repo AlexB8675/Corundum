@@ -6,7 +6,7 @@
 #define max_shadow_cascades 16
 #define max_directional_lights 4
 #define shadow_cascades 4
-#define pcf_range 6
+#define pcf_range 4
 
 const mat4 shadow_bias = mat4(
     0.5, 0.0, 0.0, 0.0,
@@ -146,7 +146,7 @@ vec3 calculate_shadow(vec3 color, vec3 normal, vec3 light_dir, vec3 frag_pos, ve
     const vec4 light_frag_pos = (shadow_bias * cascades[layer].pv) * vec4(frag_pos, 1.0);
     const vec4 shadow_coords = light_frag_pos / light_frag_pos.w;
     const vec2 texel = vec2(shadow_coords.x, 1.0 - shadow_coords.y);
-    float bias = 0.00005 * (1 / (cascades[layer].split * 0.5));
+    float bias = 0.00025 * (1 / (cascades[layer].split * 0.65));
     bias = max(bias, bias * (1.0 - dot(normal, light_dir)));
     const float current = shadow_coords.z + bias;
     if (shadow_coords.z > -1.0 && shadow_coords.z < 1.0) {

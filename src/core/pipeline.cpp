@@ -1040,7 +1040,7 @@ namespace crd {
 
         const auto make_strided_region = [&](const StaticBuffer& buffer) {
             VkStridedDeviceAddressRegionKHR result;
-            result.deviceAddress = device_address(context, buffer);
+            result.deviceAddress = buffer.address;
             result.stride = handle_size_aligned;
             result.size = handle_size_aligned;
             return result;

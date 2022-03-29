@@ -51,7 +51,7 @@ namespace crd {
         crd_vulkan_check(vkQueueSubmit(handle, 1, &submit_info, submit.done));
     }
 
-    crd_module VkResult Queue::present(const Swapchain& swapchain, std::uint32_t image, std::vector<VkSemaphore> wait) noexcept {
+    crd_module VkResult Queue::present(const Swapchain& swapchain, std::uint32_t image, std::vector<VkSemaphore>&& wait) noexcept {
         VkPresentInfoKHR present_info;
         present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         present_info.pNext = nullptr;

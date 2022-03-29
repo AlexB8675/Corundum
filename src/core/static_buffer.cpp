@@ -1,4 +1,5 @@
 #include <corundum/core/static_buffer.hpp>
+#include <corundum/core/utilities.hpp>
 #include <corundum/core/context.hpp>
 
 #include <corundum/detail/logger.hpp>
@@ -40,9 +41,10 @@ namespace crd {
         buffer.flags = info.flags;
         buffer.capacity = info.capacity;
         buffer.mapped = extra_info.pMappedData;
+        buffer.address = device_address(context, buffer);
         dtl::log("Vulkan", dtl::severity_verbose, dtl::type_general,
-                    "successfully allocated StaticBuffer, size: %zu bytes, address: %p",
-                    buffer.capacity, buffer.mapped);
+                 "successfully allocated StaticBuffer, size: %zu bytes, address: %p",
+                 buffer.capacity, buffer.mapped);
         return buffer;
     }
 

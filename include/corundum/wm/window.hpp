@@ -52,7 +52,7 @@ namespace crd {
     };
 
     struct Window {
-        using key_callback_t = std::function<void(crd::Key, crd::KeyState)>;
+        using key_callback_t = std::function<void(Key, KeyState)>;
         using resize_callback_t = std::function<void()>;
         GLFWwindow* handle;
         std::uint32_t width;

@@ -17,6 +17,68 @@ struct LightCullPC {
     std::uint32_t point_light_count;
 };
 
+static inline crd::GraphicsPipeline::CreateInfo depth_pipeline_info(const crd::RenderPass& pass) noexcept {
+    return {
+        .vertex = "../data/shaders/test_fwdp/depth.vert.spv",
+        .geometry = nullptr,
+        .fragment = nullptr,
+        .render_pass = &pass,
+        .attributes = {
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec2,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3
+        },
+        .attachments = {},
+        .states = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        },
+        .cull = VK_CULL_MODE_BACK_BIT,
+        .subpass = 0,
+        .depth = {
+            .test = true,
+            .write = true
+        }
+    };
+}
+
+static inline crd::ComputePipeline::CreateInfo cull_pipeline_info() noexcept {
+    return {
+        .compute = "../data/shaders/test_fwdp/light_cull.comp.spv"
+    };
+}
+
+static inline crd::GraphicsPipeline::CreateInfo final_pipeline_info(const crd::RenderPass& pass) noexcept {
+    return {
+        .vertex = "../data/shaders/test_fwdp/final.vert.spv",
+        .geometry = nullptr,
+        .fragment = "../data/shaders/test_fwdp/final.frag.spv",
+        .render_pass = &pass,
+        .attributes = {
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec2,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3
+        },
+        .attachments = {
+            crd::color_attachment_auto
+        },
+        .states = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        },
+        .cull = VK_CULL_MODE_BACK_BIT,
+        .subpass = 0,
+        .depth = {
+            .test = true,
+            .write = false
+        }
+    };
+}
+
 int main() {
     auto window = crd::make_window(1280, 720, "Test FWDP");
     auto context = crd::make_context();
@@ -127,59 +189,12 @@ int main() {
             { 0, 1 }
         } }
     });
-    auto depth_pipeline = crd::make_pipeline(context, renderer, {
-        .vertex = "../data/shaders/test_fwdp/depth.vert.spv",
-        .geometry = nullptr,
-        .fragment = nullptr,
-        .render_pass = &depth_pass,
-        .attributes = {
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec2,
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec3
-        },
-        .attachments = {},
-        .states = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
-        },
-        .cull = VK_CULL_MODE_BACK_BIT,
-        .subpass = 0,
-        .depth = {
-            .test = true,
-            .write = true
-        }
-    });
-    auto final_pipeline = crd::make_pipeline(context, renderer, {
-        .vertex = "../data/shaders/test_fwdp/final.vert.spv",
-        .geometry = nullptr,
-        .fragment = "../data/shaders/test_fwdp/final.frag.spv",
-        .render_pass = &final_pass,
-        .attributes = {
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec2,
-            crd::vertex_attribute_vec3,
-            crd::vertex_attribute_vec3
-        },
-        .attachments = {
-            crd::color_attachment_auto
-        },
-        .states = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
-        },
-        .cull = VK_CULL_MODE_BACK_BIT,
-        .subpass = 0,
-        .depth = {
-            .test = true,
-            .write = false
-        }
-    });
+    auto depth_pipeline = crd::make_pipeline(context, renderer, depth_pipeline_info(depth_pass));
+    auto cull_pipeline = crd::make_pipeline(context, renderer, cull_pipeline_info());
+    auto final_pipeline = crd::make_pipeline(context, renderer, final_pipeline_info(final_pass));
     auto black = crd::request_static_texture(context, "../data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
-    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.gltf"));
     std::vector<Draw> draw_cmds = { {
         .model = &models[0],
         .transforms = { {
@@ -200,14 +215,29 @@ int main() {
     });
     auto depth_set = crd::make_descriptor_set(context, depth_pipeline.layout.sets[0]);
     auto main_set = crd::make_descriptor_set(context, final_pipeline.layout.sets[0]);
+    window.set_key_callback([&](crd::Key key, crd::KeyState state) {
+        switch (key) {
+            case crd::key_r: {
+                crd_unlikely_if(state == crd::key_pressed) {
+                    depth_pipeline = reload_pipelines(context, renderer, depth_pipeline, depth_pipeline_info(depth_pass));
+                    cull_pipeline = reload_pipelines(context, renderer, cull_pipeline, cull_pipeline_info());
+                    final_pipeline = reload_pipelines(context, renderer, final_pipeline, final_pipeline_info(final_pass));
+                }
+            } break;
+        }
+    });
     Camera camera;
+    std::size_t frames = 0;
     double last_time = 0;
+    double fps = 0;
     while (!window.is_closed()) {
         crd::poll_events();
         auto [commands, image, index, wait, signal, done] = crd::acquire_frame(context, renderer, window, swapchain);
         const auto current_time = crd::current_time();
         const auto delta_time = current_time - last_time;
         last_time = current_time;
+        fps += delta_time;
+        ++frames;
         camera.update(window, delta_time);
         const auto scene = build_scene(draw_cmds, black->info());
         CameraUniform camera_data;
@@ -251,6 +281,10 @@ int main() {
         }
         commands
             .end_render_pass()
+            .bind_pipeline(cull_pipeline);
+            //.bind_descriptor_set(0, compute_cull_set[index])
+            //.dispatch();
+        commands
             .begin_render_pass(final_pass, 0)
             .bind_pipeline(final_pipeline)
             .bind_descriptor_set(0, main_set[index]);
@@ -260,7 +294,9 @@ int main() {
                 auto& raw_submesh = raw_model.submeshes[submesh.index];
                 const std::uint32_t indices[] = {
                     model.transform,
-                    submesh.textures[0]
+                    submesh.textures[0],
+                    submesh.textures[1],
+                    submesh.textures[2]
                 };
                 commands
                     .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, indices, sizeof indices)
@@ -301,6 +337,11 @@ int main() {
             .waits = {},
             .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT }
         });
+        if (fps >= 2) {
+            crd::dtl::log("Scene", crd::dtl::severity_info, crd::dtl::type_performance, "Average FPS: %lf, DT: %lf ", 1 / (fps / frames), fps / frames);
+            frames = 0;
+            fps = 0;
+        }
     }
     return 0;
 }

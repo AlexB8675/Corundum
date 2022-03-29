@@ -111,7 +111,7 @@ namespace crd {
         std::replace(file_name.begin(), file_name.end(), '\\', '/');
         const auto format = type == aiTextureType_DIFFUSE ? texture_srgb : texture_unorm;
         const auto [cached, miss] = cache.try_emplace(file_name);
-        crd_likely_if(miss) {
+        crd_unlikely_if(miss) {
             cached->second = new Async<StaticTexture>(request_static_texture(context, std::move(file_name), format));
         }
         return cached->second;

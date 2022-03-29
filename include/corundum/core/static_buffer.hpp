@@ -18,6 +18,7 @@ namespace crd {
         VmaAllocation allocation;
         VkBufferUsageFlags flags;
         std::size_t capacity;
+        VkDeviceAddress address;
         VkBuffer handle;
         void* mapped;
     };

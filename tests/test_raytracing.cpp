@@ -58,7 +58,6 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
                         return 0;
                     };
                     VkAccelerationStructureInstanceKHR as_instance;
-                    as_instance.instanceCustomIndex = instances.size();
                     as_instance.mask = 0xff;
                     as_instance.instanceShaderBindingTableRecordOffset = 0;
                     as_instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
@@ -71,13 +70,14 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
                         }
                         result = glm::scale(result, transform.scale);
                         as_instance.transform = as_vulkan(result);
+                        as_instance.instanceCustomIndex = instances.size();
                         instances.emplace_back(as_instance);
                         object_addresses.push_back({
                             emplace_descriptor(submesh.diffuse),
                             emplace_descriptor(submesh.normal),
                             emplace_descriptor(submesh.specular),
-                            crd::device_address(context, submesh.mesh->geometry),
-                            crd::device_address(context, submesh.mesh->indices)
+                            submesh.mesh->geometry.address,
+                            submesh.mesh->indices.address
                         });
                     }
                 }
@@ -119,7 +119,7 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
     as_geometry_info.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
     as_geometry_info.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
     as_geometry_info.geometry.instances.arrayOfPointers = false;
-    as_geometry_info.geometry.instances.data.deviceAddress = crd::device_address(context, tlas.instances);
+    as_geometry_info.geometry.instances.data.deviceAddress = tlas.instances.address;
 
     VkAccelerationStructureBuildGeometryInfoKHR as_build_geometry_info = {};
     as_build_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -174,7 +174,7 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
         .capacity = as_build_sizes_info.buildScratchSize
     });
     as_build_geometry_info.dstAccelerationStructure = tlas.handle;
-    as_build_geometry_info.scratchData.deviceAddress = crd::device_address(context, tlas.build);
+    as_build_geometry_info.scratchData.deviceAddress = tlas.build.address;
     VkAccelerationStructureBuildRangeInfoKHR as_build_range_info;
     as_build_range_info.primitiveCount = primitive_count;
     as_build_range_info.primitiveOffset = 0;
@@ -197,11 +197,11 @@ int main() {
     auto swapchain = crd::make_swapchain(context, window);
     auto black = crd::request_static_texture(context, "../data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
-    //models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
     models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.gltf"));
-    //models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
-    //models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
-    auto draw_cmds = std::to_array<Draw>({/* {
+    models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
+    models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
+    auto draw_cmds = std::to_array<Draw>({ {
         .model = &models[0],
         .transforms = { {
             .position = glm::vec3(0.0f, 1.5f, 0.0f),
@@ -219,14 +219,14 @@ int main() {
             },
             .scale = glm::vec3(0.25f)
         } }
-    }, */{
-        .model = &models[0],
+    }, {
+        .model = &models[1],
         .transforms = { {
             .position = glm::vec3(0.0f, -0.5f, 0.0f),
             .rotation = {},
             .scale = glm::vec3(0.02f)
         } }
-    }/*, {
+    }, {
         .model = &models[2],
         .transforms = { {
             .position = glm::vec3(-4.0f, 1.0f, 0.0f),
@@ -240,7 +240,7 @@ int main() {
             .rotation = {},
             .scale = glm::vec3(0.5f)
         } }
-    }*/ });
+    } });
 
     auto result = crd::make_image(context, {
         .width   = window.width,
