@@ -338,7 +338,7 @@ int main() {
             .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT }
         });
         if (fps >= 2) {
-            crd::dtl::log("Scene", crd::dtl::severity_info, crd::dtl::type_performance, "Average FPS: %lf, DT: %lf ", 1 / (fps / frames), fps / frames);
+            crd::log("Scene", crd::severity_info, crd::type_performance, "Average FPS: %lf, DT: %lf ", 1 / (fps / frames), fps / frames);
             frames = 0;
             fps = 0;
         }

@@ -304,9 +304,9 @@ static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Came
         return light_proj * light_view;
     };
     const float cascade_levels[shadow_cascades] = {
-        camera.far / 25.0f,
+        camera.far / 15.0f,
         camera.far / 7.5f,
-        camera.far / 3.3f,
+        camera.far / 2.5f,
         camera.far,
     };
     for (std::size_t i = 0; i < shadow_cascades; ++i) {

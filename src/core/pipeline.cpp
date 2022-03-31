@@ -33,12 +33,12 @@ namespace crd {
     }
 
     crd_nodiscard crd_module GraphicsPipeline make_pipeline(const Context& context, Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
-        dtl::log("Vulkan", dtl::severity_info, dtl::type_general, "loading vertex shader: \"%s\"", info.vertex);
+        log("Vulkan", severity_info, type_general, "loading vertex shader: \"%s\"", info.vertex);
         if (info.geometry) {
-            dtl::log("Vulkan", dtl::severity_info, dtl::type_general, "loading geometry shader: \"%s\"", info.geometry);
+            log("Vulkan", severity_info, type_general, "loading geometry shader: \"%s\"", info.geometry);
         }
         if (info.fragment) {
-            dtl::log("Vulkan", dtl::severity_info, dtl::type_general, "loading fragment shader: \"%s\"", info.fragment);
+            log("Vulkan", severity_info, type_general, "loading fragment shader: \"%s\"", info.fragment);
         }
         GraphicsPipeline pipeline;
 
@@ -541,7 +541,7 @@ namespace crd {
 
     crd_nodiscard crd_module ComputePipeline make_pipeline(const Context& context, Renderer& renderer, ComputePipeline::CreateInfo&& info) noexcept {
         ComputePipeline pipeline;
-        dtl::log("Vulkan", crd::dtl::severity_info, crd::dtl::type_general, "loading compute shader: \"%s\"", info.compute);
+        log("Vulkan", crd::severity_info, crd::type_general, "loading compute shader: \"%s\"", info.compute);
         const auto binary = import_spirv(info.compute);
         VkShaderModuleCreateInfo compute_module;
         compute_module.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -689,7 +689,7 @@ namespace crd {
         pipeline_info.basePipelineIndex = -1;
         crd_vulkan_check(vkCreateComputePipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
         vkDestroyShaderModule(context.device, compute_stage.module, nullptr);
-        dtl::log("Vulkan", crd::dtl::severity_info, crd::dtl::type_general, "pipeline created successfully");
+        log("Vulkan", crd::severity_info, crd::type_general, "pipeline created successfully");
         return pipeline;
     }
 

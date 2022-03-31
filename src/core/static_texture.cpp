@@ -27,7 +27,7 @@ namespace crd {
             auto  file = dtl::make_file_view(path.c_str());
             auto* image_data = stbi_load_from_memory(static_cast<const std::uint8_t*>(file.data), file.size,
                                                      &width, &height, &channels, STBI_rgb_alpha);
-            dtl::log("Vulkan", dtl::severity_verbose, dtl::type_general,
+            log("Vulkan", severity_verbose, type_general,
                      "StaticTexture was asynchronously requested, expected bytes to transfer: %zu", file.size);
             dtl::destroy_file_view(file);
             auto image = make_image(context, {

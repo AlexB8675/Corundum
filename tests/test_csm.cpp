@@ -1,5 +1,11 @@
 #include <common.hpp>
 
+struct CameraUniform {
+    glm::mat4 projection;
+    glm::mat4 view;
+    glm::vec4 position;
+};
+
 static inline crd::GraphicsPipeline::CreateInfo shadow_pipeline_info(const crd::RenderPass& pass) noexcept {
     return {
         .vertex = "../data/shaders/test_csm/shadow.vert.spv",
@@ -251,8 +257,8 @@ int main() {
     auto shadow_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
-                .width   = 2048,
-                .height  = 2048,
+                .width   = 4096,
+                .height  = 4096,
                 .mips    = 1,
                 .layers  = shadow_cascades,
                 .format  = VK_FORMAT_D32_SFLOAT,
@@ -414,17 +420,12 @@ int main() {
     auto camera_buffer = crd::make_buffer(context, {
         .type = crd::uniform_buffer,
         .usage = crd::host_visible,
-        .capacity = sizeof(glm::mat4) * 2,
+        .capacity = sizeof(CameraUniform),
     });
     auto model_buffer = crd::make_buffer(context, {
         .type = crd::storage_buffer,
         .usage = crd::host_visible,
         .capacity = sizeof(glm::mat4),
-    });
-    auto light_uniform_buffer = crd::make_buffer(context, {
-        .type = crd::uniform_buffer,
-        .usage = crd::host_visible,
-        .capacity = sizeof(glm::vec4),
     });
     auto point_light_buffer = crd::make_buffer(context, {
         .type = crd::storage_buffer,
@@ -465,13 +466,16 @@ int main() {
         crd::resize_buffer(context, cascades_buffer[index], crd::size_bytes(cascades));
         crd::resize_buffer(context, directional_light_buffer[index], crd::size_bytes(dir_lights));
 
+        CameraUniform camera_data;
+        camera_data.projection = camera.projection;
+        camera_data.view = camera.view;
+        camera_data.position = glm::vec4(camera.position, 1.0);
+
         model_buffer[index].write(scene.transforms.data(), 0, crd::size_bytes(scene.transforms));
         cascades_buffer[index].write(cascades.data(), 0, crd::size_bytes(cascades));
-        camera_buffer[index].write(glm::value_ptr(camera.projection), 0, sizeof camera.raw());
-        camera_buffer[index].write(glm::value_ptr(camera.view), sizeof(glm::mat4), sizeof camera.raw());
+        camera_buffer[index].write(&camera_data, 0);
         point_light_buffer[index].write(point_lights.data(), 0, sizeof(glm::mat4));
         directional_light_buffer[index].write(dir_lights.data(), 0, crd::size_bytes(dir_lights));
-        light_uniform_buffer[index].write(&camera.position, 0, sizeof camera.position);
 
         shadow_set[index]
             .bind(context, shadow_pipeline.bindings["Models"], model_buffer[index].info())
@@ -487,8 +491,8 @@ int main() {
             .bind(context, deferred_pipeline.bindings["Models"], model_buffer[index].info())
             .bind(context, deferred_pipeline.bindings["textures"], scene.descriptors);
         light_data_set[index]
-            .bind(context, main_pipeline.bindings["ViewPos"], light_uniform_buffer[index].info())
             .bind(context, main_pipeline.bindings["shadow"], shadow_pass.image(0).sample(context.shadow_sampler))
+            .bind(context, main_pipeline.bindings["Camera"], camera_buffer[index].info())
             .bind(context, main_pipeline.bindings["DirectionalLights"], directional_light_buffer[index].info())
             .bind(context, main_pipeline.bindings["PointLights"], point_light_buffer[index].info())
             .bind(context, main_pipeline.bindings["Cascades"], cascades_buffer[index].info());
@@ -582,7 +586,7 @@ int main() {
             .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT }
         });
         if (fps >= 1.6) {
-            crd::dtl::log("Scene", crd::dtl::severity_info, crd::dtl::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
+            crd::log("Scene", crd::severity_info, crd::type_performance, "Average FPS: %lf, DT: %lfms", 1 / (fps / frames), (fps / frames));
             frames = 0;
             fps = 0;
         }
@@ -594,7 +598,6 @@ int main() {
     crd::destroy_descriptor_set(context, gbuffer_set);
     crd::destroy_descriptor_set(context, shadow_set);
     crd::destroy_descriptor_set(context, deferred_set);
-    crd::destroy_buffer(context, light_uniform_buffer);
     crd::destroy_buffer(context, directional_light_buffer);
     crd::destroy_buffer(context, point_light_buffer);
     crd::destroy_buffer(context, model_buffer);

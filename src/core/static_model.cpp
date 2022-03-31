@@ -184,7 +184,7 @@ namespace crd {
     }
 
     crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context& context, std::string&& path) noexcept {
-        dtl::log("Core", dtl::severity_info, dtl::type_general, "loading model: \"%s\"", path.c_str());
+        log("Core", severity_info, type_general, "loading model: \"%s\"", path.c_str());
         using task_type = std::packaged_task<StaticModel()>;
         auto* task = new task_type([&context, path = std::move(path)]() noexcept -> StaticModel {
             Assimp::Importer importer;
@@ -196,14 +196,14 @@ namespace crd {
             importer.SetIOHandler(new FileViewSystem());
             const auto scene = importer.ReadFile(path, post_process);
             crd_unlikely_if(!scene || !scene->mRootNode) {
-                dtl::log("Core", dtl::severity_error, dtl::type_validation, "Failed to load model \"%s\", error: %s", path.c_str(), importer.GetErrorString());
+                log("Core", severity_error, type_validation, "Failed to load model \"%s\", error: %s", path.c_str(), importer.GetErrorString());
                 crd_panic();
             }
             TextureCache cache;
             cache.reserve(128);
             StaticModel model;
             process_node(context, scene, scene->mRootNode, model, cache, fs::path(path).parent_path());
-            dtl::log("Vulkan", dtl::severity_info, dtl::type_general, "StaticModel \"%s\" was loaded successfully", path.c_str());
+            log("Vulkan", severity_info, type_general, "StaticModel \"%s\" was loaded successfully", path.c_str());
             return model;
         });
         auto future = task->get_future();

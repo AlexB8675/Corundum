@@ -39,8 +39,11 @@ layout (input_attachment_index = 3, set = 0, binding = 3) uniform subpassInput i
 
 layout (location = 0) out vec4 pixel;
 
-layout (set = 1, binding = 0) uniform ViewPos {
+layout (set = 1, binding = 0) uniform Camera {
+    mat4 projection;
+    mat4 view;
     vec3 view_pos;
+    float _pad0;
 };
 
 layout (set = 1, binding = 1) uniform DirectionalLights {

@@ -42,7 +42,7 @@ namespace crd {
         buffer.capacity = info.capacity;
         buffer.mapped = extra_info.pMappedData;
         buffer.address = device_address(context, buffer);
-        dtl::log("Vulkan", dtl::severity_verbose, dtl::type_general,
+        log("Vulkan", severity_verbose, type_general,
                  "successfully allocated StaticBuffer, size: %zu bytes, address: %p",
                  buffer.capacity, buffer.mapped);
         return buffer;

@@ -18,6 +18,7 @@ layout (location = 0) out VertexData {
 layout (set = 0, binding = 0) uniform Uniforms {
     mat4 projection;
     mat4 view;
+    vec4 position;
 };
 
 layout (std430, set = 0, binding = 1) buffer readonly Models {

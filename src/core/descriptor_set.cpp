@@ -61,7 +61,7 @@ namespace crd {
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
+            log("Vulkan", severity_info, type_performance,
                      "updating buffer descriptor with binding: %d, handle: %p, range: %llu", binding.index, buffer.buffer, buffer.range);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -93,7 +93,7 @@ namespace crd {
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
+            log("Vulkan", severity_info, type_performance,
                      "updating image descriptor with binding: %d, handle: %p", binding.index, image.imageView);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -126,7 +126,7 @@ namespace crd {
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
+            log("Vulkan", severity_info, type_performance,
                      "updating TLAS descriptor with binding: %d, handle: %p", binding.index, tlas.handle);
             VkWriteDescriptorSetAccelerationStructureKHR as_update;
             as_update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
@@ -164,7 +164,7 @@ namespace crd {
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            dtl::log("Vulkan", dtl::severity_info, dtl::type_performance,
+            log("Vulkan", severity_info, type_performance,
                      "updating image dynamic descriptor with binding: %d, images: %llu", binding.index, images.size());
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

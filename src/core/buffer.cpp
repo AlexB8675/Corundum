@@ -56,13 +56,15 @@ namespace crd {
     }
 
     crd_module void Buffer<1>::write(const void* data, std::size_t offset) noexcept {
-        write(data, offset, handle.capacity);
+        crd_likely_if(data) {
+            write(data, offset, handle.capacity);
+        }
     }
 
     crd_module void Buffer<1>::write(const void* data, std::size_t offset, std::size_t length) noexcept {
         crd_assert(length + offset <= handle.capacity, "can't write past end pointer");
         size = length + offset;
-        if (data) {
+        crd_likely_if(data) {
             std::memcpy(static_cast<char*>(handle.mapped) + offset, data, length);
         }
     }

@@ -3,9 +3,11 @@
 #if defined(_MSC_VER)
     #define crd_cpp_version _MSVC_LANG
     #define crd_unreachable() __assume(false)
+    #define crd_signature() __FUNCSIG__
 #else
     #define crd_cpp_version __cplusplus
     #define crd_unreachable() __builtin_unreachable()
+    #define crd_signature() __PRETTY_FUNCTION__
 #endif
 
 #if defined(_WIN32)
@@ -82,7 +84,7 @@
             (f)(__VA_ARGS__);                                                                 \
             const auto end = crd_benchmark_timestamp();                                       \
             const auto milli = crd_benchmark_convert(std::chrono::milliseconds, start, end);  \
-            dtl::log("Core", dtl::severity_info, dtl::type_performance, msg, milli); \
+            log("Core", severity_info, type_performance, msg, milli); \
         } while (false)
     #define crd_benchmark_timestamp() std::chrono::high_resolution_clock::now()
     #define crd_benchmark_convert(to, start, end) std::chrono::duration_cast<to>((end) - (start)).count()

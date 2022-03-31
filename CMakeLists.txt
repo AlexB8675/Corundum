@@ -99,7 +99,7 @@ target_compile_definitions(corundum PUBLIC
     crd_debug_logging
     crd_debug_benchmark
     crd_extra_validation
-    crd_enable_raytracing
+    #crd_enable_raytracing
     crd_log_level=2
 
     $<$<BOOL:${WIN32}>:

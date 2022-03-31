@@ -197,7 +197,7 @@ namespace crd {
     crd_module void RenderPass::resize(const Context& context, ResizeAttachments&& resize) noexcept {
         auto& framebuffer = framebuffers[resize.framebuffer];
         crd_likely_if(framebuffer.extent == resize.size) {
-            dtl::log("Vulkan", dtl::severity_info, dtl::type_general, "window extent is the same, framebuffer will not be resized");
+            log("Vulkan", severity_info, type_general, "window extent is the same, framebuffer will not be resized");
             return;
         }
         std::uint32_t layers = 1;
