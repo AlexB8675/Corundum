@@ -8,7 +8,7 @@
 
 namespace crd {
     crd_nodiscard static inline bool operator ==(VkExtent2D lhs, VkExtent2D rhs) noexcept {
-        return rhs.width  == lhs.width &&
+        return rhs.width == lhs.width &&
                rhs.height == lhs.height;
     }
 
@@ -33,7 +33,7 @@ namespace crd {
         attachments.reserve(info.attachments.size());
         for (const auto& attachment : info.attachments) {
             const auto is_stencil = attachment.image.aspect & VK_IMAGE_ASPECT_STENCIL_BIT;
-            const auto is_depth   = attachment.clear.tag == clear_value_depth;
+            const auto is_depth = attachment.clear.tag == clear_value_depth;
             const auto load_op =
                 attachment.clear.tag == clear_value_none ?
                     VK_ATTACHMENT_LOAD_OP_LOAD :
@@ -220,6 +220,9 @@ namespace crd {
             });
             destroy_image(context, old_image);
             image_references.emplace_back((old_image = new_image).view);
+        }
+        for (const auto* attachment : resize.references) {
+            image_references.emplace_back(attachment->image.view);
         }
         vkDestroyFramebuffer(context.device, framebuffer.handle, nullptr);
         framebuffer.extent = resize.size;

@@ -15,7 +15,7 @@ namespace crd {
 
             case clear_value_depth: {
                 new (&value.depthStencil) VkClearDepthStencilValue{
-                    .depth   = clear.depth.depth,
+                    .depth = clear.depth.depth,
                     .stencil = clear.depth.stencil
                 };
             } break;

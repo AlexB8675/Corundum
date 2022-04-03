@@ -59,7 +59,7 @@ namespace crd {
         std::uint32_t height;
         bool fullscreen;
 
-        resize_callback_t on_resize;
+        resize_callback_t resize_callback;
         key_callback_t key_callback;
 
         crd_nodiscard crd_module bool       is_closed() const noexcept;
@@ -67,6 +67,7 @@ namespace crd {
         crd_nodiscard crd_module KeyState   key(Key) const noexcept;
         crd_nodiscard crd_module VkExtent2D viewport() noexcept;
                       crd_module void       toggle_fullscreen() noexcept;
+                      crd_module void       set_resize_callback(resize_callback_t&&) noexcept;
                       crd_module void       set_key_callback(key_callback_t&&) noexcept;
     };
 

@@ -39,10 +39,10 @@ namespace crd {
             crd_unlikely_if(capabilities.currentExtent.width == 0) {
                 crd_vulkan_check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.gpu.handle, swapchain.surface, &capabilities));
             }
-            swapchain.width  = capabilities.currentExtent.width;
+            swapchain.width = capabilities.currentExtent.width;
             swapchain.height = capabilities.currentExtent.height;
         } else {
-            swapchain.width  = std::clamp(viewport.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+            swapchain.width = std::clamp(viewport.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
             swapchain.height = std::clamp(viewport.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         }
         log("Vulkan", severity_info, type_general, "swapchain extent: { %d, %d }", swapchain.width, swapchain.height);

@@ -235,7 +235,7 @@ int main() {
             .write = false
         }
     });
-    window.on_resize = [&]() {
+    window.resize_callback = [&]() {
         deferred_pass.resize(context, {
             .size = { swapchain.width, swapchain.height },
             .framebuffer = 0,

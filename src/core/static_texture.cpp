@@ -20,7 +20,7 @@ namespace crd {
     crd_nodiscard crd_module Async<StaticTexture> request_static_texture(const Context& context, std::string&& path, TextureFormat format) noexcept {
         using task_type = std::packaged_task<StaticTexture(ftl::TaskScheduler*)>;
         auto* task = new task_type([&context, path = std::move(path), format](ftl::TaskScheduler* scheduler) noexcept -> StaticTexture {
-            const auto thread_index  = scheduler->GetCurrentThreadIndex();
+            const auto thread_index = scheduler->GetCurrentThreadIndex();
             const auto graphics_pool = context.graphics->transient[thread_index];
             const auto transfer_pool = context.transfer->transient[thread_index];
             std::int32_t width, height, channels = 4;
@@ -88,10 +88,10 @@ namespace crd {
             crd_vulkan_check(vkCreateSemaphore(context.device, &semaphore_info, nullptr, &transfer_done));
             context.transfer->submit({
                 .commands = transfer_cmd,
-                .stages   = {},
-                .waits    = {},
-                .signals  = { transfer_done },
-                .done     = {}
+                .stages = {},
+                .waits = {},
+                .signals = { transfer_done },
+                .done = {}
             });
             auto ownership_cmd = make_command_buffer(context, {
                 .pool = graphics_pool,
@@ -190,10 +190,10 @@ namespace crd {
             crd_vulkan_check(vkCreateFence(context.device, &done_fence_info, nullptr, &request_done));
             context.graphics->submit({
                 .commands = ownership_cmd,
-                .stages   = { VK_PIPELINE_STAGE_TRANSFER_BIT },
-                .waits    = { transfer_done },
-                .signals  = {},
-                .done     = request_done
+                .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT },
+                .waits = { transfer_done },
+                .signals = {},
+                .done = request_done
             });
             wait_fence(context, request_done);
             vkDestroySemaphore(context.device, transfer_done, nullptr);

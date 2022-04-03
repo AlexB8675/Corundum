@@ -43,7 +43,7 @@ layout (set = 1, binding = 0) uniform Camera {
     mat4 projection;
     mat4 view;
     vec3 view_pos;
-    float _pad0;
+    float _u0;
 };
 
 layout (set = 1, binding = 1) uniform DirectionalLights {

@@ -73,7 +73,7 @@ namespace crd {
 
     crd_module CommandBuffer& CommandBuffer::begin_render_pass(const RenderPass& render_pass, std::size_t index) noexcept {
         const auto& clear_values = render_pass.clears(index);
-        const auto& framebuffer  = render_pass.framebuffers[index];
+        const auto& framebuffer = render_pass.framebuffers[index];
         active_framebuffer = &framebuffer;
         active_pass = &render_pass;
         VkRenderPassBeginInfo begin_info;
@@ -273,7 +273,7 @@ namespace crd {
 
     crd_module CommandBuffer& CommandBuffer::blit_image(const ImageBlit& info) noexcept {
         const auto& source = *info.source_image;
-        const auto& dest   = info.dest_image ? *info.dest_image : source;
+        const auto& dest = info.dest_image ? *info.dest_image : source;
         VkImageBlit blit = {};
         blit.srcSubresource.aspectMask = source.aspect;
         blit.srcSubresource.mipLevel = info.source_mip;

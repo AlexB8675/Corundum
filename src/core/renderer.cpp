@@ -36,7 +36,7 @@ namespace crd {
     static inline void recreate_swapchain(const Context& context, Window& window, Swapchain& swapchain) noexcept {
         log("Vulkan", severity_warning, type_performance, "window resized, recreating swapchain");
         swapchain = make_swapchain(context, window, &swapchain);
-        window.on_resize();
+        window.resize_callback();
     }
 
     crd_nodiscard crd_module Renderer make_renderer(const Context& context) noexcept {
@@ -87,11 +87,11 @@ namespace crd {
         }
         return {
             .commands = renderer.gfx_cmds[renderer.frame_idx],
-            .image    = swapchain.images[renderer.image_idx],
-            .index    = renderer.frame_idx,
-            .wait     = renderer.img_ready[renderer.frame_idx],
-            .signal   = renderer.gfx_done[renderer.frame_idx],
-            .done     = renderer.cmd_wait[renderer.frame_idx],
+            .image = swapchain.images[renderer.image_idx],
+            .index = renderer.frame_idx,
+            .wait = renderer.img_ready[renderer.frame_idx],
+            .signal = renderer.gfx_done[renderer.frame_idx],
+            .done = renderer.cmd_wait[renderer.frame_idx],
         };
     }
 
@@ -101,10 +101,10 @@ namespace crd {
         waits.emplace_back(renderer.img_ready[renderer.frame_idx]);
         context.graphics->submit({
             .commands = commands,
-            .stages   = stages,
-            .waits    = std::move(waits),
-            .signals  = { renderer.gfx_done[renderer.frame_idx] },
-            .done     = renderer.cmd_wait[renderer.frame_idx]
+            .stages = stages,
+            .waits = std::move(waits),
+            .signals = { renderer.gfx_done[renderer.frame_idx] },
+            .done = renderer.cmd_wait[renderer.frame_idx]
         });
         const auto result = context.graphics->present(swapchain, renderer.image_idx, { renderer.gfx_done[renderer.frame_idx] });
         crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {

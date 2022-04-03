@@ -94,10 +94,12 @@ namespace crd {
             auto old = buffer.handle;
             buffer.handle = make_static_buffer(context, {
                 .flags = old.flags,
-                .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+                .usage = old.usage,
                 .capacity = new_size
             });
-            std::memcpy(buffer.handle.mapped, old.mapped, buffer.size);
+            crd_likely_if(old.mapped) {
+                std::memcpy(buffer.handle.mapped, old.mapped, buffer.size);
+            }
             destroy_static_buffer(context, old);
         }
         buffer.size = new_size;
@@ -116,7 +118,7 @@ namespace crd {
             auto old = buffer.handle;
             buffer.handle = make_static_buffer(context, {
                 .flags = old.flags,
-                .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+                .usage = old.usage,
                 .capacity = buffer.size
             });
             std::memcpy(buffer.handle.mapped, old.mapped, buffer.size);

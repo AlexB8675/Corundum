@@ -302,7 +302,7 @@ int main() {
     auto shadow_pipeline = crd::make_pipeline(context, renderer, shadow_pipeline_info(shadow_pass));
     auto deferred_pipeline = crd::make_pipeline(context, renderer, deferred_pipeline_info(deferred_pass));
     auto main_pipeline = crd::make_pipeline(context, renderer, main_pipeline_info(deferred_pass));
-    window.on_resize = [&]() {
+    window.resize_callback = [&]() {
         deferred_pass.resize(context, {
             .size = { swapchain.width, swapchain.height },
             .framebuffer = 0,
@@ -455,9 +455,9 @@ int main() {
         fps += delta_time;
         ++frames;
         dir_lights[0].direction = glm::vec4(
-            75.0f * std::cos(crd::current_time() / 6),
+            50.0f * std::cos(crd::current_time() / 6),
             150.0f,
-            75.0f * std::sin(crd::current_time() / 6),
+            50.0f * std::sin(crd::current_time() / 6),
             1.0f);
         const auto cascades = calculate_cascades(camera, dir_lights[0].direction);
 
@@ -585,7 +585,7 @@ int main() {
             .waits = {},
             .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT }
         });
-        if (fps >= 1.6) {
+        if (fps >= 2) {
             crd::log("Scene", crd::severity_info, crd::type_performance, "Average FPS: %lf, DT: %lfms", 1 / (fps / frames), (fps / frames));
             frames = 0;
             fps = 0;

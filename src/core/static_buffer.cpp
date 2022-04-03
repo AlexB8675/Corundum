@@ -38,6 +38,7 @@ namespace crd {
             &buffer.handle,
             &buffer.allocation,
             &extra_info));
+        buffer.usage = info.usage;
         buffer.flags = info.flags;
         buffer.capacity = info.capacity;
         buffer.mapped = extra_info.pMappedData;

@@ -7,13 +7,13 @@ namespace crd {
     crd_nodiscard crd_module Image make_image(const Context& context, Image::CreateInfo&& info) noexcept {
         Image image;
         image.samples = info.samples;
-        image.aspect  = info.aspect;
-        image.usage   = info.usage;
-        image.format  = info.format;
-        image.layers  = info.layers;
-        image.mips    = info.mips;
-        image.width   = info.width;
-        image.height  = info.height;
+        image.aspect = info.aspect;
+        image.usage = info.usage;
+        image.format = info.format;
+        image.layers = info.layers;
+        image.mips = info.mips;
+        image.width = info.width;
+        image.height = info.height;
 
         VkImageCreateInfo image_info;
         image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;

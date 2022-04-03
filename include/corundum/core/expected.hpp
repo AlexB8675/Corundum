@@ -120,9 +120,7 @@ namespace crd {
     template <typename T, typename E>
     crd_nodiscard constexpr T Expected<T, E>::value() noexcept {
         crd_unlikely_if(tag != tag_value) {
-            const auto err_string =
-                std::string("called value() on error Expected<T, E> with message: ") +
-                    stringify(error());
+            const auto err_string = std::string("called value() on error Expected<T, E> with message: ") + stringify(error());
             dtl::_panic(err_string.c_str());
         }
         return *std::launder(reinterpret_cast<T*>(&storage));
@@ -148,7 +146,7 @@ namespace crd {
 
     template <typename T, typename E>
     crd_nodiscard constexpr bool Expected<T, E>::is_error() const noexcept {
-        return tag = tag_error;
+        return tag != tag_error;
     }
 
     template <typename T, typename E>

@@ -16,6 +16,7 @@ namespace crd {
             std::size_t capacity;
         };
         VmaAllocation allocation;
+        VmaMemoryUsage usage;
         VkBufferUsageFlags flags;
         std::size_t capacity;
         VkDeviceAddress address;

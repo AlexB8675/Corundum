@@ -17,7 +17,7 @@ namespace crd {
             video->height / 2 - height / 2);
         Window window;
         window.handle = handle;
-        window.width  = width;
+        window.width = width;
         window.height = height;
         window.fullscreen = false;
         return window;
@@ -65,7 +65,7 @@ namespace crd {
             return { width, height };
         }
         return {
-            width  = new_width,
+            width = new_width,
             height = new_height
         };
     }
@@ -97,7 +97,12 @@ namespace crd {
             GLFW_DONT_CARE);
     }
 
-    void Window::set_key_callback(Window::key_callback_t&& callback) noexcept {
+    crd_module void Window::set_resize_callback(resize_callback_t&& callback) noexcept {
+        resize_callback = std::move(callback);
+        glfwSetWindowUserPointer(handle, this);
+    }
+
+    crd_module void Window::set_key_callback(key_callback_t&& callback) noexcept {
         key_callback = std::move(callback);
         glfwSetWindowUserPointer(handle, this);
         glfwSetKeyCallback(handle, [](GLFWwindow* l_handle, int key, int, int action, int) {

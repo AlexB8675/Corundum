@@ -62,7 +62,7 @@ namespace crd {
 
         crd_nodiscard aiReturn Seek(std::size_t where, aiOrigin origin) noexcept override {
             switch (origin) {
-                case aiOrigin_SET: { offset  = where; } break;
+                case aiOrigin_SET: { offset = where; } break;
                 case aiOrigin_CUR: { offset += where; } break;
                 case aiOrigin_END: { offset -= where; } break;
             }

@@ -14,11 +14,11 @@ namespace crd {
     crd_nodiscard crd_module Async<StaticMesh> request_static_mesh(const Context& context, StaticMesh::CreateInfo&& info) noexcept {
         using task_type = std::packaged_task<StaticMesh(ftl::TaskScheduler*)>;
         auto* task = new task_type([&context, info = std::move(info)](ftl::TaskScheduler* scheduler) noexcept -> StaticMesh {
-            const auto thread_index  = scheduler->GetCurrentThreadIndex();
+            const auto thread_index = scheduler->GetCurrentThreadIndex();
             const auto graphics_pool = context.graphics->transient[thread_index];
             const auto transfer_pool = context.transfer->transient[thread_index];
-            const auto vertex_bytes  = size_bytes(info.geometry);
-            const auto index_bytes   = size_bytes(info.indices);
+            const auto vertex_bytes = size_bytes(info.geometry);
+            const auto index_bytes = size_bytes(info.indices);
             log("Vulkan", severity_verbose, type_general,
                      "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", vertex_bytes * index_bytes);
             auto vertex_staging = make_static_buffer(context, {
@@ -84,10 +84,10 @@ namespace crd {
             crd_vulkan_check(vkCreateSemaphore(context.device, &semaphore_info, nullptr, &transfer_done));
             context.transfer->submit({
                 .commands = transfer_cmd,
-                .stages   = {},
-                .waits    = {},
-                .signals  = { transfer_done },
-                .done     = {}
+                .stages = {},
+                .waits = {},
+                .signals = { transfer_done },
+                .done = {}
             });
             auto ownership_cmd = make_command_buffer(context, {
                 .pool = graphics_pool,
@@ -135,10 +135,10 @@ namespace crd {
             crd_vulkan_check(vkCreateFence(context.device, &fence_info, nullptr, &request_done));
             context.graphics->submit({
                 .commands = ownership_cmd,
-                .stages   = { VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT },
-                .waits    = { transfer_done },
-                .signals  = {},
-                .done     = request_done
+                .stages = { VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT },
+                .waits = { transfer_done },
+                .signals = {},
+                .done = request_done
             });
             wait_fence(context, request_done);
             StaticMesh result;

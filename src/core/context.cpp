@@ -129,19 +129,19 @@ namespace crd {
                 const char* severity_string = nullptr;
                 switch (severity) {
                     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: severity_string = "Verbose"; break;
-                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:    severity_string = "Info";   break;
+                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:    severity_string = "Info";    break;
                     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: severity_string = "Warning"; break;
                     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:   severity_string = "Fatal";   break;
 
                 }
                 const char* type_string = nullptr;
                 switch (type) {
-                    case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT:     type_string = "General"; break;
-                    case VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT:  type_string = "Validation"; break;
+                    case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT:     type_string = "General";     break;
+                    case VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT:  type_string = "Validation";  break;
                     case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT: type_string = "Performance"; break;
                 }
 
-                log("Vulkan", severity_string, type_string, data->pMessage);
+                dtl::log("Vulkan", severity_string, type_string, data->pMessage);
                 const auto fatal_bits = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
                 crd_unlikely_if(severity & fatal_bits) {
                     crd_panic();
@@ -360,13 +360,13 @@ namespace crd {
             });
         }
         { // Creates a Descriptor Pool.
-            const auto& limits          = context.gpu.main_props.limits;
-            const auto& as_limits       = context.gpu.as_limits;
-            const auto max_samplers     = std::min<std::uint32_t>(16384, limits.maxDescriptorSetSampledImages);
-            const auto max_uniforms     = std::min<std::uint32_t>(16384, limits.maxDescriptorSetUniformBuffers);
-            const auto max_storage      = std::min<std::uint32_t>(16384, limits.maxDescriptorSetStorageBuffers);
-            const auto max_images       = std::min<std::uint32_t>(16384, limits.maxDescriptorSetStorageImages);
-            const auto max_as           = std::min<std::uint32_t>(16384, as_limits.maxDescriptorSetAccelerationStructures);
+            const auto& limits = context.gpu.main_props.limits;
+            const auto& as_limits = context.gpu.as_limits;
+            const auto max_samplers = std::min<std::uint32_t>(16384, limits.maxDescriptorSetSampledImages);
+            const auto max_uniforms = std::min<std::uint32_t>(16384, limits.maxDescriptorSetUniformBuffers);
+            const auto max_storage = std::min<std::uint32_t>(16384, limits.maxDescriptorSetStorageBuffers);
+            const auto max_images = std::min<std::uint32_t>(16384, limits.maxDescriptorSetStorageImages);
+            const auto max_as = std::min<std::uint32_t>(16384, as_limits.maxDescriptorSetAccelerationStructures);
             const auto descriptor_sizes = std::to_array<VkDescriptorPoolSize>({
                 { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             max_uniforms },
                 { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             max_storage  },

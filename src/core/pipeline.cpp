@@ -81,8 +81,8 @@ namespace crd {
         std::map<std::size_t, std::vector<DescriptorBinding>> pipeline_descriptor_layout;
         crd_assert(info.vertex, "vertex shader not present");
         {
-            const auto binary    = import_spirv(info.vertex);
-            const auto compiler  = spvc::CompilerGLSL(binary.data(), binary.size());
+            const auto binary = import_spirv(info.vertex);
+            const auto compiler = spvc::CompilerGLSL(binary.data(), binary.size());
             const auto resources = compiler.get_shader_resources();
 
             VkShaderModuleCreateInfo module_create_info;
@@ -94,7 +94,7 @@ namespace crd {
             crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &vertex_stage.module));
 
             for (const auto& buffer : resources.uniform_buffers) {
-                const auto set  = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
+                const auto set = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(buffer.id, spv::DecorationBinding);
                 auto& descriptor = pipeline_descriptor_layout[set];
                 const auto found =
@@ -115,7 +115,7 @@ namespace crd {
                 }
             }
             for (const auto& buffer : resources.storage_buffers) {
-                const auto set  = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
+                const auto set = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(buffer.id, spv::DecorationBinding);
                 auto& descriptor = pipeline_descriptor_layout[set];
                 const auto found =
@@ -143,8 +143,8 @@ namespace crd {
         }
 
         if (info.geometry) {
-            const auto binary    = import_spirv(info.geometry);
-            const auto compiler  = spvc::CompilerGLSL(binary.data(), binary.size());
+            const auto binary = import_spirv(info.geometry);
+            const auto compiler = spvc::CompilerGLSL(binary.data(), binary.size());
             const auto resources = compiler.get_shader_resources();
 
             VkShaderModuleCreateInfo module_create_info;
@@ -156,7 +156,7 @@ namespace crd {
             crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &geometry_stage.module));
 
             for (const auto& buffer : resources.uniform_buffers) {
-                const auto set  = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
+                const auto set = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(buffer.id, spv::DecorationBinding);
                 auto& descriptor = pipeline_descriptor_layout[set];
                 const auto found =
@@ -177,7 +177,7 @@ namespace crd {
                 }
             }
             for (const auto& buffer : resources.storage_buffers) {
-                const auto set  = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
+                const auto set = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(buffer.id, spv::DecorationBinding);
                 auto& descriptor = pipeline_descriptor_layout[set];
                 const auto found =
@@ -206,8 +206,8 @@ namespace crd {
 
         std::vector<VkPipelineColorBlendAttachmentState> attachment_outputs;
         if (info.fragment) {
-            const auto binary    = import_spirv(info.fragment);
-            const auto compiler  = spvc::CompilerGLSL(binary.data(), binary.size());
+            const auto binary = import_spirv(info.fragment);
+            const auto compiler = spvc::CompilerGLSL(binary.data(), binary.size());
             const auto resources = compiler.get_shader_resources();
 
             VkShaderModuleCreateInfo module_create_info;
@@ -246,7 +246,7 @@ namespace crd {
             }
             attachment_outputs.resize(resources.stage_outputs.size(), attachment);
             for (const auto& input_attachment : resources.subpass_inputs) {
-                const auto set     = compiler.get_decoration(input_attachment.id, spv::DecorationDescriptorSet);
+                const auto set = compiler.get_decoration(input_attachment.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(input_attachment.id, spv::DecorationBinding);
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[input_attachment.name] = {
@@ -258,7 +258,7 @@ namespace crd {
                     });
             }
             for (const auto& buffer : resources.uniform_buffers) {
-                const auto set  = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
+                const auto set = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(buffer.id, spv::DecorationBinding);
                 auto& descriptor = pipeline_descriptor_layout[set];
                 const auto found =
@@ -279,7 +279,7 @@ namespace crd {
                 }
             }
             for (const auto& buffer : resources.storage_buffers) {
-                const auto set  = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
+                const auto set = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(buffer.id, spv::DecorationBinding);
                 auto& descriptor = pipeline_descriptor_layout[set];
                 const auto found =
@@ -311,10 +311,10 @@ namespace crd {
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[textures.name] = {
                         .dynamic = is_dynamic,
-                        .index   = binding,
-                        .count   = !is_array ? 1 : (is_dynamic ? max_samplers : image_type.array[0]),
-                        .type    = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        .stage   = VK_SHADER_STAGE_FRAGMENT_BIT
+                        .index = binding,
+                        .count = !is_array ? 1 : (is_dynamic ? max_samplers : image_type.array[0]),
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stage = VK_SHADER_STAGE_FRAGMENT_BIT
                     });
             }
             for (const auto& push_constant : resources.push_constant_buffers) {
@@ -566,10 +566,10 @@ namespace crd {
         DescriptorLayoutBindings descriptor_layout_bindings;
         std::map<std::size_t, std::vector<DescriptorBinding>> pipeline_descriptor_layout;
         { // Compute shader.
-            const auto compiler  = spvc::CompilerGLSL(binary.data(), binary.size());
+            const auto compiler = spvc::CompilerGLSL(binary.data(), binary.size());
             const auto resources = compiler.get_shader_resources();
             for (const auto& uniform_buffer : resources.uniform_buffers) {
-                const auto set     = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
+                const auto set = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[uniform_buffer.name] = {
@@ -581,7 +581,7 @@ namespace crd {
                     });
             }
             for (const auto& storage_buffer : resources.storage_buffers) {
-                const auto set     = compiler.get_decoration(storage_buffer.id, spv::DecorationDescriptorSet);
+                const auto set = compiler.get_decoration(storage_buffer.id, spv::DecorationDescriptorSet);
                 const auto binding = compiler.get_decoration(storage_buffer.id, spv::DecorationBinding);
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[storage_buffer.name] = {
@@ -602,10 +602,10 @@ namespace crd {
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[textures.name] = {
                         .dynamic = is_dynamic,
-                        .index   = binding,
-                        .count   = !is_array ? 1 : (is_dynamic ? max_samplers : image_type.array[0]),
-                        .type    = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        .stage   = VK_SHADER_STAGE_COMPUTE_BIT
+                        .index = binding,
+                        .count = !is_array ? 1 : (is_dynamic ? max_samplers : image_type.array[0]),
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stage = VK_SHADER_STAGE_COMPUTE_BIT
                     });
             }
             for (const auto& push_constant : resources.push_constant_buffers) {
@@ -770,10 +770,10 @@ namespace crd {
                     pipeline_descriptor_layout[set].emplace_back(
                         descriptor_layout_bindings[image.name] = {
                             .dynamic = is_dynamic,
-                            .index   = binding,
-                            .count   = !is_array ? 1 : (is_dynamic ? max_images : image_type.array[0]),
-                            .type    = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                            .stage   = stage
+                            .index = binding,
+                            .count = !is_array ? 1 : (is_dynamic ? max_images : image_type.array[0]),
+                            .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                            .stage = stage
                         });
                 }
             }
@@ -795,10 +795,10 @@ namespace crd {
                     pipeline_descriptor_layout[set].emplace_back(
                         descriptor_layout_bindings[tlas.name] = {
                             .dynamic = is_dynamic,
-                            .index   = binding,
-                            .count   = !is_array ? 1 : (is_dynamic ? max_bound : as_type.array[0]),
-                            .type    = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-                            .stage   = stage
+                            .index = binding,
+                            .count = !is_array ? 1 : (is_dynamic ? max_bound : as_type.array[0]),
+                            .type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+                            .stage = stage
                         });
                 }
             }
@@ -820,10 +820,10 @@ namespace crd {
                     pipeline_descriptor_layout[set].emplace_back(
                         descriptor_layout_bindings[textures.name] = {
                             .dynamic = is_dynamic,
-                            .index   = binding,
-                            .count   = !is_array ? 1 : (is_dynamic ? max_samplers : image_type.array[0]),
-                            .type    = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                            .stage   = stage
+                            .index = binding,
+                            .count = !is_array ? 1 : (is_dynamic ? max_samplers : image_type.array[0]),
+                            .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                            .stage = stage
                         });
                 }
             }

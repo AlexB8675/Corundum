@@ -9,10 +9,11 @@
 layout (local_size_x = 32) in;
 
 struct PointLight {
-    vec3 position;
-    vec3 diffuse;
-    vec3 specular;
+    vec4 position;
+    vec4 diffuse;
+    vec4 specular;
     float radius;
+    float[3] _u0;
 };
 
 struct CameraData {
@@ -66,27 +67,26 @@ ViewFrustum make_frustum(ivec2 tile_id) {
     ndc_pts[3] = vec2(ndc_pts[0].x, ndc_pts[0].y + ndc_size_per_tile.y);
 
     ViewFrustum frustum;
-    vec4 temp;
     for (int i = 0; i < 4; i++) {
-        temp = inverse_pv * vec4(ndc_pts[i], min_depth, 1.0);
-        frustum.points[i] = temp.xyz / temp.w;
-        temp = inverse_pv * vec4(ndc_pts[i], max_depth, 1.0);
-        frustum.points[i + 4] = temp.xyz / temp.w;
+        vec4 position = inverse_pv * vec4(ndc_pts[i], min_depth, 1.0);
+        frustum.points[i] = position.xyz / position.w;
+        position = inverse_pv * vec4(ndc_pts[i], max_depth, 1.0);
+        frustum.points[i + 4] = position.xyz / position.w;
     }
 
     for (int i = 0; i < 4; i++) {
         const vec3 temp_normal = normalize(cross(frustum.points[i] - camera.position, frustum.points[i + 1] - camera.position));
-        frustum.planes[i] = vec4(temp_normal, - dot(temp_normal, frustum.points[i]));
+        frustum.planes[i] = vec4(temp_normal, -dot(temp_normal, frustum.points[i]));
     }
     // near plane
     {
         const vec3 temp_normal = normalize(cross(frustum.points[1] - frustum.points[0], frustum.points[3] - frustum.points[0]));
-        frustum.planes[4] = vec4(temp_normal, - dot(temp_normal, frustum.points[0]));
+        frustum.planes[4] = vec4(temp_normal, -dot(temp_normal, frustum.points[0]));
     }
     // far plane
     {
         const vec3 temp_normal = normalize(cross(frustum.points[7] - frustum.points[4], frustum.points[5] - frustum.points[4]));
-        frustum.planes[5] = vec4(temp_normal, - dot(temp_normal, frustum.points[4]));
+        frustum.planes[5] = vec4(temp_normal, -dot(temp_normal, frustum.points[4]));
     }
 
     return frustum;
@@ -94,13 +94,13 @@ ViewFrustum make_frustum(ivec2 tile_id) {
 
 bool check_light(PointLight light, ViewFrustum frustum) {
     for (uint i = 0; i < 6; i++) {
-        if (dot(light.position, frustum.planes[i].xyz) + frustum.planes[i].w  < - light.radius) {
+        if ((dot(vec3(light.position), frustum.planes[i].xyz) + frustum.planes[i].w) < -light.radius) {
             return false;
         }
     }
 
-    vec3 light_bbox_max = light.position + vec3(light.radius);
-    vec3 light_bbox_min = light.position - vec3(light.radius);
+    const vec3 light_bbox_max = vec3(light.position) + vec3(light.radius);
+    const vec3 light_bbox_min = vec3(light.position) - vec3(light.radius);
     uint probe;
     probe = 0; for (uint i = 0; i < 8; ++i) { probe += uint(frustum.points[i].x > light_bbox_max.x); } if (probe == 8) { return false; }
     probe = 0; for (uint i = 0; i < 8; ++i) { probe += uint(frustum.points[i].x < light_bbox_min.x); } if (probe == 8) { return false; }
@@ -131,14 +131,13 @@ void main() {
         }
 
         frustum = make_frustum(tile_id);
-        tile_light_count = atomicExchange(tile_light_count, 0);
+        tile_light_count = 0;
     }
     barrier();
     for (uint i = gl_LocalInvocationIndex; i < point_light_count && tile_light_count < max_lights_per_tile; i += gl_WorkGroupSize.x) {
-        tile_light_count = atomicAdd(tile_light_count, 1);
         if (check_light(point_lights[i], frustum)) {
             const uint slot = atomicAdd(tile_light_count, 1);
-            if (slot >= max_lights_per_tile) {
+            if (tile_light_count >= max_lights_per_tile) {
                 break;
             }
             light_visibilities[tile_index].indices[slot] = i;

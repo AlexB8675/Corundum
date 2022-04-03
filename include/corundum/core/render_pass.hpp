@@ -42,6 +42,7 @@ namespace crd {
         VkExtent2D size;
         std::uint32_t framebuffer;
         std::vector<std::uint32_t> attachments;
+        std::vector<AttachmentInfo*> references;
     };
 
     struct FramebufferInfo {
