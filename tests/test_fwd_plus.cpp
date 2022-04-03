@@ -474,6 +474,7 @@ int main() {
                     submesh.textures[1],
                     submesh.textures[2],
                     (std::uint32_t)point_lights.size(),
+                    0,
                     tiles_per_row,
                     tiles_per_col
                 };
