@@ -44,7 +44,7 @@ namespace crd {
         }
 
         crd_nodiscard std::size_t Read(void* buffer, std::size_t size, std::size_t count) noexcept override {
-            crd_unlikely_if(offset == handle.size) {
+            crd_unlikely_if(offset >= handle.size) {
                 return 0;
             }
             auto bytes = size * count;

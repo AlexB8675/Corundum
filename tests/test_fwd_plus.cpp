@@ -56,6 +56,33 @@ static inline crd::GraphicsPipeline::CreateInfo depth_pipeline_info(const crd::R
     };
 }
 
+static inline crd::GraphicsPipeline::CreateInfo shadow_pipeline_info(const crd::RenderPass& pass) noexcept {
+    return {
+        .vertex = "../data/shaders/test_csm/shadow.vert.spv",
+        .geometry = "../data/shaders/test_csm/shadow.geom.spv",
+        .fragment = "../data/shaders/test_csm/shadow.frag.spv",
+        .render_pass = &pass,
+        .attributes = {
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec2,
+            crd::vertex_attribute_vec3,
+            crd::vertex_attribute_vec3
+        },
+        .attachments = {},
+        .states = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        },
+        .cull = VK_CULL_MODE_FRONT_BIT,
+        .subpass = 0,
+        .depth = {
+            .test = true,
+            .write = true
+        }
+    };
+}
+
 static inline crd::ComputePipeline::CreateInfo cull_pipeline_info() noexcept {
     return {
         .compute = "../data/shaders/test_fwdp/light_cull.comp.spv"
@@ -176,6 +203,51 @@ int main() {
             { 0 }
         } }
     });
+    auto shadow_pass = crd::make_render_pass(context, {
+        .attachments = { {
+            .image = crd::make_image(context, {
+                .width   = 4096,
+                .height  = 4096,
+                .mips    = 1,
+                .layers  = shadow_cascades,
+                .format  = VK_FORMAT_D32_SFLOAT,
+                .aspect  = VK_IMAGE_ASPECT_DEPTH_BIT,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .usage   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+                           VK_IMAGE_USAGE_SAMPLED_BIT
+            }),
+            .layout = {
+                .initial = VK_IMAGE_LAYOUT_UNDEFINED,
+                .final   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            },
+            .clear   = crd::make_clear_depth({ 1.0f, 0 }),
+            .owning  = true,
+            .discard = false
+        } },
+        .subpasses = { {
+            .attachments = { 0 },
+            .preserve = {},
+            .input = {}
+        } },
+        .dependencies = { {
+            .source_subpass = crd::external_subpass,
+            .dest_subpass = 0,
+            .source_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+            .dest_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+            .source_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            .dest_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+        }, {
+            .source_subpass = 0,
+            .dest_subpass = crd::external_subpass,
+            .source_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+            .dest_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            .source_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            .dest_access = VK_ACCESS_SHADER_READ_BIT
+        } },
+        .framebuffers = { {
+            .attachments = { 0 }
+        } }
+    });
     auto final_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
@@ -237,6 +309,7 @@ int main() {
             { 0, 1 }
         } }
     });
+    auto shadow_pipeline = crd::make_pipeline(context, renderer, shadow_pipeline_info(shadow_pass));
     auto depth_pipeline = crd::make_pipeline(context, renderer, depth_pipeline_info(depth_pass));
     auto cull_pipeline = crd::make_pipeline(context, renderer, cull_pipeline_info());
     auto light_pipeline = crd::make_pipeline(context, renderer, light_pipeline_info(final_pass));
@@ -305,7 +378,7 @@ int main() {
             .position = glm::vec4(random(-24, 24), random(0, 16), random(-12, 12), 0.0f),
             .diffuse = color,
             .specular = color,
-            .radius = glm::vec4(5.0f),
+            .radius = glm::vec4(10.0f),
         });
     }
     std::vector<PointLightDraw> point_light_instances;
@@ -313,9 +386,13 @@ int main() {
     for (int i = 0; i < p_lights; ++i) {
         point_light_instances.push_back({
             point_lights[i].diffuse,
-            glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(point_lights[i].position)), glm::vec3(0.15f))
+            glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(point_lights[i].position)), glm::vec3(0.1f))
         });
     }
+    DirectionalLight sun_dlight;
+    sun_dlight.direction = {};
+    sun_dlight.diffuse = glm::vec4(1.0f);
+    sun_dlight.specular = glm::vec4(1.0f);
     auto camera_buffer = crd::make_buffer(context, {
         .type = crd::uniform_buffer,
         .usage = crd::host_visible,
@@ -325,6 +402,11 @@ int main() {
         .type = crd::storage_buffer,
         .usage = crd::host_visible,
         .capacity = sizeof(glm::mat4)
+    });
+    auto cascades_buffer = crd::make_buffer(context, {
+        .type = crd::uniform_buffer,
+        .usage = crd::host_visible,
+        .capacity = sizeof(Cascade[shadow_cascades])
     });
     auto light_instances_buffer = crd::make_buffer(context, {
         .type = crd::storage_buffer,
@@ -336,12 +418,18 @@ int main() {
         .usage = crd::host_visible,
         .capacity = crd::size_bytes(point_lights)
     });
+    auto directional_lights_buffer = crd::make_buffer(context, {
+        .type = crd::uniform_buffer,
+        .usage = crd::host_visible,
+        .capacity = sizeof(DirectionalLight[max_directional_lights])
+    });
     auto light_visibility_buffer = crd::make_buffer(context, {
         .type = crd::storage_buffer,
         .usage = crd::device_local,
         .capacity = sizeof(LightVisibility)
     });
     auto depth_set = crd::make_descriptor_set(context, depth_pipeline.layout.sets[0]);
+    auto shadow_set = crd::make_descriptor_set(context, shadow_pipeline.layout.sets[0]);
     auto cmp_cull_set = crd::make_descriptor_set(context, cull_pipeline.layout.sets[0]);
     auto main_set = crd::make_descriptor_set(context, final_pipeline.layout.sets[0]);
     auto light_data_set = crd::make_descriptor_set(context, final_pipeline.layout.sets[1]);
@@ -392,6 +480,12 @@ int main() {
 
         crd::wait_fence(context, done);
 
+        sun_dlight.direction = glm::vec4(
+            50.0f * std::cos(crd::current_time() / 6),
+            150.0f,
+            50.0f * std::sin(crd::current_time() / 6),
+            1.0f);
+        const auto cascades = calculate_cascades(camera, sun_dlight.direction);
         const auto tiles_per_row = (window.width - 1) / tile_size + 1;
         const auto tiles_per_col = (window.height - 1) / tile_size + 1;
         const auto light_visibility_size = sizeof(LightVisibility) * tiles_per_col * tiles_per_row;
@@ -400,13 +494,19 @@ int main() {
         crd::resize_buffer(context, point_lights_buffer[index], crd::size_bytes(point_lights));
 
         camera_buffer[index].write(&camera_data, 0, sizeof(CameraUniform));
+        cascades_buffer[index].write(cascades.data(), 0);
         point_lights_buffer[index].write(point_lights.data(), 0, crd::size_bytes(point_lights));
+        directional_lights_buffer[index].write(&sun_dlight, 0, sizeof sun_dlight);
         light_instances_buffer[index].write(point_light_instances.data(), 0, crd::size_bytes(point_light_instances));
         model_buffer[index].write(scene.transforms.data(), 0, crd::size_bytes(scene.transforms));
 
         depth_set[index]
             .bind(context, depth_pipeline.bindings["Uniforms"], camera_buffer[index].info())
             .bind(context, depth_pipeline.bindings["Models"], model_buffer[index].info());
+        shadow_set[index]
+            .bind(context, shadow_pipeline.bindings["Models"], model_buffer[index].info())
+            .bind(context, shadow_pipeline.bindings["Cascades"], cascades_buffer[index].info())
+            .bind(context, shadow_pipeline.bindings["textures"], scene.descriptors);
         cmp_cull_set[index]
             .bind(context, cull_pipeline.bindings["CameraBuffer"], camera_buffer[index].info())
             .bind(context, cull_pipeline.bindings["PointLights"], point_lights_buffer[index].info())
@@ -418,7 +518,10 @@ int main() {
             .bind(context, final_pipeline.bindings["textures"], scene.descriptors);
         light_data_set[index]
             .bind(context, final_pipeline.bindings["PointLights"], point_lights_buffer[index].info())
-            .bind(context, final_pipeline.bindings["LightVisibilities"], light_visibility_buffer[index].info());
+            .bind(context, final_pipeline.bindings["DirectionalLights"], directional_lights_buffer[index].info())
+            .bind(context, final_pipeline.bindings["LightVisibilities"], light_visibility_buffer[index].info())
+            .bind(context, final_pipeline.bindings["Cascades"], cascades_buffer[index].info())
+            .bind(context, final_pipeline.bindings["shadow"], shadow_pass.image(0).sample(context.shadow_sampler));
         light_view_set[index]
             .bind(context, light_pipeline.bindings["Uniforms"], camera_buffer[index].info())
             .bind(context, light_pipeline.bindings["Instances"], light_instances_buffer[index].info());
@@ -428,7 +531,7 @@ int main() {
             .begin_render_pass(depth_pass, 0)
             .bind_pipeline(depth_pipeline)
             .bind_descriptor_set(0, depth_set[index])
-            .set_viewport(crd::inverted_viewport)
+            .set_viewport()
             .set_scissor();
         for (const auto& model : scene.models) {
             auto& raw_model = **model.handle;
@@ -439,6 +542,27 @@ int main() {
                 };
                 commands
                     .push_constants(VK_SHADER_STAGE_VERTEX_BIT, indices, sizeof indices)
+                    .bind_static_mesh(*raw_submesh.mesh)
+                    .draw_indexed(raw_submesh.indices, model.instances, 0, 0, 0);
+            }
+        }
+        commands
+            .end_render_pass()
+            .begin_render_pass(shadow_pass, 0)
+            .bind_pipeline(shadow_pipeline)
+            .bind_descriptor_set(0, shadow_set[index])
+            .set_viewport(crd::inverted_viewport)
+            .set_scissor();
+        for (const auto& model : scene.models) {
+            auto& raw_model = **model.handle;
+            for (const auto& submesh : model.submeshes) {
+                auto& raw_submesh = raw_model.submeshes[submesh.index];
+                const std::uint32_t indices[] = {
+                    model.transform,
+                    submesh.textures[0]
+                };
+                commands
+                    .push_constants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, indices, sizeof indices)
                     .bind_static_mesh(*raw_submesh.mesh)
                     .draw_indexed(raw_submesh.indices, model.instances, 0, 0, 0);
             }
@@ -462,6 +586,8 @@ int main() {
             })
             .begin_render_pass(final_pass, 0)
             .bind_pipeline(final_pipeline)
+            .set_viewport()
+            .set_scissor()
             .bind_descriptor_set(0, main_set[index])
             .bind_descriptor_set(1, light_data_set[index]);
         for (const auto& model : scene.models) {
@@ -473,8 +599,8 @@ int main() {
                     submesh.textures[0],
                     submesh.textures[1],
                     submesh.textures[2],
-                    (std::uint32_t)point_lights.size(),
-                    0,
+                    1,
+                    0, // Padding
                     tiles_per_row,
                     tiles_per_col
                 };
@@ -484,12 +610,12 @@ int main() {
                     .draw_indexed(raw_submesh.indices, model.instances, 0, 0, 0);
             }
         }
-        auto& cube_mesh = models[0]->submeshes[0];
+        //auto& cube_mesh = models[0]->submeshes[0];
         commands
-            .bind_pipeline(light_pipeline)
-            .bind_descriptor_set(0, light_view_set[index])
-            .bind_static_mesh(*cube_mesh.mesh)
-            .draw_indexed(cube_mesh.indices, p_lights, 0, 0, 0)
+            //.bind_pipeline(light_pipeline)
+            //.bind_descriptor_set(0, light_view_set[index])
+            //.bind_static_mesh(*cube_mesh.mesh)
+            //.draw_indexed(cube_mesh.indices, p_lights, 0, 0, 0)
             .end_render_pass()
             .transition_layout({
                 .image = &image,
@@ -523,7 +649,7 @@ int main() {
             .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT }
         });
         if (fps >= 2) {
-            crd::log("Scene", crd::severity_info, crd::type_performance, "Average FPS: %lf, DT: %lfms", 1 / (fps / frames), fps / frames);
+            crd::log("Scene", crd::severity_info, crd::type_performance, "Average FPS: %lf, DT: %lfms", 1 / (fps / frames), (fps / frames) * 1000);
             frames = 0;
             fps = 0;
         }

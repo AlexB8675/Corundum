@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 #define tile_size 16
-#define max_lights_per_tile 16
+#define max_lights_per_tile 512
 #define ndc_upper_left vec2(-1.0, -1.0)
 #define ndc_near_plane 0.0
 #define ndc_far_plane 1.0

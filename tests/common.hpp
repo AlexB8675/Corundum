@@ -2,7 +2,8 @@
 #define CORUNDUM_TESTS_COMMON_HPP
 
 #define max_shadow_cascades 16
-#define max_lights_per_tile 16
+#define max_directional_lights 4
+#define max_lights_per_tile 512
 #define shadow_cascades 4
 #define tile_size 16
 
@@ -45,9 +46,9 @@ struct Camera {
     glm::mat4 projection;
     glm::mat4 view;
     glm::vec3 position = { 3.5f, 3.5f,  0.0f };
-    glm::vec3 front =    { 0.0f, 0.0f, -1.0f };
-    glm::vec3 up =       { 0.0f, 1.0f,  0.0f };
-    glm::vec3 right =    { 0.0f, 0.0f,  0.0f };
+    glm::vec3 front = { 0.0f, 0.0f, -1.0f };
+    glm::vec3 up = { 0.0f, 1.0f,  0.0f };
+    glm::vec3 right = { 0.0f, 0.0f,  0.0f };
     glm::vec3 world_up = { 0.0f, 1.0f,  0.0f };
     float yaw = -180.0f;
     float pitch = 0.0f;
@@ -59,6 +60,7 @@ struct Camera {
         _process_keyboard(window, delta_time);
         aspect = window.width / (float)window.height;
         projection = glm::perspective(glm::radians(90.0f), aspect, near, far);
+        projection[1][1] *= -1;
         const auto cos_pitch = std::cos(glm::radians(pitch));
         front = glm::normalize(glm::vec3{
             std::cos(glm::radians(yaw)) * cos_pitch,

@@ -257,8 +257,8 @@ int main() {
     auto shadow_pass = crd::make_render_pass(context, {
         .attachments = { {
             .image = crd::make_image(context, {
-                .width   = 4096,
-                .height  = 4096,
+                .width   = 2048,
+                .height  = 2048,
                 .mips    = 1,
                 .layers  = shadow_cascades,
                 .format  = VK_FORMAT_D32_SFLOAT,
@@ -522,7 +522,7 @@ int main() {
             .end_render_pass()
             .begin_render_pass(deferred_pass, 0)
             .bind_pipeline(deferred_pipeline)
-            .set_viewport(crd::inverted_viewport)
+            .set_viewport()
             .set_scissor()
             .bind_descriptor_set(0, deferred_set[index]);
         for (const auto& model : scene.models) {
