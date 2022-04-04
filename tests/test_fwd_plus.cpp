@@ -410,7 +410,7 @@ int main() {
         cmp_cull_set[index]
             .bind(context, cull_pipeline.bindings["CameraBuffer"], camera_buffer[index].info())
             .bind(context, cull_pipeline.bindings["PointLights"], point_lights_buffer[index].info())
-            .bind(context, cull_pipeline.bindings["depth"], depth_pass.image(0).sample(context.shadow_sampler))
+            .bind(context, cull_pipeline.bindings["depth"], depth_pass.image(0).sample(context.default_sampler))
             .bind(context, cull_pipeline.bindings["LightVisibilities"], light_visibility_buffer[index].info());
         main_set[index]
             .bind(context, final_pipeline.bindings["Uniforms"], camera_buffer[index].info())
@@ -486,10 +486,10 @@ int main() {
         }
         auto& cube_mesh = models[0]->submeshes[0];
         commands
-            //.bind_pipeline(light_pipeline)
-            //.bind_descriptor_set(0, light_view_set[index])
-            //.bind_static_mesh(*cube_mesh.mesh)
-            //.draw_indexed(cube_mesh.indices, p_lights, 0, 0, 0)
+            .bind_pipeline(light_pipeline)
+            .bind_descriptor_set(0, light_view_set[index])
+            .bind_static_mesh(*cube_mesh.mesh)
+            .draw_indexed(cube_mesh.indices, p_lights, 0, 0, 0)
             .end_render_pass()
             .transition_layout({
                 .image = &image,

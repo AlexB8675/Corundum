@@ -1,4 +1,5 @@
 #version 460
+#extension GL_ARB_separate_shader_objects : enable
 
 #define tile_size 16
 #define max_lights_per_tile 16
@@ -131,13 +132,13 @@ void main() {
         }
 
         frustum = make_frustum(tile_id);
-        tile_light_count = 0;
+        atomicExchange(tile_light_count, 0);
     }
     barrier();
-    for (uint i = gl_LocalInvocationIndex; i < point_light_count && tile_light_count < max_lights_per_tile; i += gl_WorkGroupSize.x) {
+    for (uint i = gl_LocalInvocationIndex; i < point_light_count; i += gl_WorkGroupSize.x) {
         if (check_light(point_lights[i], frustum)) {
             const uint slot = atomicAdd(tile_light_count, 1);
-            if (tile_light_count >= max_lights_per_tile) {
+            if (slot >= max_lights_per_tile) {
                 break;
             }
             light_visibilities[tile_index].indices[slot] = i;

@@ -23,6 +23,8 @@ struct LightVisibility {
     uint[max_lights_per_tile] indices;
 };
 
+layout (early_fragment_tests) in;
+
 layout (location = 0) out vec4 pixel;
 
 layout (location = 0) in VertexData {
