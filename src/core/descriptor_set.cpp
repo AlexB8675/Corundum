@@ -5,12 +5,16 @@
 #include <corundum/core/buffer.hpp>
 #include <corundum/core/image.hpp>
 
-#include <corundum/detail/logger.hpp>
 #include <corundum/detail/hash.hpp>
+
+#include <spdlog/spdlog.h>
+
+#include <Tracy.hpp>
 
 namespace crd {
     template <>
     crd_nodiscard crd_module DescriptorSet<1> make_descriptor_set(const Context& context, DescriptorSetLayout layout) noexcept {
+        crd_profile_scoped();
         VkDescriptorSetAllocateInfo allocate_info;
         allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocate_info.pNext = nullptr;
@@ -33,6 +37,7 @@ namespace crd {
 
     template <>
     crd_nodiscard crd_module DescriptorSet<in_flight> make_descriptor_set(const Context& context, DescriptorSetLayout layout) noexcept {
+        crd_profile_scoped();
         DescriptorSet<in_flight> sets;
         for (auto& each : sets.handles) {
             each = make_descriptor_set<1>(context, layout);
@@ -42,17 +47,20 @@ namespace crd {
 
     template <>
     crd_module void destroy_descriptor_set(const Context& context, DescriptorSet<1>& set) noexcept {
+        crd_profile_scoped();
         crd_vulkan_check(vkFreeDescriptorSets(context.device, context.descriptor_pool, 1, &set.handle));
     }
 
     template <>
     crd_module void destroy_descriptor_set(const Context& context, DescriptorSet<in_flight>& sets) noexcept {
+        crd_profile_scoped();
         for (auto& each : sets.handles) {
             destroy_descriptor_set(context, each);
         }
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorBufferInfo buffer) noexcept {
+        crd_profile_scoped();
         const auto binding_hash = dtl::hash(0, binding);
         const auto descriptor_hash = dtl::hash(0, buffer);
         const auto is_bound =
@@ -61,8 +69,8 @@ namespace crd {
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            log("Vulkan", severity_info, type_performance,
-                     "updating buffer descriptor with binding: %d, handle: %p, range: %llu", binding.index, buffer.buffer, buffer.range);
+            spdlog::info("updating buffer descriptor with binding: {}, handle: {}, range: {}",
+                         binding.index, (const void*)buffer.buffer, buffer.range);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
@@ -85,6 +93,7 @@ namespace crd {
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorImageInfo image) noexcept {
+        crd_profile_scoped();
         const auto binding_hash = dtl::hash(0, binding);
         const auto descriptor_hash = dtl::hash(0, image);
         const auto is_bound =
@@ -93,8 +102,8 @@ namespace crd {
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            log("Vulkan", severity_info, type_performance,
-                     "updating image descriptor with binding: %d, handle: %p", binding.index, image.imageView);
+            spdlog::info("updating image descriptor with binding: {}, handle: {}",
+                         binding.index, (const void*)image.imageView);
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
@@ -118,6 +127,7 @@ namespace crd {
 
 #if defined(crd_enable_raytracing)
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, const AccelerationStructure& tlas) noexcept {
+        crd_profile_scoped();
         const auto binding_hash = dtl::hash(0, binding);
         const auto descriptor_hash = dtl::hash(0, tlas);
         const auto is_bound =
@@ -126,8 +136,8 @@ namespace crd {
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            log("Vulkan", severity_info, type_performance,
-                     "updating TLAS descriptor with binding: %d, handle: %p", binding.index, tlas.handle);
+            spdlog::info("updating TLAS descriptor with binding: {}, handle: {}",
+                         binding.index, (const void*)tlas.handle);
             VkWriteDescriptorSetAccelerationStructureKHR as_update;
             as_update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
             as_update.pNext = nullptr;
@@ -156,6 +166,7 @@ namespace crd {
 #endif
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, const std::vector<VkDescriptorImageInfo>& images) noexcept {
+        crd_profile_scoped();
         const auto binding_hash = dtl::hash(0, binding);
         const auto descriptor_hash = dtl::hash(0, images);
         const auto is_bound =
@@ -164,8 +175,7 @@ namespace crd {
             });
         const auto found_binding = is_bound != bound.end();
         crd_unlikely_if(!found_binding || is_bound->descriptor != descriptor_hash) {
-            log("Vulkan", severity_info, type_performance,
-                     "updating image dynamic descriptor with binding: %d, images: %llu", binding.index, images.size());
+            spdlog::info("updating image dynamic descriptor with binding: {}, images: {}", binding.index, images.size());
             VkWriteDescriptorSet update;
             update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             update.pNext = nullptr;
@@ -188,24 +198,29 @@ namespace crd {
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorBufferInfo buffer) noexcept {
+        crd_profile_scoped();
         return bind(context, binding, 0, buffer);
     }
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorImageInfo image) noexcept {
+        crd_profile_scoped();
         return bind(context, binding, 0, image);
     }
 
 #if defined(crd_enable_raytracing)
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, const AccelerationStructure& tlas) noexcept {
+        crd_profile_scoped();
         return bind(context, binding, 0, tlas);
     }
 #endif
 
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const Context& context, const DescriptorBinding& binding, const std::vector<VkDescriptorImageInfo>& images) noexcept {
+        crd_profile_scoped();
         return bind(context, binding, 0, images);
     }
 
     crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorBufferInfo buffer) noexcept {
+        crd_profile_scoped();
         for (auto& each : handles) {
             each.bind(context, binding, buffer);
         }
@@ -213,6 +228,7 @@ namespace crd {
     }
 
     crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, VkDescriptorImageInfo image) noexcept {
+        crd_profile_scoped();
         for (auto& each : handles) {
             each.bind(context, binding, image);
         }
@@ -221,6 +237,7 @@ namespace crd {
 
 #if defined(crd_enable_raytracing)
     crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, const AccelerationStructure& tlas) noexcept {
+        crd_profile_scoped();
         for (auto& each : handles) {
             each.bind(context, binding, tlas);
         }
@@ -229,6 +246,7 @@ namespace crd {
 #endif
 
     crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, const std::vector<VkDescriptorImageInfo>& images) noexcept {
+        crd_profile_scoped();
         for (auto& each : handles) {
             each.bind(context, binding, images);
         }
@@ -236,6 +254,7 @@ namespace crd {
     }
 
     crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorBufferInfo buffer) noexcept {
+        crd_profile_scoped();
         for (auto& each : handles) {
             each.bind(context, binding, offset, buffer);
         }
@@ -243,6 +262,7 @@ namespace crd {
     }
 
     crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, VkDescriptorImageInfo image) noexcept {
+        crd_profile_scoped();
         for (auto& each : handles) {
             each.bind(context, binding, offset, image);
         }
@@ -251,6 +271,7 @@ namespace crd {
 
 #if defined(crd_enable_raytracing)
     crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, const AccelerationStructure& tlas) noexcept {
+        crd_profile_scoped();
         for (auto& each : handles) {
             each.bind(context, binding, offset, tlas);
         }
@@ -259,6 +280,7 @@ namespace crd {
 #endif
 
     crd_module DescriptorSet<in_flight>& DescriptorSet<in_flight>::bind(const Context& context, const DescriptorBinding& binding, std::uint32_t offset, const std::vector<VkDescriptorImageInfo>& images) noexcept {
+        crd_profile_scoped();
         for (auto& each : handles) {
             each.bind(context, binding, offset, images);
         }
@@ -266,10 +288,12 @@ namespace crd {
     }
 
     crd_nodiscard crd_module const DescriptorSet<1>& DescriptorSet<in_flight>::operator [](std::size_t index) const noexcept {
+        crd_profile_scoped();
         return handles[index];
     }
 
     crd_nodiscard crd_module DescriptorSet<1>& DescriptorSet<in_flight>::operator [](std::size_t index) noexcept {
+        crd_profile_scoped();
         return handles[index];
     }
 } // namespace crd

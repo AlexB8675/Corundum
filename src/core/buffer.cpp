@@ -1,11 +1,14 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/buffer.hpp>
 
+#include <Tracy.hpp>
+
 #include <cstring>
 
 namespace crd {
     template <>
     crd_nodiscard crd_module Buffer<1> make_buffer(const Context& context, Buffer<in_flight>::CreateInfo&& info) noexcept {
+        crd_profile_scoped();
         Buffer<1> buffer;
         buffer.handle = make_static_buffer(context, {
             .flags = static_cast<VkBufferUsageFlags>(info.type),
@@ -18,6 +21,7 @@ namespace crd {
 
     template <>
     crd_nodiscard crd_module Buffer<in_flight> make_buffer(const Context& context, Buffer<in_flight>::CreateInfo&& info) noexcept {
+        crd_profile_scoped();
         Buffer<in_flight> buffer;
         for (auto& handle : buffer.handles) {
             handle = make_buffer<1>(context, std::move(info));
@@ -27,12 +31,14 @@ namespace crd {
 
     template <>
     crd_module void destroy_buffer(const Context& context, Buffer<1>& buffer) noexcept {
+        crd_profile_scoped();
         destroy_static_buffer(context, buffer.handle);
         buffer = {};
     }
 
     template <>
     crd_module void destroy_buffer(const Context& context, Buffer<in_flight>& buffer) noexcept {
+        crd_profile_scoped();
         for (auto& handle : buffer.handles) {
             destroy_buffer(context, handle);
         }
@@ -40,28 +46,34 @@ namespace crd {
     }
 
     crd_nodiscard crd_module VkDescriptorBufferInfo Buffer<1>::info() const noexcept {
+        crd_profile_scoped();
         return { handle.handle, 0, size };
     }
 
     crd_nodiscard crd_module std::size_t Buffer<1>::capacity() const noexcept {
+        crd_profile_scoped();
         return handle.capacity;
     }
 
     crd_nodiscard crd_module const char* Buffer<1>::view() const noexcept {
+        crd_profile_scoped();
         return static_cast<const char*>(handle.mapped);
     }
 
     crd_nodiscard crd_module char* Buffer<1>::raw() const noexcept {
+        crd_profile_scoped();
         return static_cast<char*>(handle.mapped);
     }
 
     crd_module void Buffer<1>::write(const void* data, std::size_t offset) noexcept {
+        crd_profile_scoped();
         crd_likely_if(data) {
             write(data, offset, handle.capacity);
         }
     }
 
     crd_module void Buffer<1>::write(const void* data, std::size_t offset, std::size_t length) noexcept {
+        crd_profile_scoped();
         crd_assert(length + offset <= handle.capacity, "can't write past end pointer");
         size = length + offset;
         crd_likely_if(data) {
@@ -70,16 +82,19 @@ namespace crd {
     }
 
     crd_module Buffer<1>& Buffer<in_flight>::operator [](std::size_t index) noexcept {
+        crd_profile_scoped();
         return handles[index];
     }
 
     crd_module void Buffer<in_flight>::write(const void* data, std::size_t offset) noexcept {
+        crd_profile_scoped();
         for (auto& each : handles) {
             each.write(data, offset);
         }
     }
 
     crd_module void Buffer<in_flight>::write(const void* data, std::size_t offset, std::size_t length) noexcept {
+        crd_profile_scoped();
         for (auto& each : handles) {
             each.write(data, offset, length);
         }
@@ -87,6 +102,7 @@ namespace crd {
 
     template <>
     crd_module void resize_buffer(const Context& context, Buffer<1>& buffer, std::size_t new_size) noexcept {
+        crd_profile_scoped();
         crd_likely_if(new_size == buffer.size) {
             return;
         }
@@ -107,6 +123,7 @@ namespace crd {
 
     template <>
     crd_module void resize_buffer(const Context& context, Buffer<in_flight>& buffer, std::size_t new_size) noexcept {
+        crd_profile_scoped();
         for (auto& each : buffer.handles) {
             resize_buffer(context, each, new_size);
         }
@@ -114,6 +131,7 @@ namespace crd {
 
     template <>
     crd_module void shrink_buffer(const Context& context, Buffer<1>& buffer) noexcept {
+        crd_profile_scoped();
         crd_unlikely_if(buffer.size < buffer.handle.capacity) {
             auto old = buffer.handle;
             buffer.handle = make_static_buffer(context, {
@@ -128,6 +146,7 @@ namespace crd {
 
     template <>
     crd_module void shrink_buffer(const Context& context, Buffer<in_flight>& buffer) noexcept {
+        crd_profile_scoped();
         for (auto& each : buffer.handles) {
             shrink_buffer(context, each);
         }

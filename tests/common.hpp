@@ -26,14 +26,16 @@
 #include <corundum/core/clear.hpp>
 #include <corundum/core/async.hpp>
 
-#include <corundum/detail/logger.hpp>
-
 #include <corundum/wm/window.hpp>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
+
+#include <Tracy.hpp>
+
+#include <spdlog/spdlog.h>
 
 #include <filesystem>
 #include <random>
@@ -53,10 +55,12 @@ struct Camera {
     float yaw = -180.0f;
     float pitch = 0.0f;
     float aspect = 0.0f;
-    const float near = 0.1f;
-    const float far = 256.0f;
+    constexpr static float fov = 90.0f;
+    constexpr static float near = 0.1f;
+    constexpr static float far = 256.0f;
 
     void update(const crd::Window& window, double delta_time) noexcept {
+        crd_profile_scoped();
         _process_keyboard(window, delta_time);
         aspect = window.width / (float)window.height;
         projection = glm::perspective(glm::radians(90.0f), aspect, near, far);
@@ -73,10 +77,12 @@ struct Camera {
     }
 
     glm::mat4 raw() const noexcept {
+        crd_profile_scoped();
         return projection * view;
     }
 private:
     void _process_keyboard(const crd::Window& window, double delta_time) noexcept {
+        crd_profile_scoped();
         constexpr auto camera_speed = 7.5f;
         const auto delta_movement = camera_speed * (float)delta_time;
         if (window.key(crd::key_w) == crd::key_pressed) {
@@ -121,9 +127,12 @@ private:
 };
 
 struct Cascade {
-    glm::mat4 pv;
+    glm::mat4 projection;
+    glm::mat4 view;
+    glm::mat4 proj_view;
+    float near;
     float level;
-    float _0[3];
+    float _u0[2];
 };
 
 struct Model {
@@ -173,12 +182,14 @@ struct Draw {
 };
 
 static inline float random(float min, float max) {
+    crd_profile_scoped();
     static std::random_device device;
     static std::mt19937 engine(device());
     return std::uniform_real_distribution<float>(min, max)(engine);
 }
 
 static inline Scene build_scene(std::span<Draw> draws, VkDescriptorImageInfo fallback) noexcept {
+    crd_profile_scoped();
     Scene scene;
     scene.descriptors = { fallback };
     std::unordered_map<void*, std::uint32_t> cache;
@@ -238,8 +249,9 @@ static inline Scene build_scene(std::span<Draw> draws, VkDescriptorImageInfo fal
 }
 
 static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Camera& camera, glm::vec3 light_pos) noexcept {
+    crd_profile_scoped();
     std::array<Cascade, shadow_cascades> cascades;
-    const auto calculate_cascade = [&camera, &light_pos](float near, float far) {
+    const auto calculate_cascade = [&camera, &light_pos](float near, float far) -> std::array<glm::mat4, 2> {
         const auto perspective = glm::perspective(glm::radians(90.0f), camera.aspect, near, far);
         glm::vec4 corners[8];
         { // Calculate frustum corners
@@ -303,31 +315,39 @@ static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Came
 
             light_proj = glm::ortho(min_x, max_x, min_y, max_y, min_z, max_z);
         }
-        return light_proj * light_view;
+        return { light_proj, light_view };
     };
     const float cascade_levels[shadow_cascades] = {
-        camera.far / 15.0f,
-        camera.far / 7.5f,
-        camera.far / 2.5f,
-        camera.far,
+        Camera::far / 15.0f,
+        Camera::far / 7.5f,
+        Camera::far / 2.5f,
+        Camera::far,
     };
     for (std::size_t i = 0; i < shadow_cascades; ++i) {
         float near;
         float far;
         crd_unlikely_if(i == 0) {
-            near = camera.near;
+            near = Camera::near;
             far = cascade_levels[i];
         } else {
             near = cascade_levels[i - 1];
             far = cascade_levels[i];
         }
-        cascades[i] = { calculate_cascade(near, far), far };
+        const auto [projection, view] = calculate_cascade(near, far);
+        cascades[i] = {
+            projection,
+            view,
+            projection * view,
+            near,
+            far
+        };
     }
     return cascades;
 }
 
 template <typename T>
 static inline T reload_pipelines(const crd::Context& context, crd::Renderer& renderer, T& pipeline, typename T::CreateInfo&& info) noexcept {
+    crd_profile_scoped();
     switch (pipeline.type) {
         case T::type_graphics:
         case T::type_raytracing: {

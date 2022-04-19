@@ -1,10 +1,13 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/image.hpp>
 
-#include <corundum/detail/logger.hpp>
+#include <Tracy.hpp>
+
+#include <spdlog/spdlog.h>
 
 namespace crd {
     crd_nodiscard crd_module Image make_image(const Context& context, Image::CreateInfo&& info) noexcept {
+        crd_profile_scoped();
         Image image;
         image.samples = info.samples;
         image.aspect = info.aspect;
@@ -51,9 +54,8 @@ namespace crd {
 
         VkMemoryRequirements memory_requirements;
         vkGetImageMemoryRequirements(context.device, image.handle, &memory_requirements);
-        log("Vulkan", severity_verbose, type_general,
-                 "image allocated successfully: size: %llu bytes, alignment: %llu bytes",
-                 memory_requirements.size, memory_requirements.alignment);
+        spdlog::info("image allocated successfully: size: {} bytes, alignment: {} bytes",
+                     memory_requirements.size, memory_requirements.alignment);
         VkImageViewCreateInfo image_view_info;
         image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         image_view_info.pNext = nullptr;
@@ -78,12 +80,14 @@ namespace crd {
     }
 
     crd_module void destroy_image(const Context& context, Image& image) noexcept {
+        crd_profile_scoped();
         vkDestroyImageView(context.device, image.view, nullptr);
         vmaDestroyImage(context.allocator, image.handle, image.allocation);
         image = {};
     }
 
     VkDescriptorImageInfo Image::sample(VkSampler sampler) const noexcept {
+        crd_profile_scoped();
         return {
             .sampler = sampler,
             .imageView = view,
@@ -92,6 +96,7 @@ namespace crd {
     }
 
     VkDescriptorImageInfo Image::info(VkImageLayout layout) const noexcept {
+        crd_profile_scoped();
         return {
             .sampler = nullptr,
             .imageView = view,

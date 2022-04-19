@@ -140,7 +140,7 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
         &as_build_sizes_info);
 
     crd_unlikely_if(scene.cache[index] != primitive_count) {
-        crd::log("Vulkan", crd::severity_info, crd::type_general, "creating TLAS, requesting: %llu bytes", as_build_sizes_info.accelerationStructureSize);
+        spdlog::info("creating TLAS, requesting: %llu bytes", as_build_sizes_info.accelerationStructureSize);
         crd_likely_if(tlas.handle) {
             crd::vkDestroyAccelerationStructureKHR(context.device, tlas.handle, nullptr);
         }
@@ -308,7 +308,6 @@ int main() {
         camera.update(window, delta_time);
         CameraUniform camera_data;
         camera_data.projection = camera.projection;
-        camera_data.projection[1][1] *= -1;
         camera_data.projection = glm::inverse(camera_data.projection);
         camera_data.view = glm::inverse(camera.view);
 
@@ -383,7 +382,7 @@ int main() {
             .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT }
         });
         if (fps >= 1.6) {
-            crd::log("Scene", crd::severity_info, crd::type_performance, "Average FPS: %lf ", 1 / (fps / frames));
+            spdlog::info("average FPS: {}, dt: {}ms", 1 / (fps / frames), (fps / frames) * 1000);
             frames = 0;
             fps = 0;
         }

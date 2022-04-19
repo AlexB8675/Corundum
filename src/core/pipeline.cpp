@@ -6,8 +6,11 @@
 #include <corundum/core/context.hpp>
 
 #include <corundum/detail/file_view.hpp>
-#include <corundum/detail/logger.hpp>
 #include <corundum/detail/hash.hpp>
+
+#include <Tracy.hpp>
+
+#include <spdlog/spdlog.h>
 
 #include <spirv_glsl.hpp>
 #include <spirv.hpp>
@@ -21,10 +24,12 @@ namespace crd {
     namespace spvc = spirv_cross;
 
     crd_nodiscard static inline std::uint32_t aligned_size(std::uint32_t size, std::uint32_t alignment) noexcept {
+        crd_profile_scoped();
         return (size + alignment - 1) & ~(alignment - 1);
     }
 
     crd_nodiscard static inline std::vector<std::uint32_t> import_spirv(const char* path) noexcept {
+        crd_profile_scoped();
         auto file = dtl::make_file_view(path);
         std::vector<std::uint32_t> code(file.size / sizeof(std::uint32_t));
         std::memcpy(code.data(), file.data, file.size);
@@ -33,12 +38,13 @@ namespace crd {
     }
 
     crd_nodiscard crd_module GraphicsPipeline make_pipeline(const Context& context, Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
-        log("Vulkan", severity_info, type_general, "loading vertex shader: \"%s\"", info.vertex);
+        crd_profile_scoped();
+        spdlog::info("loading vertex shader: \"{}\"", info.vertex);
         if (info.geometry) {
-            log("Vulkan", severity_info, type_general, "loading geometry shader: \"%s\"", info.geometry);
+            spdlog::info("loading geometry shader: \"{}\"", info.geometry);
         }
         if (info.fragment) {
-            log("Vulkan", severity_info, type_general, "loading fragment shader: \"%s\"", info.fragment);
+            spdlog::info("loading fragment shader: \"{}\"", info.fragment);
         }
         GraphicsPipeline pipeline;
 
@@ -536,12 +542,14 @@ namespace crd {
         for (const auto& stage : pipeline_stages) {
             vkDestroyShaderModule(context.device, stage.module, nullptr);
         }
+        spdlog::info("pipeline created successfully");
         return pipeline;
     }
 
     crd_nodiscard crd_module ComputePipeline make_pipeline(const Context& context, Renderer& renderer, ComputePipeline::CreateInfo&& info) noexcept {
+        crd_profile_scoped();
         ComputePipeline pipeline;
-        log("Vulkan", crd::severity_info, crd::type_general, "loading compute shader: \"%s\"", info.compute);
+        spdlog::info("loading compute shader: \"{}\"", info.compute);
         const auto binary = import_spirv(info.compute);
         VkShaderModuleCreateInfo compute_module;
         compute_module.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -689,12 +697,14 @@ namespace crd {
         pipeline_info.basePipelineIndex = -1;
         crd_vulkan_check(vkCreateComputePipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
         vkDestroyShaderModule(context.device, compute_stage.module, nullptr);
-        log("Vulkan", crd::severity_info, crd::type_general, "pipeline created successfully");
+        spdlog::info("pipeline created successfully");
         return pipeline;
     }
 
+    // TODO: Add support for multiple shaders in one SBT
     crd_nodiscard crd_module RayTracingPipeline make_pipeline(const Context& context, Renderer& renderer, RayTracingPipeline::CreateInfo&& info) noexcept {
 #if defined(crd_enable_raytracing)
+        crd_profile_scoped();
         RayTracingPipeline pipeline;
 
         std::vector<VkRayTracingShaderGroupCreateInfoKHR> pipeline_groups;

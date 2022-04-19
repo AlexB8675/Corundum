@@ -1,4 +1,5 @@
 #version 460
+#extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_ARB_separate_shader_objects: enable
 
 #define max_shadow_cascades 16
@@ -12,7 +13,7 @@ layout (location = 0) in vec2[] i_uvs;
 layout (location = 0) out vec2 uvs;
 
 struct Cascade {
-    mat4 pv;
+    mat4 proj_view;
     float split;
 };
 
@@ -22,8 +23,8 @@ layout (set = 0, binding = 1) uniform Cascades {
 
 void main() {
     for (int i = 0; i < 3; ++i) {
-        gl_Position = cascades[gl_InvocationID].pv * gl_in[i].gl_Position;
-        uvs = i_uvs[gl_InvocationID];
+        gl_Position = cascades[gl_InvocationID].proj_view * gl_in[i].gl_Position;
+        uvs = i_uvs[gl_PrimitiveIDIn];
         gl_Layer = gl_InvocationID;
         EmitVertex();
     }

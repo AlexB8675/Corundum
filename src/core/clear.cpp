@@ -1,11 +1,14 @@
 #include <corundum/core/clear.hpp>
 
+#include <Tracy.hpp>
+
 #include <type_traits>
 #include <algorithm>
 #include <cstring>
 
 namespace crd {
     crd_nodiscard crd_module VkClearValue as_vulkan(ClearValue clear) noexcept {
+        crd_profile_scoped();
         VkClearValue value = {};
         switch (clear.tag) {
             case clear_value_color: {
@@ -24,6 +27,7 @@ namespace crd {
     }
 
     crd_nodiscard crd_module ClearValue make_clear_color(ClearColor color) noexcept {
+        crd_profile_scoped();
         ClearValue value;
         value.tag = clear_value_color;
         new (&value.color) ClearColor(color);
@@ -31,6 +35,7 @@ namespace crd {
     }
 
     crd_nodiscard crd_module ClearValue make_clear_depth(ClearDepth depth) noexcept {
+        crd_profile_scoped();
         ClearValue value;
         value.tag = clear_value_depth;
         new (&value.depth) ClearDepth(depth);

@@ -6,21 +6,24 @@
 #include <corundum/core/async.hpp>
 #include <corundum/core/queue.hpp>
 
-#include <corundum/detail/logger.hpp>
+#include <Tracy.hpp>
+
+#include <spdlog/spdlog.h>
 
 #include <cstring>
 
 namespace crd {
     crd_nodiscard crd_module Async<StaticMesh> request_static_mesh(const Context& context, StaticMesh::CreateInfo&& info) noexcept {
+        crd_profile_scoped();
         using task_type = std::packaged_task<StaticMesh(ftl::TaskScheduler*)>;
         auto* task = new task_type([&context, info = std::move(info)](ftl::TaskScheduler* scheduler) noexcept -> StaticMesh {
+            crd_profile_scoped();
             const auto thread_index = scheduler->GetCurrentThreadIndex();
             const auto graphics_pool = context.graphics->transient[thread_index];
             const auto transfer_pool = context.transfer->transient[thread_index];
             const auto vertex_bytes = size_bytes(info.geometry);
             const auto index_bytes = size_bytes(info.indices);
-            log("Vulkan", severity_verbose, type_general,
-                     "StaticMesh was asynchronously requested, expected bytes to transfer: %zu", vertex_bytes * index_bytes);
+            spdlog::info("StaticMesh was asynchronously requested, expected bytes to transfer: {}", vertex_bytes * index_bytes);
             auto vertex_staging = make_static_buffer(context, {
                 .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 .usage = VMA_MEMORY_USAGE_CPU_ONLY,
@@ -178,7 +181,7 @@ namespace crd {
                     &triangles,
                     &as_build_sizes);
 
-                log("Vulkan", severity_info, type_general, "creating BLAS, requesting: %llu bytes", as_build_sizes.accelerationStructureSize);
+                spdlog::info("creating BLAS, requesting: {} bytes", as_build_sizes.accelerationStructureSize);
                 result.blas.buffer = make_static_buffer(context, {
                     .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
                     .usage = VMA_MEMORY_USAGE_GPU_ONLY,
@@ -196,7 +199,7 @@ namespace crd {
                 crd_vulkan_check(vkCreateAccelerationStructureKHR(context.device, &as_info, nullptr, &result.blas.handle));
                 result.blas.address = device_address(context, result.blas);
 
-                log("Vulkan", severity_info, type_general, "building BLAS, requesting: %llu bytes", as_build_sizes.buildScratchSize);
+                spdlog::info("building BLAS, requesting: %llu bytes", as_build_sizes.buildScratchSize);
                 auto build_scratch_buffer = make_static_buffer(context, {
                     .flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                     .usage = VMA_MEMORY_USAGE_GPU_ONLY,
@@ -244,8 +247,9 @@ namespace crd {
         auto future = task->get_future();
         context.scheduler->AddTask({
             .Function = [](ftl::TaskScheduler* scheduler, void* data) {
+                crd_profile_scoped();
                 auto* task = static_cast<task_type*>(data);
-                crd_benchmark("time took to upload StaticMesh resource: %llums", *task, scheduler);
+                (*task)(scheduler);
                 delete task;
             },
             .ArgData = task
@@ -254,6 +258,7 @@ namespace crd {
     }
 
     crd_module void destroy_static_mesh(const Context& context, StaticMesh& mesh) noexcept {
+        crd_profile_scoped();
         destroy_static_buffer(context, mesh.geometry);
         destroy_static_buffer(context, mesh.indices);
         mesh = {};

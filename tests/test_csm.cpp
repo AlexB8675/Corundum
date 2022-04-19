@@ -408,8 +408,8 @@ int main() {
     //}
     std::vector<DirectionalLight> dir_lights = { {
         .direction = glm::vec4(1.0f),
-        .diffuse = glm::vec4(0.3f),
-        .specular = glm::vec4(0.2f)
+        .diffuse = glm::vec4(1.0f),
+        .specular = glm::vec4(1.0f)
     } };
     Camera camera;
     auto cascades_buffer = crd::make_buffer(context, {
@@ -586,7 +586,7 @@ int main() {
             .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT }
         });
         if (fps >= 2) {
-            crd::log("Scene", crd::severity_info, crd::type_performance, "Average FPS: %lf, DT: %lfms", 1 / (fps / frames), (fps / frames));
+            spdlog::info("average FPS: {}, dt: {}ms", 1 / (fps / frames), (fps / frames) * 1000);
             frames = 0;
             fps = 0;
         }

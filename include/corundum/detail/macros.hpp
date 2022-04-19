@@ -76,22 +76,12 @@
         }                                                                \
     }
 
-#if defined(crd_debug_benchmark)
-    #include <chrono>
-    #define crd_benchmark(msg, f, ...)                                                        \
-        do {                                                                                  \
-            const auto start = crd_benchmark_timestamp();                                     \
-            (f)(__VA_ARGS__);                                                                 \
-            const auto end = crd_benchmark_timestamp();                                       \
-            const auto milli = crd_benchmark_convert(std::chrono::milliseconds, start, end);  \
-            log("Core", severity_info, type_performance, msg, milli); \
-        } while (false)
-    #define crd_benchmark_timestamp() std::chrono::high_resolution_clock::now()
-    #define crd_benchmark_convert(to, start, end) std::chrono::duration_cast<to>((end) - (start)).count()
+#if defined(crd_enable_profiling)
+    #define crd_profile_scoped() ZoneScoped (void)0
+    #define crd_mark_frame() FrameMark (void)0
 #else
-    #define crd_benchmark(msg, f, ...) (f)(__VA_ARGS__)
-    #define crd_benchmark_timestamp()
-    #define crd_benchmark_convert(...)
+    #define crd_profile_scoped()
+    #define crd_mark_frame()
 #endif
 
 #define crd_load_instance_function(instance, fn) reinterpret_cast<PFN_##fn>(vkGetInstanceProcAddr(instance, #fn))

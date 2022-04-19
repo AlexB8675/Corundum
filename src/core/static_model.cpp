@@ -4,7 +4,6 @@
 #include <corundum/core/context.hpp>
 
 #include <corundum/detail/file_view.hpp>
-#include <corundum/detail/logger.hpp>
 
 #include <assimp/DefaultIOStream.h>
 #include <assimp/DefaultIOSystem.h>
@@ -13,6 +12,10 @@
 #include <assimp/IOStream.hpp>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
+
+#include <Tracy.hpp>
+
+#include <spdlog/spdlog.h>
 
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
@@ -37,13 +40,17 @@ namespace crd {
 
         explicit FileViewStream(dtl::FileView handle) noexcept
             : handle(handle),
-              offset() {}
+              offset() {
+            crd_profile_scoped();
+        }
 
         ~FileViewStream() noexcept override {
+            crd_profile_scoped();
             dtl::destroy_file_view(handle);
         }
 
         crd_nodiscard std::size_t Read(void* buffer, std::size_t size, std::size_t count) noexcept override {
+            crd_profile_scoped();
             crd_unlikely_if(offset >= handle.size) {
                 return 0;
             }
@@ -61,6 +68,7 @@ namespace crd {
         }
 
         crd_nodiscard aiReturn Seek(std::size_t where, aiOrigin origin) noexcept override {
+            crd_profile_scoped();
             switch (origin) {
                 case aiOrigin_SET: { offset = where; } break;
                 case aiOrigin_CUR: { offset += where; } break;
@@ -70,10 +78,12 @@ namespace crd {
         }
 
         crd_nodiscard std::size_t Tell() const noexcept override {
+            crd_profile_scoped();
             return offset;
         }
 
         crd_nodiscard std::size_t FileSize() const noexcept override {
+            crd_profile_scoped();
             return handle.size;
         }
 
@@ -82,23 +92,28 @@ namespace crd {
 
     struct FileViewSystem : Assimp::IOSystem {
         crd_nodiscard bool Exists(const char* path) const noexcept override {
+            crd_profile_scoped();
             return std::ifstream(path).is_open();
         }
 
         crd_nodiscard char getOsSeparator() const noexcept override {
+            crd_profile_scoped();
             return (char)fs::path::preferred_separator;
         }
 
         crd_nodiscard Assimp::IOStream* Open(const char* path, const char*) noexcept override {
+            crd_profile_scoped();
             return new FileViewStream(dtl::make_file_view(path));
         }
 
         void Close(Assimp::IOStream* stream) noexcept override {
+            crd_profile_scoped();
             delete stream;
         }
     };
 
     crd_nodiscard static inline Async<StaticTexture>* import_texture(const Context& context, const aiMaterial* material, aiTextureType type, TextureCache& cache, const fs::path& path) noexcept {
+        crd_profile_scoped();
         crd_unlikely_if(type == aiTextureType_HEIGHT && material->GetTextureCount(type) == 0) {
             type = aiTextureType_NORMALS;
         }
@@ -118,6 +133,7 @@ namespace crd {
     }
 
     crd_nodiscard static inline TexturedMesh import_textured_mesh(const Context& context, const aiScene* scene, const aiMesh* mesh, TextureCache& cache, const fs::path& path) noexcept {
+        crd_profile_scoped();
         constexpr auto components = 14;
         std::vector<float> geometry;
         geometry.resize(mesh->mNumVertices * components);
@@ -184,9 +200,11 @@ namespace crd {
     }
 
     crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context& context, std::string&& path) noexcept {
-        log("Core", severity_info, type_general, "loading model: \"%s\"", path.c_str());
+        crd_profile_scoped();
+        spdlog::info("loading model: \"{}\"", path);
         using task_type = std::packaged_task<StaticModel()>;
         auto* task = new task_type([&context, path = std::move(path)]() noexcept -> StaticModel {
+            crd_profile_scoped();
             Assimp::Importer importer;
             const auto post_process =
                 aiProcess_Triangulate |
@@ -196,21 +214,22 @@ namespace crd {
             importer.SetIOHandler(new FileViewSystem());
             const auto scene = importer.ReadFile(path, post_process);
             crd_unlikely_if(!scene || !scene->mRootNode) {
-                log("Core", severity_error, type_validation, "Failed to load model \"%s\", error: %s", path.c_str(), importer.GetErrorString());
+                spdlog::critical("Failed to load model \"{}\", error: {}", path, importer.GetErrorString());
                 crd_panic();
             }
             TextureCache cache;
             cache.reserve(128);
             StaticModel model;
             process_node(context, scene, scene->mRootNode, model, cache, fs::path(path).parent_path());
-            log("Vulkan", severity_info, type_general, "StaticModel \"%s\" was loaded successfully", path.c_str());
+            spdlog::info("StaticModel \"{}\" was loaded successfully", path);
             return model;
         });
         auto future = task->get_future();
         context.scheduler->AddTask({
             .Function = +[](ftl::TaskScheduler*, void* data) {
+                crd_profile_scoped();
                 auto* task = static_cast<task_type*>(data);
-                crd_benchmark("time took to upload StaticModel resource: %llums", *task);
+                (*task)();
                 delete task;
             },
             .ArgData = task
@@ -219,6 +238,7 @@ namespace crd {
     }
 
     crd_module void destroy_static_model(const Context& context, StaticModel& model) noexcept {
+        crd_profile_scoped();
         std::unordered_set<Async<StaticTexture>*> to_destroy;
         to_destroy.reserve(model.submeshes.size() * 3);
         for (auto& each : model.submeshes) {

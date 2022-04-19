@@ -1,5 +1,6 @@
 #include <corundum/core/command_buffer.hpp>
 #include <corundum/core/descriptor_set.hpp>
+#include <corundum/core/static_buffer.hpp>
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/constants.hpp>
@@ -8,11 +9,13 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/clear.hpp>
 
+#include <Tracy.hpp>
+
 #include <vector>
-#include <corundum/core/static_buffer.hpp>
 
 namespace crd {
     crd_nodiscard crd_module std::vector<CommandBuffer> make_command_buffers(const Context& context, CommandBuffer::CreateInfo&& info) noexcept {
+        crd_profile_scoped();
         VkCommandBufferAllocateInfo allocate_info;
         allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocate_info.pNext = nullptr;
@@ -34,6 +37,7 @@ namespace crd {
     }
 
     crd_nodiscard crd_module CommandBuffer make_command_buffer(const Context& context, CommandBuffer::CreateInfo&& info) noexcept {
+        crd_profile_scoped();
         CommandBuffer command_buffer;
         command_buffer.active_pass = nullptr;
         command_buffer.active_pipeline = nullptr;
@@ -57,11 +61,13 @@ namespace crd {
     }
 
     crd_module void destroy_command_buffer(const Context& context, CommandBuffer& command) noexcept {
+        crd_profile_scoped();
         vkFreeCommandBuffers(context.device, command.pool, 1, &command.handle);
         command = {};
     }
 
     crd_module CommandBuffer& CommandBuffer::begin() noexcept {
+        crd_profile_scoped();
         VkCommandBufferBeginInfo begin_info;
         begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         begin_info.pNext = nullptr;
@@ -72,6 +78,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::begin_render_pass(const RenderPass& render_pass, std::size_t index) noexcept {
+        crd_profile_scoped();
         const auto& clear_values = render_pass.clears(index);
         const auto& framebuffer = render_pass.framebuffers[index];
         active_framebuffer = &framebuffer;
@@ -90,11 +97,13 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::next_subpass() noexcept {
+        crd_profile_scoped();
         vkCmdNextSubpass(handle, VK_SUBPASS_CONTENTS_INLINE);
         return *this;
     }
 
     crd_module CommandBuffer& CommandBuffer::set_viewport(inverted_viewport_tag_t) noexcept {
+        crd_profile_scoped();
         const auto extent = active_framebuffer->extent;
         VkViewport viewport;
         viewport.x = 0;
@@ -107,11 +116,13 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::set_viewport(VkViewport viewport) noexcept {
+        crd_profile_scoped();
         vkCmdSetViewport(handle, 0, 1, &viewport);
         return *this;
     }
 
     crd_module CommandBuffer& CommandBuffer::set_viewport() noexcept {
+        crd_profile_scoped();
         const auto extent = active_framebuffer->extent;
         VkViewport viewport;
         viewport.x = 0;
@@ -124,11 +135,13 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::set_scissor(VkRect2D scissor) noexcept {
+        crd_profile_scoped();
         vkCmdSetScissor(handle, 0, 1, &scissor);
         return *this;
     }
 
     crd_module CommandBuffer& CommandBuffer::set_scissor() noexcept {
+        crd_profile_scoped();
         const auto extent = active_framebuffer->extent;
         VkRect2D scissor;
         scissor.offset = {};
@@ -137,11 +150,13 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::set_depth_bias(float constant, float slope) noexcept {
+        crd_profile_scoped();
         vkCmdSetDepthBias(handle, constant, 0.0f, slope);
         return *this;
     }
 
     crd_module CommandBuffer& CommandBuffer::bind_pipeline(const Pipeline& pipeline) noexcept {
+        crd_profile_scoped();
         VkPipelineBindPoint bind_point;
         switch (pipeline.type) {
             case Pipeline::type_graphics:   bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;        break;
@@ -154,6 +169,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::bind_descriptor_set(std::uint32_t index, const DescriptorSet<1>& set) noexcept {
+        crd_profile_scoped();
         VkPipelineBindPoint bind_point;
         switch (active_pipeline->type) {
             case Pipeline::type_graphics:   bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;        break;
@@ -165,28 +181,33 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::bind_vertex_buffer(const StaticBuffer& vertex) noexcept {
+        crd_profile_scoped();
         VkDeviceSize offset = 0;
         vkCmdBindVertexBuffers(handle, 0, 1, &vertex.handle, &offset);
         return *this;
     }
 
     crd_module CommandBuffer& CommandBuffer::bind_index_buffer(const StaticBuffer& index) noexcept {
+        crd_profile_scoped();
         vkCmdBindIndexBuffer(handle, index.handle, 0, VK_INDEX_TYPE_UINT32);
         return *this;
     }
 
     crd_module CommandBuffer& CommandBuffer::bind_static_mesh(const StaticMesh& mesh) noexcept {
+        crd_profile_scoped();
         bind_vertex_buffer(mesh.geometry);
         bind_index_buffer(mesh.indices);
         return *this;
     }
 
     crd_module CommandBuffer& CommandBuffer::push_constants(VkShaderStageFlags flags, const void* data, std::size_t size) noexcept {
+        crd_profile_scoped();
         vkCmdPushConstants(handle, active_pipeline->layout.pipeline, flags, 0, size, data);
         return *this;
     }
 
     crd_module CommandBuffer& CommandBuffer::clear_image(const Image& image, const ClearValue& clear) noexcept {
+        crd_profile_scoped();
         const auto value = as_vulkan(clear);
         VkImageSubresourceRange subresource;
         subresource.aspectMask = image.aspect;
@@ -199,6 +220,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::dispatch(std::uint32_t x, std::uint32_t y, std::uint32_t z) noexcept {
+        crd_profile_scoped();
         vkCmdDispatch(handle, x, y, z);
         return *this;
     }
@@ -207,6 +229,7 @@ namespace crd {
                                                   std::uint32_t instances,
                                                   std::uint32_t first_vertex,
                                                   std::uint32_t first_instance) noexcept {
+        crd_profile_scoped();
         vkCmdDraw(handle, vertices, instances, first_vertex, first_instance);
         return *this;
     }
@@ -222,6 +245,7 @@ namespace crd {
 
     crd_module CommandBuffer& CommandBuffer::trace_rays(std::uint32_t x, std::uint32_t y) noexcept {
 #if defined(crd_enable_raytracing)
+        crd_profile_scoped();
         const RayTracingPipeline& pipeline = *static_cast<const RayTracingPipeline*>(active_pipeline);
         VkStridedDeviceAddressRegionKHR empty = {};
         vkCmdTraceRaysKHR(
@@ -236,6 +260,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::end_render_pass() noexcept {
+        crd_profile_scoped();
         active_framebuffer = nullptr;
         active_pipeline = nullptr;
         active_pass = nullptr;
@@ -246,12 +271,14 @@ namespace crd {
     crd_module CommandBuffer& CommandBuffer::build_acceleration_structure(const VkAccelerationStructureBuildGeometryInfoKHR* geometry,
                                                                           const VkAccelerationStructureBuildRangeInfoKHR* range) noexcept {
 #if defined(crd_enable_raytracing)
+        crd_profile_scoped();
         vkCmdBuildAccelerationStructuresKHR(handle, 1, geometry, &range);
 #endif
         return *this;
     }
 
     crd_module CommandBuffer& CommandBuffer::copy_image(const Image& source, const Image& dest) noexcept {
+        crd_profile_scoped();
         VkImageCopy region;
         region.srcSubresource.aspectMask = source.aspect;
         region.srcSubresource.mipLevel = 0;
@@ -272,6 +299,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::blit_image(const ImageBlit& info) noexcept {
+        crd_profile_scoped();
         const auto& source = *info.source_image;
         const auto& dest = info.dest_image ? *info.dest_image : source;
         VkImageBlit blit = {};
@@ -297,6 +325,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::copy_buffer(const StaticBuffer& source, const StaticBuffer& dest) noexcept {
+        crd_profile_scoped();
         VkBufferCopy region;
         region.srcOffset = 0;
         region.dstOffset = 0;
@@ -306,6 +335,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::copy_buffer_to_image(const StaticBuffer& source, const Image& dest) noexcept {
+        crd_profile_scoped();
         VkBufferImageCopy region;
         region.bufferOffset = 0;
         region.bufferRowLength = 0;
@@ -321,6 +351,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::barrier(const BufferMemoryBarrier& info) noexcept {
+        crd_profile_scoped();
         VkBufferMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         barrier.pNext = nullptr;
@@ -343,6 +374,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::barrier(const ImageMemoryBarrier& info) noexcept {
+        crd_profile_scoped();
         VkImageMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barrier.pNext = nullptr;
@@ -370,6 +402,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::barrier(VkPipelineStageFlags source_stage, VkPipelineStageFlags dest_stage) noexcept {
+        crd_profile_scoped();
         vkCmdPipelineBarrier(
             handle,
             source_stage,
@@ -382,6 +415,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::memory_barrier(const MemoryBarrier& info) noexcept {
+        crd_profile_scoped();
         VkMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
         barrier.pNext = nullptr;
@@ -399,6 +433,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::transfer_ownership(const BufferMemoryBarrier& info, const Queue& source, const Queue& dest) noexcept {
+        crd_profile_scoped();
         VkBufferMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         barrier.pNext = nullptr;
@@ -421,6 +456,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::transfer_ownership(const ImageMemoryBarrier& info, const Queue& source, const Queue& dest) noexcept {
+        crd_profile_scoped();
         VkImageMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barrier.pNext = nullptr;
@@ -448,6 +484,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::transition_layout(const ImageMemoryBarrier& info) noexcept {
+        crd_profile_scoped();
         VkImageMemoryBarrier barrier = {};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barrier.srcAccessMask = info.source_access;
@@ -474,6 +511,7 @@ namespace crd {
     }
 
     crd_module CommandBuffer& CommandBuffer::end() noexcept {
+        crd_profile_scoped();
         crd_vulkan_check(vkEndCommandBuffer(handle));
         return *this;
     }

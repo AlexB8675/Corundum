@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.19)
 project(corundum)
 
+include(FetchContent)
 find_package(Vulkan REQUIRED)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
@@ -30,6 +31,16 @@ set(ASSIMP_BUILD_FBX_IMPORTER ON CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_PLY_IMPORTER ON CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(ext/assimp)
+
+FetchContent_Declare(
+    tracy
+    GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+    GIT_TAG 9ba7171c3dd6f728268a820ee268a62c75f2dfb6
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE)
+FetchContent_MakeAvailable(tracy)
+
+add_subdirectory(ext/spdlog)
 
 if(MSVC)
     target_compile_options(assimp PUBLIC /w /EHsc)
@@ -64,7 +75,6 @@ add_library(corundum STATIC
     include/corundum/detail/file_view.hpp
     include/corundum/detail/forward.hpp
     include/corundum/detail/hash.hpp
-    include/corundum/detail/logger.hpp
     include/corundum/detail/macros.hpp
 
     include/corundum/wm/window.hpp
@@ -96,8 +106,7 @@ add_library(corundum STATIC
 
 target_compile_definitions(corundum PUBLIC
     $<$<CONFIG:Debug>:crd_debug>
-    crd_debug_logging
-    crd_debug_benchmark
+    crd_enable_profiling
     crd_extra_validation
     #crd_enable_raytracing
     crd_log_level=2
@@ -110,6 +119,8 @@ target_compile_definitions(corundum PUBLIC
     SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS
 
     VK_ENABLE_BETA_EXTENSIONS
+
+    TRACY_ENABLE
 
     GLM_FORCE_DEPTH_ZERO_TO_ONE
     GLM_FORCE_RADIANS)
@@ -126,7 +137,9 @@ target_link_libraries(corundum PUBLIC
     glm
     ftl
     glfw
+    spdlog
     assimp
+    TracyClient
     Vulkan::Vulkan
     spirv-cross-glsl
     $<$<BOOL:${UNIX}>:pthread>)
@@ -140,8 +153,10 @@ add_executable(test-raytracing tests/test_raytracing.cpp)
 add_executable(test-fwd-plus tests/test_fwd_plus.cpp)
 add_executable(test-csm tests/test_csm.cpp)
 add_executable(test-sponza tests/test_sponza.cpp)
+add_executable(playground tests/playground.cpp)
 
 target_link_libraries(test-raytracing PRIVATE tests-common)
 target_link_libraries(test-fwd-plus PRIVATE tests-common)
 target_link_libraries(test-csm PRIVATE tests-common)
 target_link_libraries(test-sponza PRIVATE tests-common)
+target_link_libraries(playground PRIVATE tests-common)

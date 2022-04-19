@@ -2,18 +2,21 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/image.hpp>
 
-#include <corundum/detail/logger.hpp>
-
 #include <corundum/wm/window.hpp>
+
+#include <Tracy.hpp>
+
+#include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <vector>
 
 namespace crd {
     crd_nodiscard crd_module Swapchain make_swapchain(const Context& context, Window& window, Swapchain* old) noexcept {
+        crd_profile_scoped();
         Swapchain swapchain;
         if (!old) {
-            log("Vulkan", severity_info, type_general, "vulkan surface requested");
+            spdlog::info("initializing swapchain surface");
             swapchain.surface = make_vulkan_surface(context, window);
         } else {
             swapchain.surface = old->surface;
@@ -27,12 +30,12 @@ namespace crd {
         VkSurfaceCapabilitiesKHR capabilities;
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.gpu.handle, swapchain.surface, &capabilities));
 
-        log("Vulkan", severity_info, type_general, "vkQueuePresentKHR: supported");
+        spdlog::info("vkQueuePresentKHR: supported");
         auto image_count = capabilities.minImageCount + 1;
         crd_unlikely_if(capabilities.maxImageCount > 0 && image_count > capabilities.maxImageCount) {
             image_count = capabilities.maxImageCount;
         }
-        log("Vulkan", severity_info, type_general, "image count: %d", image_count);
+        spdlog::info("  - image count: {}", image_count);
 
         const auto viewport = window.viewport();
         crd_likely_if(capabilities.currentExtent.width != -1) {
@@ -45,7 +48,7 @@ namespace crd {
             swapchain.width = std::clamp(viewport.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
             swapchain.height = std::clamp(viewport.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         }
-        log("Vulkan", severity_info, type_general, "swapchain extent: { %d, %d }", swapchain.width, swapchain.height);
+        spdlog::info("  - extent: {{ {}, {} }}", swapchain.width, swapchain.height);
 
         std::uint32_t format_count;
         crd_vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(context.gpu.handle, swapchain.surface, &format_count, nullptr));
@@ -116,7 +119,6 @@ namespace crd {
             crd_vulkan_check(vkCreateImageView(context.device, &image_view_info, nullptr, &image.view));
             swapchain.images.emplace_back(image);
         }
-        log("Vulkan", severity_info, type_general, "swapchain created successfully");
         if (old) {
             destroy_swapchain(context, *old, false);
         }
@@ -124,6 +126,7 @@ namespace crd {
     }
 
     crd_module void destroy_swapchain(const Context& context, Swapchain& swapchain, bool surface) noexcept {
+        crd_profile_scoped();
         for (const auto& image : swapchain.images) {
             vkDestroyImageView(context.device, image.view, nullptr);
         }

@@ -4,10 +4,13 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/queue.hpp>
 
+#include <Tracy.hpp>
+
 #include <thread>
 
 namespace crd {
     crd_nodiscard crd_module Queue* make_queue(const Context& context, QueueFamily family) noexcept {
+        crd_profile_scoped();
         auto* queue = new Queue();
         queue->family = family.family;
         VkCommandPoolCreateInfo command_pool_info;
@@ -27,6 +30,7 @@ namespace crd {
     }
 
     crd_module void destroy_queue(const Context& context, Queue*& queue) noexcept {
+        crd_profile_scoped();
         for (const auto pool : queue->transient) {
             vkDestroyCommandPool(context.device, pool, nullptr);
         }
@@ -36,6 +40,7 @@ namespace crd {
     }
 
     crd_module void Queue::submit(const SubmitInfo& submit) noexcept {
+        crd_profile_scoped();
         VkSubmitInfo submit_info;
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submit_info.pNext = nullptr;
@@ -52,6 +57,7 @@ namespace crd {
     }
 
     crd_module VkResult Queue::present(const Swapchain& swapchain, std::uint32_t image, std::vector<VkSemaphore>&& wait) noexcept {
+        crd_profile_scoped();
         VkPresentInfoKHR present_info;
         present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         present_info.pNext = nullptr;
@@ -67,15 +73,18 @@ namespace crd {
     }
 
     crd_module void Queue::wait_idle() noexcept {
+        crd_profile_scoped();
         std::lock_guard<std::mutex> guard(lock);
         crd_vulkan_check(vkQueueWaitIdle(handle));
     }
 
     crd_module void wait_fence(const Context& context, VkFence fence) noexcept {
+        crd_profile_scoped();
         crd_vulkan_check(vkWaitForFences(context.device, 1, &fence, true, -1));
     }
 
     crd_module void immediate_submit(const Context& context, const CommandBuffer& commands, QueueType type) noexcept {
+        crd_profile_scoped();
         VkFenceCreateInfo fence_info;
         fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fence_info.pNext = nullptr;

@@ -14,12 +14,14 @@ layout (location = 0) out VertexData {
     vec3 o_normal;
     vec2 uvs;
     float view_depth;
+    float o_frustum_size;
 };
 
 struct CameraData {
     mat4 projection;
     mat4 view;
     vec3 position;
+    float frustum_size;
 };
 
 layout (set = 0, binding = 0) uniform Uniforms {
@@ -52,6 +54,7 @@ void main() {
     view_pos = camera.position;
     o_normal = inv_model * i_normal;
     o_frag_pos = frag_pos;
+    o_frustum_size = camera.frustum_size;
     uvs = i_uvs;
     view_depth = (camera.view * vec4(frag_pos, 1.0)).z;
     gl_Position = camera.projection * camera.view * vec4(frag_pos, 1.0);

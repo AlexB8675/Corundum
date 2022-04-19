@@ -1,5 +1,7 @@
 #include <corundum/detail/file_view.hpp>
 
+#include <Tracy.hpp>
+
 #if defined(_WIN32)
     #include <Windows.h>
 #else
@@ -11,6 +13,7 @@
 
 namespace crd::dtl {
     crd_nodiscard FileView make_file_view(const char* path) noexcept {
+        crd_profile_scoped();
         FileView file;
 #if defined(_WIN32)
         file.handle = CreateFile(path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -29,6 +32,7 @@ namespace crd::dtl {
     }
 
     void destroy_file_view(FileView& file) noexcept {
+        crd_profile_scoped();
 #if defined(_WIN32)
         UnmapViewOfFile(file.data);
         CloseHandle(file.handle);

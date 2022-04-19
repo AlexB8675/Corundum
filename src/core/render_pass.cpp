@@ -1,18 +1,22 @@
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/context.hpp>
 
-#include <corundum/detail/logger.hpp>
+#include <Tracy.hpp>
+
+#include <spdlog/spdlog.h>
 
 #include <optional>
 #include <utility>
 
 namespace crd {
     crd_nodiscard static inline bool operator ==(VkExtent2D lhs, VkExtent2D rhs) noexcept {
+        crd_profile_scoped();
         return rhs.width == lhs.width &&
                rhs.height == lhs.height;
     }
 
     crd_nodiscard static inline VkImageLayout deduce_reference_layout(const AttachmentInfo& attachment) noexcept {
+        crd_profile_scoped();
         switch (attachment.image.format) {
             case VK_FORMAT_S8_UINT:
             case VK_FORMAT_D16_UNORM:
@@ -28,6 +32,7 @@ namespace crd {
     }
 
     crd_nodiscard crd_module RenderPass make_render_pass(const Context& context, RenderPass::CreateInfo&& info) noexcept {
+        crd_profile_scoped();
         RenderPass render_pass;
         std::vector<VkAttachmentDescription> attachments;
         attachments.reserve(info.attachments.size());
@@ -163,6 +168,7 @@ namespace crd {
     }
 
     crd_module void destroy_render_pass(const Context& context, RenderPass& render_pass) noexcept {
+        crd_profile_scoped();
         for (auto& each : render_pass.attachments) {
             if (each.owning) {
                 destroy_image(context, each.image);
@@ -178,10 +184,12 @@ namespace crd {
     }
 
     crd_nodiscard crd_module const Image& RenderPass::image(std::size_t index) const noexcept {
+        crd_profile_scoped();
         return attachments[index].image;
     }
 
     crd_nodiscard crd_module std::vector<VkClearValue> RenderPass::clears(std::size_t index) const noexcept {
+        crd_profile_scoped();
         std::vector<VkClearValue> result;
         const auto& f_attachments = framebuffers[index].attachments;
         result.reserve(f_attachments.size());
@@ -195,9 +203,10 @@ namespace crd {
     }
 
     crd_module void RenderPass::resize(const Context& context, ResizeAttachments&& resize) noexcept {
+        crd_profile_scoped();
         auto& framebuffer = framebuffers[resize.framebuffer];
         crd_likely_if(framebuffer.extent == resize.size) {
-            log("Vulkan", severity_info, type_general, "window extent is the same, framebuffer will not be resized");
+            spdlog::info("window extent is the same, framebuffer will not be resized");
             return;
         }
         std::uint32_t layers = 1;

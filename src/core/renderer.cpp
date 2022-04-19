@@ -3,12 +3,15 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/image.hpp>
 
-#include <corundum/detail/logger.hpp>
-
 #include <corundum/wm/window.hpp>
+
+#include <Tracy.hpp>
+
+#include <spdlog/spdlog.h>
 
 namespace crd {
     static inline void sync_renderer(const Context& context, Renderer& renderer) noexcept {
+        crd_profile_scoped();
         crd_vulkan_check(vkDeviceWaitIdle(context.device));
         renderer.frame_idx = 0;
         renderer.image_idx = 0;
@@ -34,12 +37,14 @@ namespace crd {
     }
 
     static inline void recreate_swapchain(const Context& context, Window& window, Swapchain& swapchain) noexcept {
-        log("Vulkan", severity_warning, type_performance, "window resized, recreating swapchain");
+        crd_profile_scoped();
+        spdlog::info("window resized, recreating swapchain");
         swapchain = make_swapchain(context, window, &swapchain);
         window.resize_callback();
     }
 
     crd_nodiscard crd_module Renderer make_renderer(const Context& context) noexcept {
+        crd_profile_scoped();
         Renderer renderer;
         renderer.frame_idx = 0;
         renderer.image_idx = 0;
@@ -68,6 +73,7 @@ namespace crd {
     }
 
     crd_module void destroy_renderer(const Context& context, Renderer& renderer) noexcept {
+        crd_profile_scoped();
         for (std::size_t i = 0; i < in_flight; ++i) {
             vkDestroySemaphore(context.device, renderer.img_ready[i], nullptr);
             vkDestroySemaphore(context.device, renderer.gfx_done[i], nullptr);
@@ -80,6 +86,7 @@ namespace crd {
     }
 
     crd_nodiscard crd_module FrameInfo acquire_frame(const Context& context, Renderer& renderer, Window& window, Swapchain& swapchain) noexcept {
+        crd_profile_scoped();
         const auto result = vkAcquireNextImageKHR(context.device, swapchain.handle, -1, renderer.img_ready[renderer.frame_idx], nullptr, &renderer.image_idx);
         crd_unlikely_if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
             sync_renderer(context, renderer);
@@ -96,6 +103,7 @@ namespace crd {
     }
 
     crd_module void present_frame(const Context& context, Renderer& renderer, PresentInfo&& info) noexcept {
+        crd_profile_scoped();
         auto [commands, window, swapchain, waits, stages] = info;
         crd_vulkan_check(vkResetFences(context.device, 1, &renderer.cmd_wait[renderer.frame_idx]));
         waits.emplace_back(renderer.img_ready[renderer.frame_idx]);

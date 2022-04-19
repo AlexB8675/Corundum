@@ -2,10 +2,13 @@
 #include <corundum/core/utilities.hpp>
 #include <corundum/core/context.hpp>
 
-#include <corundum/detail/logger.hpp>
+#include <Tracy.hpp>
+
+#include <spdlog/spdlog.h>
 
 namespace crd {
     crd_nodiscard crd_module StaticBuffer make_static_buffer(const Context& context, StaticBuffer::CreateInfo&& info) noexcept {
+        crd_profile_scoped();
         VkBufferCreateInfo buffer_info;
         buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         buffer_info.pNext = nullptr;
@@ -43,13 +46,13 @@ namespace crd {
         buffer.capacity = info.capacity;
         buffer.mapped = extra_info.pMappedData;
         buffer.address = device_address(context, buffer);
-        log("Vulkan", severity_verbose, type_general,
-                 "successfully allocated StaticBuffer, size: %zu bytes, address: %p",
-                 buffer.capacity, buffer.mapped);
+        spdlog::debug("successfully allocated StaticBuffer, size: {} bytes, address: {}",
+                      buffer.capacity, (const void*)buffer.mapped);
         return buffer;
     }
 
     crd_module void destroy_static_buffer(const Context& context, StaticBuffer& buffer) noexcept {
+        crd_profile_scoped();
         vmaDestroyBuffer(context.allocator, buffer.handle, buffer.allocation);
         buffer = {};
     }

@@ -1,7 +1,10 @@
 #include <corundum/core/dispatch.hpp>
 #include <corundum/core/context.hpp>
 
-#include <corundum/detail/logger.hpp>
+#include <Tracy.hpp>
+
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #include <GLFW/glfw3.h>
 
@@ -17,6 +20,7 @@
 
 namespace crd {
     crd_nodiscard static inline bool has_extension(std::span<VkExtensionProperties> extensions, const char* extension) noexcept {
+        crd_profile_scoped();
         for (const auto& [name, _] : extensions) {
             if (std::strcmp(name, extension) == 0) {
                 return true;
@@ -27,6 +31,7 @@ namespace crd {
 
     template <typename T, typename U>
     static inline void append_to_chain(T& object, U& next) noexcept {
+        crd_profile_scoped();
         if (!object.pNext) {
             object.pNext = &next;
             return;
@@ -37,6 +42,7 @@ namespace crd {
 
     static inline void initialize_dynamic_dispatcher(const Context& context) noexcept {
 #if defined(crd_enable_raytracing)
+        crd_profile_scoped();
         vkGetAccelerationStructureBuildSizesKHR = crd_load_device_function(context.device, vkGetAccelerationStructureBuildSizesKHR);
         vkCmdBuildAccelerationStructuresKHR = crd_load_device_function(context.device, vkCmdBuildAccelerationStructuresKHR);
         vkCreateAccelerationStructureKHR = crd_load_device_function(context.device, vkCreateAccelerationStructureKHR);
@@ -49,10 +55,10 @@ namespace crd {
     }
 
     crd_nodiscard Context make_context() noexcept {
-        log("Vulkan", severity_info, type_general, "vulkan initialization started");
+        crd_profile_scoped();
         Context context = {};
         { // Creates a VkInstance.
-            log("Vulkan", severity_info, type_general, "requesting vulkan version 1.2");
+            spdlog::info("initializing vulkan 1.2");
             VkApplicationInfo application_info;
             application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
             application_info.pNext = nullptr;
@@ -62,7 +68,7 @@ namespace crd {
             application_info.engineVersion = VK_API_VERSION_1_2;
             application_info.apiVersion = VK_API_VERSION_1_2;
 
-            log("Vulkan", severity_verbose, type_general, "enumerating extensions:");
+            spdlog::info("enumerating extensions:");
             std::uint32_t extension_count;
             vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
             std::vector<VkExtensionProperties> extensions_props(extension_count);
@@ -94,7 +100,7 @@ namespace crd {
             extra_validation.pDisabledValidationFeatures = nullptr;
             instance_info.pNext = &extra_validation;
     #endif
-            log("Vulkan", severity_info, type_general, "debug mode active, requesting validation layers");
+            spdlog::info("initializing validation layer");
             const char* validation_layer = "VK_LAYER_KHRONOS_validation";
             instance_info.enabledLayerCount = 1;
             instance_info.ppEnabledLayerNames = &validation_layer;
@@ -106,7 +112,7 @@ namespace crd {
             instance_info.ppEnabledExtensionNames = extension_names.data();
 
             crd_vulkan_check(vkCreateInstance(&instance_info, nullptr, &context.instance));
-            log("Vulkan", severity_info, type_general, "extensions enabled successfully");
+            spdlog::info("extensions enabled successfully");
         }
 #if defined(crd_debug)
         { // Installs validation layers only if debug mode is active.
@@ -126,22 +132,22 @@ namespace crd {
                 VkDebugUtilsMessageTypeFlagsEXT             type,
                 const VkDebugUtilsMessengerCallbackDataEXT* data,
                 void*) -> VkBool32 {
-                const char* severity_string = nullptr;
+                spdlog::level::level_enum level;
                 switch (severity) {
-                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: severity_string = "Verbose"; break;
-                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:    severity_string = "Info";    break;
-                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: severity_string = "Warning"; break;
-                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:   severity_string = "Fatal";   break;
+                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: level = spdlog::level::debug; break;
+                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:    level = spdlog::level::info;  break;
+                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: level = spdlog::level::warn;  break;
+                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:   level = spdlog::level::err;   break;
 
                 }
                 const char* type_string = nullptr;
                 switch (type) {
-                    case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT:     type_string = "General";     break;
-                    case VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT:  type_string = "Validation";  break;
-                    case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT: type_string = "Performance"; break;
+                    case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT:     type_string = "general";     break;
+                    case VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT:  type_string = "validation";  break;
+                    case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT: type_string = "performance"; break;
                 }
 
-                dtl::log("Vulkan", severity_string, type_string, data->pMessage);
+                spdlog::log(level, "[{}]: {}", type_string, data->pMessage);
                 const auto fatal_bits = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
                 crd_unlikely_if(severity & fatal_bits) {
                     crd_panic();
@@ -150,11 +156,9 @@ namespace crd {
             };
             validation_info.pUserData = nullptr;
 
-            log("Vulkan", severity_info, type_general, "loading validation function: vkCreateDebugUtilsMessengerEXT");
             const auto vkCreateDebugUtilsMessengerEXT = crd_load_instance_function(context.instance, vkCreateDebugUtilsMessengerEXT);
             crd_assert(vkCreateDebugUtilsMessengerEXT, "failed loading validation function");
             crd_vulkan_check(vkCreateDebugUtilsMessengerEXT(context.instance, &validation_info, nullptr, &context.validation));
-            log("Vulkan", severity_info, type_general, "validation layers enabled successfully");
         }
 #endif
         { // Picks a VkPhysicalDevice.
@@ -163,7 +167,7 @@ namespace crd {
             std::vector<VkPhysicalDevice> devices(device_count);
             vkEnumeratePhysicalDevices(context.instance, &device_count, devices.data());
 
-            log("Vulkan", severity_info, type_general, "enumerating physical devices:");
+            spdlog::info("enumerating physical devices");
             for (const auto gpu : devices) {
                 VkPhysicalDeviceProperties main_props;
                 vkGetPhysicalDeviceProperties(gpu, &main_props);
@@ -176,21 +180,21 @@ namespace crd {
                 next_props.pNext = &context.gpu.raytracing_props;
                 vkGetPhysicalDeviceProperties2(gpu, &next_props);
 #endif
-                log("Vulkan", severity_info, type_general, "  - found device: %s", main_props.deviceName);
+                spdlog::info("  - found device: {}", main_props.deviceName);
                 const auto device_criteria =
                     VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU |
                     VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU   |
                     VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU;
                 crd_likely_if(main_props.deviceType & device_criteria) {
-                    log("Vulkan", severity_info, type_general, "  - chosen device: %s", main_props.deviceName);
+                    spdlog::info("  - chosen device: {}", main_props.deviceName);
                     const auto driver_major = VK_VERSION_MAJOR(main_props.driverVersion);
                     const auto driver_minor = VK_VERSION_MINOR(main_props.driverVersion);
                     const auto driver_patch = VK_VERSION_PATCH(main_props.driverVersion);
                     const auto vulkan_major = VK_API_VERSION_MAJOR(main_props.apiVersion);
                     const auto vulkan_minor = VK_API_VERSION_MINOR(main_props.apiVersion);
                     const auto vulkan_patch = VK_API_VERSION_PATCH(main_props.apiVersion);
-                    log("Vulkan", severity_info, type_general, "  - driver version: %d.%d.%d", driver_major, driver_minor, driver_patch);
-                    log("Vulkan", severity_info, type_general, "  - vulkan version: %d.%d.%d", vulkan_major, vulkan_minor, vulkan_patch);
+                    spdlog::info("  - driver version: {}.{}.{}", driver_major, driver_minor, driver_patch);
+                    spdlog::info("  - vulkan version: {}.{}.{}", vulkan_major, vulkan_minor, vulkan_patch);
                     context.gpu.main_props = main_props;
                     context.gpu.handle = gpu;
                     break;
@@ -199,7 +203,7 @@ namespace crd {
             crd_assert(context.gpu.handle, "no suitable GPU found in the system");
         }
         { // Chooses queue families and creates a VkDevice.
-            log("Vulkan", severity_info, type_general, "enumerating queue families");
+            spdlog::info("initializing device queues");
             std::uint32_t families_count;
             vkGetPhysicalDeviceQueueFamilyProperties(context.gpu.handle, &families_count, nullptr);
             std::vector<VkQueueFamilyProperties> queue_families(families_count);
@@ -254,8 +258,8 @@ namespace crd {
             }
 
             context.families = families;
-            log("Vulkan", severity_info, type_general, "chosen families: %d, %d, %d",
-                     families.graphics.family, families.transfer.family, families.compute.family);
+            spdlog::info("chosen families: graphics: {}, transfer: {}, compute: {}",
+                         families.graphics.family, families.transfer.family, families.compute.family);
             std::vector<VkDeviceQueueCreateInfo> queue_infos;
             for (std::uint32_t family = 0; family < families_count; family++) {
                 crd_unlikely_if(queue_sizes[family] == 0) {
@@ -272,9 +276,9 @@ namespace crd {
                 queue_infos.emplace_back(queue_info);
             }
 
-            log("Vulkan", severity_info, type_general, "fetching device features");
+            spdlog::info("fetching device features");
             vkGetPhysicalDeviceFeatures(context.gpu.handle, &context.gpu.features);
-            log("Vulkan", severity_info, type_general, "enumerating device extensions");
+            spdlog::info("enumerating device extensions");
             std::uint32_t extension_count;
             vkEnumerateDeviceExtensionProperties(context.gpu.handle, nullptr, &extension_count, nullptr);
             std::vector<VkExtensionProperties> extensions(extension_count);
@@ -282,7 +286,7 @@ namespace crd {
             std::vector<const char*> extension_names = {
                 VK_KHR_SWAPCHAIN_EXTENSION_NAME
             };
-            log("Vulkan", severity_info, type_general, "creating device");
+            spdlog::info("initializing device");
             VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing = {};
             descriptor_indexing.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
             descriptor_indexing.shaderSampledImageArrayNonUniformIndexing = true;
@@ -296,7 +300,7 @@ namespace crd {
                 context.extensions.descriptor_indexing = true;
                 append_to_chain(device_info, descriptor_indexing);
             } else {
-                log("Vulkan", severity_warning, type_validation, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME" not available");
+                spdlog::warn(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME" not available");
             }
             VkPhysicalDeviceBufferDeviceAddressFeatures buffer_address_features = {};
             buffer_address_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
@@ -315,7 +319,7 @@ namespace crd {
                 extension_names.emplace_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
                 append_to_chain(device_info, acceleration_structure_features);
             } else {
-                log("Vulkan", severity_warning, type_validation, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME" not available");
+                spdlog::warn(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME" not available");
             }
             VkPhysicalDeviceRayTracingPipelineFeaturesKHR raytracing_features = {};
             raytracing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
@@ -328,12 +332,12 @@ namespace crd {
                 extension_names.emplace_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
                 append_to_chain(device_info, raytracing_features);
             } else {
-                log("Vulkan", severity_warning, type_validation, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME" not available");
+                spdlog::warn(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME" not available");
             }
             if (has_extension(extensions, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME)) {
                 extension_names.emplace_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
             } else {
-                log("Vulkan", severity_warning, type_validation, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME" not available");
+                spdlog::warn(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME" not available");
             }
 #endif
             device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -346,15 +350,13 @@ namespace crd {
             device_info.ppEnabledExtensionNames = extension_names.data();
             device_info.pEnabledFeatures = &context.gpu.features;
             crd_vulkan_check(vkCreateDevice(context.gpu.handle, &device_info, nullptr, &context.device));
-            log("Vulkan", severity_info, type_general, "device created successfully");
 
             context.graphics = make_queue(context, families.graphics);
             context.transfer = make_queue(context, families.transfer);
             context.compute = make_queue(context, families.compute);
-            log("Vulkan", severity_info, type_general, "device queues initialized");
         }
         { // Creates the Task Scheduler.
-            log("Vulkan", severity_info, type_general, "initializing task scheduler");
+            spdlog::info("initializing task scheduler");
             (context.scheduler = new ftl::TaskScheduler())->Init({
                 .Behavior = ftl::EmptyQueueBehavior::Sleep
             });
@@ -422,7 +424,7 @@ namespace crd {
             crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.shadow_sampler));
         }
         { // Creates a VmaAllocator.
-            log("Vulkan", severity_info, type_general, "creating allocator");
+            spdlog::info("initializing allocator");
             VmaAllocatorCreateInfo allocator_info;
             allocator_info.flags = {};
             if (context.extensions.buffer_address) {
@@ -439,16 +441,16 @@ namespace crd {
             allocator_info.vulkanApiVersion = VK_API_VERSION_1_2;
             allocator_info.pTypeExternalMemoryHandleTypes = nullptr;
             crd_vulkan_check(vmaCreateAllocator(&allocator_info, &context.allocator));
-            log("Vulkan", severity_info, type_general, "allocator created successfully");
         }
-        log("Vulkan", severity_info, type_general, "initializing dynamic dispatcher");
+        spdlog::info("initializing dynamic dispatch");
         initialize_dynamic_dispatcher(context);
-        log("Vulkan", severity_info, type_general, "vulkan initialization completed");
+        spdlog::info("initialization completed");
         return context;
     }
 
     crd_module void destroy_context(Context& context) noexcept {
-        log("Vulkan", severity_info, type_general, "terminating core context");
+        crd_profile_scoped();
+        spdlog::info("terminating core context");
         delete context.scheduler;
         destroy_queue(context, context.graphics);
         destroy_queue(context, context.transfer);
@@ -464,10 +466,11 @@ namespace crd {
 #endif
         vkDestroyInstance(context.instance, nullptr);
         context = {};
-        log("Vulkan", severity_info, type_general, "termination complete");
+        spdlog::info("termination completed");
     }
 
     crd_nodiscard crd_module std::uint32_t max_bound_samplers(const Context& context) noexcept {
+        crd_profile_scoped();
         return std::min<std::uint32_t>(context.gpu.main_props.limits.maxPerStageDescriptorSampledImages, 1024);
     }
 } //namespace crd

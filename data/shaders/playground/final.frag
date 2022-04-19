@@ -7,9 +7,13 @@
 #define max_shadow_cascades 16
 #define max_directional_lights 4
 #define shadow_cascades 4
-#define pcf_samples 64
-#define pcf_range 4
-#define ambient_factor 0.025
+#define pcss_blocker_samples 64
+#define pcss_pcf_samples 64
+#define light_near 2.5
+#define light_far 256.0
+#define pcss_epsilon 0.01
+#define light_size vec2(0.0025)
+#define ambient_factor 0.075
 
 const vec2 poisson_disc[] = vec2[](
     vec2(-0.934812, 0.366741),
@@ -116,10 +120,6 @@ struct LightVisibility {
     uint[max_lights_per_tile] indices;
 };
 
-layout (early_fragment_tests) in;
-
-layout (location = 0) out vec4 pixel;
-
 layout (location = 0) in VertexData {
     mat3 TBN;
     vec3 frag_pos;
@@ -127,21 +127,24 @@ layout (location = 0) in VertexData {
     vec3 i_normal;
     vec2 uvs;
     float view_depth;
+    float frustum_size;
 };
+
+layout (location = 0) out vec4 pixel;
 
 layout (set = 0, binding = 2) uniform sampler2D[] textures;
 
-layout (set = 1, binding = 0) buffer readonly PointLights {
+/*layout (set = 1, binding = 0) buffer readonly PointLights {
     PointLight[] point_lights;
-};
+};*/
 
 layout (set = 1, binding = 1) uniform DirectionalLights {
     DirectionalLight[max_directional_lights] directional_lights;
 };
 
-layout (set = 1, binding = 2) buffer readonly LightVisibilities {
+/*layout (set = 1, binding = 2) buffer readonly LightVisibilities {
     LightVisibility[] light_visibilities;
-};
+};*/
 
 layout (set = 1, binding = 4) uniform Cascades {
     Cascade[max_shadow_cascades] cascades;
@@ -155,31 +158,30 @@ layout (push_constant) uniform Indices {
     uint normal_index;
     uint specular_index;
     uint directional_lights_count;
-    ivec2 tiles;
+    //ivec2 tiles;
 };
 
 vec3 fetch_normal_map();
 vec3 calculate_directional_light(DirectionalLight light, vec3 albedo, vec3 normal, vec3 view_dir);
 vec3 calculate_point_light(PointLight light, vec3 albedo, vec3 normal, vec3 view_dir);
 uint calculate_layer();
-float sample_shadow(vec3 normal, vec3 light_dir, vec2 offset, uint layer);
-float compute_pcf(DirectionalLight light, vec3 normal, uint layer);
+float compute_pcss(DirectionalLight light, vec3 normal, uint layer);
 
 void main() {
     const vec3 normal = fetch_normal_map();
     const vec3 view_dir = normalize(view_pos - frag_pos);
     const vec3 albedo = vec3(texture(textures[diffuse_index], uvs));
-    const ivec2 tile_id = ivec2(gl_FragCoord.xy / tile_size);
-    const uint tile_index = tile_id.y * tiles.x + tile_id.x;
+    //const ivec2 tile_id = ivec2(gl_FragCoord.xy / tile_size);
+    //const uint tile_index = tile_id.y * tiles.x + tile_id.x;
     const uint layer = calculate_layer();
     vec3 color = albedo * ambient_factor;
     for (uint i = 0; i < directional_lights_count; ++i) {
         color += calculate_directional_light(directional_lights[i], albedo, normal, view_dir) *
-                 compute_pcf(directional_lights[i], normal, layer);
+                 compute_pcss(directional_lights[i], normal, layer);
     }
-    for (uint i = 0; i < light_visibilities[tile_index].count; ++i) {
+    /*for (uint i = 0; i < light_visibilities[tile_index].count; ++i) {
         color += calculate_point_light(point_lights[light_visibilities[tile_index].indices[i]], albedo, normal, view_dir);
-    }
+    }*/
     pixel = vec4(color, 1.0);
     //pixel = vec4(vec3(float(light_visibilities[tile_index].count) / max_lights_per_tile), 1.0);
 }
@@ -204,7 +206,7 @@ vec3 calculate_directional_light(DirectionalLight light, vec3 albedo, vec3 norma
     return diffuse_color + specular_color;
 }
 
-vec3 calculate_point_light(PointLight light, vec3 albedo, vec3 normal, vec3 view_dir) {
+/*vec3 calculate_point_light(PointLight light, vec3 albedo, vec3 normal, vec3 view_dir) {
     const vec3 light_dir = normalize(light.position - frag_pos);
     // Diffuse.
     const float diffuse_factor = max(dot(light_dir, normal), 0.0);
@@ -218,7 +220,7 @@ vec3 calculate_point_light(PointLight light, vec3 albedo, vec3 normal, vec3 view
     const float clamped = clamp(1.0 - pow(distance / light.radius, 4), 0, 1);
     const float attenuation = (clamped * clamped) / (1 + distance * distance);
     return (diffuse_color + specular_color) * attenuation;
-}
+}*/
 
 uint calculate_layer() {
     uint layer = shadow_cascades - 1;
@@ -231,29 +233,46 @@ uint calculate_layer() {
     return layer;
 }
 
-float sample_shadow(vec3 normal, vec3 light_dir, vec2 offset, uint layer) {
+float compute_pcss(DirectionalLight light, vec3 normal, uint layer) {
     const vec4 light_frag_pos = (shadow_bias * cascades[layer].proj_view) * vec4(frag_pos, 1.0);
     const vec4 shadow_coords = light_frag_pos / light_frag_pos.w;
     const vec2 texel = vec2(shadow_coords.x, 1.0 - shadow_coords.y);
-    float bias = 0.000725 * (1 / (cascades[layer].split * 0.5));
+    const vec2 t_size = 1.5 / textureSize(shadow, 0).xy;
+    const vec3 light_dir = normalize(light.direction);
+    const float uv_radius = 1 / frustum_size;
+    float bias = 0.00025 * (1 / (cascades[layer].split * 0.5));
     bias = max(bias, bias * (1.0 - dot(normal, light_dir)));
     const float current = shadow_coords.z + bias;
-    if (shadow_coords.z > -1.0 && shadow_coords.z < 1.0) {
-        const float closest = texture(shadow, vec3(texel + offset, layer)).r;
-        if (shadow_coords.w > 0 && current > closest) {
-            return 0;
+
+    // calculate search width
+    const float search_width = uv_radius * (shadow_coords.z - light_near) / shadow_coords.z;
+
+    // searches for blockers
+    float blocker_depth = 0;
+    uint blocker_count = 0;
+    for (int i = 0; i < pcss_blocker_samples; ++i) {
+        const vec2 offset = poisson_disc[i] * search_width * t_size;
+        const float closest = texture(shadow, vec3(texel + offset, layer)).x;
+        if (current > closest) {
+            blocker_depth += closest;
+            blocker_count++;
         }
     }
-    return 1;
-}
 
-float compute_pcf(DirectionalLight light, vec3 normal, uint layer) {
-    const ivec2 shadow_size = textureSize(shadow, 0).xy;
-    const vec2 texel = 1.75 / shadow_size;
-    const vec3 light_dir = normalize(light.direction);
-    float shadow = 0;
-    for (int i = 0; i < pcf_samples; ++i) {
-        shadow += sample_shadow(normal, light_dir, texel * poisson_disc[i], layer);
+    if (blocker_count == 0) {
+        return 1;
     }
-    return shadow / pcf_samples;
+
+    const float average_blocker_depth = blocker_depth / blocker_count;
+    const float penumbra_width = (shadow_coords.z - average_blocker_depth) / average_blocker_depth;
+    const float filter_radius = penumbra_width * uv_radius * light_near / shadow_coords.z;
+
+    // filtering
+    float shadow_factor = 0.0;
+    for (int i = 0; i < pcss_pcf_samples; ++i) {
+        const vec2 offset = poisson_disc[i] * filter_radius;
+        const float closest = texture(shadow, vec3(texel + offset, layer)).r;
+        shadow_factor += float(current > closest);
+    }
+    return 1.0 - shadow_factor / pcss_pcf_samples;
 }

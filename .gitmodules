@@ -19,3 +19,6 @@
 [submodule "ext/assimp"]
 	path = ext/assimp
 	url = https://github.com/assimp/assimp.git
+[submodule "ext/spdlog"]
+	path = ext/spdlog
+	url = https://github.com/gabime/spdlog
