@@ -62,6 +62,7 @@ namespace crd {
             std::vector<DependencyInfo> dependencies;
             std::vector<FramebufferInfo> framebuffers;
         };
+        const Context* context;
         VkRenderPass handle;
         VkPipelineStageFlags stage;
         std::vector<Framebuffer> framebuffers;
@@ -69,9 +70,9 @@ namespace crd {
 
         crd_nodiscard crd_module const Image&              image(std::size_t) const noexcept;
         crd_nodiscard crd_module std::vector<VkClearValue> clears(std::size_t) const noexcept;
-                      crd_module void                      resize(const Context&, ResizeAttachments&&) noexcept;
+                      crd_module void                      resize(ResizeAttachments&&) noexcept;
+                      crd_module void                      destroy() noexcept;
     };
 
     crd_nodiscard crd_module RenderPass make_render_pass(const Context&, RenderPass::CreateInfo&&) noexcept;
-                  crd_module void       destroy_render_pass(const Context&, RenderPass&) noexcept;
 } // namespace crd

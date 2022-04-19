@@ -314,13 +314,13 @@ int main() {
     auto cull_pipeline = crd::make_pipeline(context, renderer, cull_pipeline_info());
     auto light_pipeline = crd::make_pipeline(context, renderer, light_pipeline_info(final_pass));
     auto final_pipeline = crd::make_pipeline(context, renderer, final_pipeline_info(final_pass));
-    auto black = crd::request_static_texture(context, "../data/textures/black.png", crd::texture_srgb);
+    auto black = crd::request_static_texture(context, renderer, "../data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
-    models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.gltf"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/plane/plane.obj"));
+    models.emplace_back(crd::request_static_model(context, renderer, "../data/models/cube/cube.obj"));
+    models.emplace_back(crd::request_static_model(context, renderer, "../data/models/sponza/sponza.gltf"));
+    models.emplace_back(crd::request_static_model(context, renderer, "../data/models/dragon/dragon.obj"));
+    models.emplace_back(crd::request_static_model(context, renderer, "../data/models/suzanne/suzanne.obj"));
+    models.emplace_back(crd::request_static_model(context, renderer, "../data/models/plane/plane.obj"));
     /*auto draw_cmds = std::vector<Draw>{ {
         .model = &models[1],
         .transforms = { {
@@ -406,7 +406,7 @@ int main() {
     auto cascades_buffer = crd::make_buffer(context, {
         .type = crd::uniform_buffer,
         .usage = crd::host_visible,
-        .capacity = sizeof(Cascade[shadow_cascades])
+        .capacity = sizeof(Cascade[max_shadow_cascades])
     });
     auto light_instances_buffer = crd::make_buffer(context, {
         .type = crd::storage_buffer,
@@ -435,12 +435,12 @@ int main() {
     auto light_data_set = crd::make_descriptor_set(context, final_pipeline.layout.sets[1]);
     auto light_view_set = crd::make_descriptor_set(context, light_pipeline.layout.sets[0]);
     window.set_resize_callback([&]() {
-        depth_pass.resize(context, {
+        depth_pass.resize({
             .size = { swapchain.width, swapchain.height },
             .framebuffer = 0,
             .attachments = { 0 }
         });
-        final_pass.resize(context, {
+        final_pass.resize({
             .size = { swapchain.width, swapchain.height },
             .framebuffer = 0,
             .attachments = { 0 },
@@ -457,10 +457,10 @@ int main() {
 
             case crd::key_r: {
                 crd_unlikely_if(state == crd::key_pressed) {
-                    depth_pipeline = reload_pipelines(context, renderer, depth_pipeline, depth_pipeline_info(depth_pass));
-                    cull_pipeline = reload_pipelines(context, renderer, cull_pipeline, cull_pipeline_info());
-                    final_pipeline = reload_pipelines(context, renderer, final_pipeline, final_pipeline_info(final_pass));
-                    light_pipeline = reload_pipelines(context, renderer, light_pipeline, light_pipeline_info(final_pass));
+                    reload_pipelines(depth_pipeline, depth_pipeline_info(depth_pass));
+                    reload_pipelines(cull_pipeline, cull_pipeline_info());
+                    reload_pipelines(final_pipeline, final_pipeline_info(final_pass));
+                    reload_pipelines(light_pipeline, light_pipeline_info(final_pass));
                 }
             } break;
         }
@@ -471,7 +471,7 @@ int main() {
     double fps = 0;
     while (!window.is_closed()) {
         crd::poll_events();
-        auto [commands, image, index, wait, signal, done] = crd::acquire_frame(context, renderer, window, swapchain);
+        auto [commands, image, index, wait, signal, done] = renderer.acquire_frame(window, swapchain);
         const auto current_time = crd::current_time();
         const auto delta_time = current_time - last_time;
         last_time = current_time;
@@ -494,43 +494,51 @@ int main() {
         const auto cascades = calculate_cascades(camera, sun_dlight.direction);
         const auto tiles_per_row = (window.width - 1) / tile_size + 1;
         const auto tiles_per_col = (window.height - 1) / tile_size + 1;
-        const auto light_visibility_size = sizeof(LightVisibility) * tiles_per_col * tiles_per_row;
-        crd::resize_buffer(context, model_buffer[index], crd::size_bytes(scene.transforms));
-        crd::resize_buffer(context, light_visibility_buffer[index], light_visibility_size);
-        crd::resize_buffer(context, point_lights_buffer[index], crd::size_bytes(point_lights));
 
-        camera_buffer[index].write(&camera_data, 0, sizeof(CameraUniform));
-        cascades_buffer[index].write(cascades.data(), 0);
-        point_lights_buffer[index].write(point_lights.data(), 0, crd::size_bytes(point_lights));
-        directional_lights_buffer[index].write(&sun_dlight, 0, sizeof sun_dlight);
-        light_instances_buffer[index].write(point_light_instances.data(), 0, crd::size_bytes(point_light_instances));
-        model_buffer[index].write(scene.transforms.data(), 0, crd::size_bytes(scene.transforms));
+        light_visibility_buffer.resize(sizeof(LightVisibility) * tiles_per_col * tiles_per_row);
+
+        camera_buffer[index].write(&camera_data);
+        cascades_buffer[index].write(cascades.data(), crd::size_bytes(cascades));
+        directional_lights_buffer[index].write(&sun_dlight, sizeof sun_dlight);
+        light_instances_buffer[index].write(point_light_instances.data(), crd::size_bytes(point_light_instances));
+        point_lights_buffer[index].write(point_lights.data(), crd::size_bytes(point_lights));
+        model_buffer[index].write(scene.transforms.data(), crd::size_bytes(scene.transforms));
 
         depth_set[index]
-            .bind(context, depth_pipeline.bindings["Uniforms"], camera_buffer[index].info())
-            .bind(context, depth_pipeline.bindings["Models"], model_buffer[index].info());
+            .bind(depth_pipeline.bindings["Uniforms"], camera_buffer[index].info())
+            .bind(depth_pipeline.bindings["Models"], model_buffer[index].info());
         shadow_set[index]
-            .bind(context, shadow_pipeline.bindings["Models"], model_buffer[index].info())
-            .bind(context, shadow_pipeline.bindings["Cascades"], cascades_buffer[index].info())
-            .bind(context, shadow_pipeline.bindings["textures"], scene.descriptors);
+            .bind(shadow_pipeline.bindings["Models"], model_buffer[index].info())
+            .bind(shadow_pipeline.bindings["Cascades"], cascades_buffer[index].info())
+            .bind(shadow_pipeline.bindings["textures"], scene.descriptors);
         cmp_cull_set[index]
-            .bind(context, cull_pipeline.bindings["CameraBuffer"], camera_buffer[index].info())
-            .bind(context, cull_pipeline.bindings["PointLights"], point_lights_buffer[index].info())
-            .bind(context, cull_pipeline.bindings["depth"], depth_pass.image(0).sample(context.default_sampler))
-            .bind(context, cull_pipeline.bindings["LightVisibilities"], light_visibility_buffer[index].info());
+            .bind(cull_pipeline.bindings["CameraBuffer"], camera_buffer[index].info())
+            .bind(cull_pipeline.bindings["PointLights"], point_lights_buffer[index].info())
+            .bind(cull_pipeline.bindings["LightVisibilities"], light_visibility_buffer[index].info())
+            .bind(cull_pipeline.bindings["depth"], depth_pass.image(0).sample(renderer.acquire_sampler({
+                .filter = VK_FILTER_NEAREST,
+                .border_color = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+                .address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                .anisotropy = 0,
+            })));
         main_set[index]
-            .bind(context, final_pipeline.bindings["Uniforms"], camera_buffer[index].info())
-            .bind(context, final_pipeline.bindings["Models"], model_buffer[index].info())
-            .bind(context, final_pipeline.bindings["textures"], scene.descriptors);
+            .bind(final_pipeline.bindings["Uniforms"], camera_buffer[index].info())
+            .bind(final_pipeline.bindings["Models"], model_buffer[index].info())
+            .bind(final_pipeline.bindings["textures"], scene.descriptors);
         light_data_set[index]
-            .bind(context, final_pipeline.bindings["PointLights"], point_lights_buffer[index].info())
-            .bind(context, final_pipeline.bindings["DirectionalLights"], directional_lights_buffer[index].info())
-            .bind(context, final_pipeline.bindings["LightVisibilities"], light_visibility_buffer[index].info())
-            .bind(context, final_pipeline.bindings["Cascades"], cascades_buffer[index].info())
-            .bind(context, final_pipeline.bindings["shadow"], shadow_pass.image(0).sample(context.shadow_sampler));
+            .bind(final_pipeline.bindings["PointLights"], point_lights_buffer[index].info())
+            .bind(final_pipeline.bindings["DirectionalLights"], directional_lights_buffer[index].info())
+            .bind(final_pipeline.bindings["LightVisibilities"], light_visibility_buffer[index].info())
+            .bind(final_pipeline.bindings["Cascades"], cascades_buffer[index].info())
+            .bind(final_pipeline.bindings["shadow"], shadow_pass.image(0).sample(renderer.acquire_sampler({
+                .filter = VK_FILTER_NEAREST,
+                .border_color = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+                .address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                .anisotropy = 0,
+            })));
         light_view_set[index]
-            .bind(context, light_pipeline.bindings["Uniforms"], camera_buffer[index].info())
-            .bind(context, light_pipeline.bindings["Instances"], light_instances_buffer[index].info());
+            .bind(light_pipeline.bindings["Uniforms"], camera_buffer[index].info())
+            .bind(light_pipeline.bindings["Instances"], light_instances_buffer[index].info());
 
         commands
             .begin()
@@ -647,7 +655,7 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        crd::present_frame(context, renderer, {
+        renderer.present_frame({
             .commands = commands,
             .window = window,
             .swapchain = swapchain,

@@ -34,7 +34,16 @@ namespace crd {
         std::vector<VkPipelineStageFlags> stages;
     };
 
+    struct SamplerInfo {
+        VkFilter filter;
+        VkBorderColor border_color;
+        VkSamplerAddressMode address_mode;
+        float anisotropy;
+    };
+
     struct Renderer {
+        const Context* context;
+
         std::uint32_t image_idx;
         std::uint32_t frame_idx;
 
@@ -45,10 +54,13 @@ namespace crd {
 
         // TODO: Move to another structure (Cache<T>)
         std::unordered_map<std::size_t, VkDescriptorSetLayout> set_layout_cache;
+        std::unordered_map<std::size_t, VkSampler> sampler_cache;
+
+        crd_nodiscard crd_module FrameInfo acquire_frame(Window&, Swapchain&) noexcept;
+                      crd_module void      present_frame(PresentInfo&&) noexcept;
+        crd_nodiscard crd_module VkSampler acquire_sampler(SamplerInfo&&) noexcept;
+                      crd_module void      destroy() noexcept;
     };
 
-    crd_nodiscard crd_module Renderer         make_renderer(const Context&) noexcept;
-                  crd_module void             destroy_renderer(const Context&, Renderer&) noexcept;
-    crd_nodiscard crd_module FrameInfo        acquire_frame(const Context&, Renderer&, Window&, Swapchain&) noexcept;
-                  crd_module void             present_frame(const Context&, Renderer&, PresentInfo&&) noexcept;
+    crd_nodiscard crd_module Renderer make_renderer(const Context&) noexcept;
 } // namespace crd

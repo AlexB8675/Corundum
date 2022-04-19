@@ -9,6 +9,7 @@ namespace crd {
     crd_nodiscard crd_module Image make_image(const Context& context, Image::CreateInfo&& info) noexcept {
         crd_profile_scoped();
         Image image;
+        image.context = &context;
         image.samples = info.samples;
         image.aspect = info.aspect;
         image.usage = info.usage;
@@ -79,13 +80,6 @@ namespace crd {
         return image;
     }
 
-    crd_module void destroy_image(const Context& context, Image& image) noexcept {
-        crd_profile_scoped();
-        vkDestroyImageView(context.device, image.view, nullptr);
-        vmaDestroyImage(context.allocator, image.handle, image.allocation);
-        image = {};
-    }
-
     VkDescriptorImageInfo Image::sample(VkSampler sampler) const noexcept {
         crd_profile_scoped();
         return {
@@ -102,5 +96,12 @@ namespace crd {
             .imageView = view,
             .imageLayout = layout
         };
+    }
+
+    crd_module void Image::destroy() noexcept {
+        crd_profile_scoped();
+        vkDestroyImageView(context->device, view, nullptr);
+        vmaDestroyImage(context->allocator, handle, allocation);
+        *this = {};
     }
 } // namespace crd

@@ -17,13 +17,14 @@ namespace crd {
             std::vector<float> geometry;
             std::vector<std::uint32_t> indices;
         };
+        const Context* context;
         StaticBuffer geometry;
         StaticBuffer indices;
 #if defined(crd_enable_raytracing)
         BottomLevelAS blas;
 #endif
+        crd_module void destroy() noexcept;
     };
 
     crd_nodiscard crd_module Async<StaticMesh> request_static_mesh(const Context&, StaticMesh::CreateInfo&&) noexcept;
-                  crd_module void              destroy_static_mesh(const Context&, StaticMesh&) noexcept;
 } // namespace crd

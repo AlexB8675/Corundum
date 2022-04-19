@@ -24,9 +24,11 @@ namespace crd {
     };
 
     struct StaticModel {
+        const Context* context;
         std::vector<TexturedMesh> submeshes;
+
+        crd_module void destroy() noexcept;
     };
 
-    crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context&, std::string&&) noexcept;
-                  crd_module void               destroy_static_model(const Context&, StaticModel&) noexcept;
+    crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context&, Renderer&, std::string&&) noexcept;
 } // namespace crd

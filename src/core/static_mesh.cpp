@@ -23,7 +23,7 @@ namespace crd {
             const auto transfer_pool = context.transfer->transient[thread_index];
             const auto vertex_bytes = size_bytes(info.geometry);
             const auto index_bytes = size_bytes(info.indices);
-            spdlog::info("StaticMesh was asynchronously requested, expected bytes to transfer: {}", vertex_bytes * index_bytes);
+            spdlog::info("StaticMesh was asynchronously requested, expected bytes to transfer: {}", vertex_bytes + index_bytes);
             auto vertex_staging = make_static_buffer(context, {
                 .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 .usage = VMA_MEMORY_USAGE_CPU_ONLY,
@@ -145,6 +145,7 @@ namespace crd {
             });
             wait_fence(context, request_done);
             StaticMesh result;
+            result.context = &context;
             result.geometry = geometry;
             result.indices = indices;
 #if defined(crd_enable_raytracing)
@@ -238,8 +239,8 @@ namespace crd {
             vkDestroyFence(context.device, request_done, nullptr);
 #endif
             vkDestroySemaphore(context.device, transfer_done, nullptr);
-            destroy_static_buffer(context, vertex_staging);
-            destroy_static_buffer(context, index_staging);
+            vertex_staging.destroy();
+            index_staging.destroy();
             destroy_command_buffer(context, ownership_cmd);
             destroy_command_buffer(context, transfer_cmd);
             return result;
@@ -257,10 +258,10 @@ namespace crd {
         return make_async(std::move(future));
     }
 
-    crd_module void destroy_static_mesh(const Context& context, StaticMesh& mesh) noexcept {
+    crd_module void StaticMesh::destroy() noexcept {
         crd_profile_scoped();
-        destroy_static_buffer(context, mesh.geometry);
-        destroy_static_buffer(context, mesh.indices);
-        mesh = {};
+        geometry.destroy();
+        indices.destroy();
+        *this = {};
     }
 } // namespace crd

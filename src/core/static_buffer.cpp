@@ -33,6 +33,7 @@ namespace crd {
         allocation_info.priority = 1;
 
         StaticBuffer buffer;
+        buffer.context = &context;
         VmaAllocationInfo extra_info;
         crd_vulkan_check(vmaCreateBuffer(
             context.allocator,
@@ -51,9 +52,9 @@ namespace crd {
         return buffer;
     }
 
-    crd_module void destroy_static_buffer(const Context& context, StaticBuffer& buffer) noexcept {
+    crd_module void StaticBuffer::destroy() noexcept {
         crd_profile_scoped();
-        vmaDestroyBuffer(context.allocator, buffer.handle, buffer.allocation);
-        buffer = {};
+        vmaDestroyBuffer(context->allocator, handle, allocation);
+        *this = {};
     }
 } // namespace crd

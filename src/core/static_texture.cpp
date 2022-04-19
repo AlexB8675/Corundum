@@ -1,6 +1,7 @@
 #include <corundum/core/static_texture.hpp>
 #include <corundum/core/command_buffer.hpp>
 #include <corundum/core/static_buffer.hpp>
+#include <corundum/core/renderer.hpp>
 #include <corundum/core/context.hpp>
 #include <corundum/core/async.hpp>
 #include <corundum/core/queue.hpp>
@@ -20,10 +21,10 @@
 #include <cmath>
 
 namespace crd {
-    crd_nodiscard crd_module Async<StaticTexture> request_static_texture(const Context& context, std::string&& path, TextureFormat format) noexcept {
+    crd_nodiscard crd_module Async<StaticTexture> request_static_texture(const Context& context, Renderer& renderer, std::string&& path, TextureFormat format) noexcept {
         crd_profile_scoped();
         using task_type = std::packaged_task<StaticTexture(ftl::TaskScheduler*)>;
-        auto* task = new task_type([&context, path = std::move(path), format](ftl::TaskScheduler* scheduler) noexcept -> StaticTexture {
+        auto* task = new task_type([&context, &renderer, path = std::move(path), format](ftl::TaskScheduler* scheduler) noexcept -> StaticTexture {
             crd_profile_scoped();
             const auto thread_index = scheduler->GetCurrentThreadIndex();
             const auto graphics_pool = context.graphics->transient[thread_index];
@@ -204,12 +205,16 @@ namespace crd {
             wait_fence(context, request_done);
             vkDestroySemaphore(context.device, transfer_done, nullptr);
             vkDestroyFence(context.device, request_done, nullptr);
-            destroy_static_buffer(context, staging);
+            staging.destroy();
             destroy_command_buffer(context, ownership_cmd);
             destroy_command_buffer(context, transfer_cmd);
             return {
-                image,
-                context.default_sampler
+                image, renderer.acquire_sampler({
+                    .filter = VK_FILTER_LINEAR,
+                    .border_color = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
+                    .address_mode = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                    .anisotropy = 16,
+                })
             };
         });
         auto future = task->get_future();
@@ -225,18 +230,14 @@ namespace crd {
         return make_async(std::move(future));
     }
 
-    crd_module void destroy_static_texture(const Context& context, StaticTexture& texture) {
-        crd_profile_scoped();
-        destroy_image(context, texture.image);
-        texture = {};
-    }
-
     crd_nodiscard crd_module VkDescriptorImageInfo StaticTexture::info() const noexcept {
         crd_profile_scoped();
-        return {
-            .sampler = sampler,
-            .imageView = image.view,
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        };
+        return image.sample(sampler);
+    }
+
+    crd_module void StaticTexture::destroy() noexcept {
+        crd_profile_scoped();
+        image.destroy();
+        *this = {};
     }
 } // namespace crd

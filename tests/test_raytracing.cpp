@@ -313,7 +313,7 @@ int main() {
 
         crd::wait_fence(context, done);
 
-        camera_buffer.write(&camera_data, 0, sizeof camera_data);
+        camera_buffer.write(&camera_data, sizeof camera_data);
 
         make_scene(context, black->info(), scene, commands.begin(), draw_cmds, index);
 

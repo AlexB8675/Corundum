@@ -393,36 +393,6 @@ namespace crd {
 
            crd_vulkan_check(vkCreateDescriptorPool(context.device, &descriptor_pool_info, nullptr, &context.descriptor_pool));
         }
-        { // Creates a VkSampler (default and shadow).
-            VkSamplerCreateInfo sampler_info;
-            sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            sampler_info.pNext = nullptr;
-            sampler_info.flags = {};
-            sampler_info.magFilter = VK_FILTER_LINEAR;
-            sampler_info.minFilter = VK_FILTER_LINEAR;
-            sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sampler_info.mipLodBias = 0.0f;
-            sampler_info.anisotropyEnable = true;
-            sampler_info.maxAnisotropy = 16;
-            sampler_info.compareEnable = false;
-            sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
-            sampler_info.minLod = 0.0f;
-            sampler_info.maxLod = 8.0f;
-            sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
-            sampler_info.unnormalizedCoordinates = false;
-            crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.default_sampler));
-            sampler_info.anisotropyEnable = false;
-            sampler_info.magFilter = VK_FILTER_LINEAR;
-            sampler_info.minFilter = VK_FILTER_LINEAR;
-            sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-            crd_vulkan_check(vkCreateSampler(context.device, &sampler_info, nullptr, &context.shadow_sampler));
-        }
         { // Creates a VmaAllocator.
             spdlog::info("initializing allocator");
             VmaAllocatorCreateInfo allocator_info;
@@ -456,8 +426,6 @@ namespace crd {
         destroy_queue(context, context.transfer);
         destroy_queue(context, context.compute);
         vkDestroyDescriptorPool(context.device, context.descriptor_pool, nullptr);
-        vkDestroySampler(context.device, context.shadow_sampler, nullptr);
-        vkDestroySampler(context.device, context.default_sampler, nullptr);
         vmaDestroyAllocator(context.allocator);
         vkDestroyDevice(context.device, nullptr);
 #if defined(crd_debug)

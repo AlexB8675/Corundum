@@ -346,20 +346,22 @@ static inline std::array<Cascade, shadow_cascades> calculate_cascades(const Came
 }
 
 template <typename T>
-static inline T reload_pipelines(const crd::Context& context, crd::Renderer& renderer, T& pipeline, typename T::CreateInfo&& info) noexcept {
+static inline void reload_pipelines(T& pipeline, typename T::CreateInfo&& info) noexcept {
     crd_profile_scoped();
+    const auto* context = pipeline.context;
+    auto* renderer = pipeline.renderer;
     switch (pipeline.type) {
         case T::type_graphics:
         case T::type_raytracing: {
-            context.graphics->wait_idle();
+            context->graphics->wait_idle();
         } break;
 
         case T::type_compute: {
-            context.compute->wait_idle();
+            context->compute->wait_idle();
         } break;
     }
-    crd::destroy_pipeline(context, pipeline);
-    return crd::make_pipeline(context, renderer, std::move(info));
+    pipeline.destroy();
+    pipeline = crd::make_pipeline(*context, *renderer, std::move(info));
 }
 
 #endif //CORUNDUM_TESTS_COMMON_HPP

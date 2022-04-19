@@ -1,6 +1,7 @@
 #pragma once
 
 #include <corundum/core/acceleration_structure.hpp>
+#include <corundum/core/renderer.hpp>
 #include <corundum/core/pipeline.hpp>
 
 #include <corundum/detail/forward.hpp>
@@ -25,6 +26,7 @@ namespace std {
     crd_make_hashable(crd::DescriptorSetLayout, value, value.handle, value.dynamic);
     crd_make_hashable(VkDescriptorBufferInfo, value, value.buffer, value.offset, value.range);
     crd_make_hashable(VkDescriptorImageInfo, value, value.sampler, value.imageLayout, value.imageView);
+    crd_make_hashable(crd::SamplerInfo, value, value.filter, value.border_color, value.address_mode, value.anisotropy);
     crd_make_hashable(crd::StaticBuffer, value, value.handle, value.capacity);
     crd_make_hashable(crd::AccelerationStructure, value, value.handle, value.address, value.buffer);
 

@@ -32,8 +32,12 @@ namespace crd {
         crd_nodiscard crd_module std::size_t            capacity() const noexcept;
         crd_nodiscard crd_module const char*            view() const noexcept;
         crd_nodiscard crd_module char*                  raw() const noexcept;
+                      crd_module void                   write(const void*) noexcept;
                       crd_module void                   write(const void*, std::size_t) noexcept;
                       crd_module void                   write(const void*, std::size_t, std::size_t) noexcept;
+                      crd_module void                   shrink() noexcept;
+                      crd_module void                   resize(std::size_t) noexcept;
+                      crd_module void                   destroy() noexcept;
     };
 
     template <>
@@ -45,14 +49,15 @@ namespace crd {
         };
         std::array<Buffer<1>, in_flight> handles;
 
+                      crd_module void       write(const void*) noexcept;
                       crd_module void       write(const void*, std::size_t) noexcept;
                       crd_module void       write(const void*, std::size_t, std::size_t) noexcept;
+                      crd_module void       shrink() noexcept;
+                      crd_module void       resize(std::size_t) noexcept;
+                      crd_module void       destroy() noexcept;
 
         crd_nodiscard crd_module Buffer<1>& operator [](std::size_t) noexcept;
    };
 
     template <std::size_t N = in_flight> crd_nodiscard crd_module Buffer<N> make_buffer(const Context&, Buffer<in_flight>::CreateInfo&&) noexcept;
-    template <std::size_t N = in_flight>               crd_module void      destroy_buffer(const Context&, Buffer<N>&) noexcept;
-    template <std::size_t N = in_flight>               crd_module void      resize_buffer(const Context&, Buffer<N>&, std::size_t) noexcept;
-    template <std::size_t N = in_flight>               crd_module void      shrink_buffer(const Context&, Buffer<N>&) noexcept;
 } // namespace crd

@@ -303,7 +303,7 @@ int main() {
     auto deferred_pipeline = crd::make_pipeline(context, renderer, deferred_pipeline_info(deferred_pass));
     auto main_pipeline = crd::make_pipeline(context, renderer, main_pipeline_info(deferred_pass));
     window.resize_callback = [&]() {
-        deferred_pass.resize(context, {
+        deferred_pass.resize({
             .size = { swapchain.width, swapchain.height },
             .framebuffer = 0,
             .attachments = { 0, 1, 2, 3, 4, 5 }
@@ -462,20 +462,17 @@ int main() {
         const auto cascades = calculate_cascades(camera, dir_lights[0].direction);
 
         crd::wait_fence(context, done);
-        crd::resize_buffer(context, model_buffer[index], crd::size_bytes(scene.transforms));
-        crd::resize_buffer(context, cascades_buffer[index], crd::size_bytes(cascades));
-        crd::resize_buffer(context, directional_light_buffer[index], crd::size_bytes(dir_lights));
 
         CameraUniform camera_data;
         camera_data.projection = camera.projection;
         camera_data.view = camera.view;
         camera_data.position = glm::vec4(camera.position, 1.0);
 
-        model_buffer[index].write(scene.transforms.data(), 0, crd::size_bytes(scene.transforms));
-        cascades_buffer[index].write(cascades.data(), 0, crd::size_bytes(cascades));
-        camera_buffer[index].write(&camera_data, 0);
-        point_light_buffer[index].write(point_lights.data(), 0, sizeof(glm::mat4));
-        directional_light_buffer[index].write(dir_lights.data(), 0, crd::size_bytes(dir_lights));
+        model_buffer[index].write(scene.transforms.data(), crd::size_bytes(scene.transforms));
+        cascades_buffer[index].write(cascades.data(), crd::size_bytes(cascades));
+        camera_buffer[index].write(&camera_data, sizeof camera_data);
+        point_light_buffer[index].write(point_lights.data(), sizeof(glm::mat4));
+        directional_light_buffer[index].write(dir_lights.data(), crd::size_bytes(dir_lights));
 
         shadow_set[index]
             .bind(context, shadow_pipeline.bindings["Models"], model_buffer[index].info())
@@ -594,24 +591,24 @@ int main() {
     }
     context.graphics->wait_idle();
     context.compute->wait_idle();
-    crd::destroy_descriptor_set(context, light_data_set);
-    crd::destroy_descriptor_set(context, gbuffer_set);
-    crd::destroy_descriptor_set(context, shadow_set);
-    crd::destroy_descriptor_set(context, deferred_set);
-    crd::destroy_buffer(context, directional_light_buffer);
-    crd::destroy_buffer(context, point_light_buffer);
-    crd::destroy_buffer(context, model_buffer);
-    crd::destroy_buffer(context, camera_buffer);
-    crd::destroy_buffer(context, cascades_buffer);
+    light_data_set.destroy();
+    gbuffer_set.destroy();
+    shadow_set.destroy();
+    deferred_set.destroy();
+    directional_light_buffer.destroy();
+    point_light_buffer.destroy();
+    model_buffer.destroy();
+    camera_buffer.destroy();
+    cascades_buffer.destroy();
     for (auto& each : models) {
-        crd::destroy_static_model(context, *each);
+        each->destroy();
     }
-    crd::destroy_static_texture(context, *black);
-    crd::destroy_pipeline(context, shadow_pipeline);
-    crd::destroy_pipeline(context, deferred_pipeline);
-    crd::destroy_pipeline(context, main_pipeline);
-    crd::destroy_render_pass(context, deferred_pass);
-    crd::destroy_render_pass(context, shadow_pass);
+    black->destroy();
+    shadow_pipeline.destroy();
+    deferred_pipeline.destroy();
+    main_pipeline.destroy();
+    deferred_pass.destroy();
+    shadow_pass.destroy();
     crd::destroy_swapchain(context, swapchain);
     crd::destroy_renderer(context, renderer);
     crd::destroy_context(context);

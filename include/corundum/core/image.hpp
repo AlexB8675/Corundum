@@ -23,6 +23,7 @@ namespace crd {
             VkImageUsageFlags usage;
             VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
         };
+        const Context* context;
         VkImage handle;
         VkImageView view;
         VmaAllocation allocation;
@@ -37,8 +38,8 @@ namespace crd {
 
         crd_nodiscard crd_module VkDescriptorImageInfo sample(VkSampler) const noexcept;
         crd_nodiscard crd_module VkDescriptorImageInfo info(VkImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) const noexcept;
+                      crd_module void                  destroy() noexcept;
     };
 
     crd_nodiscard crd_module Image make_image(const Context&, Image::CreateInfo&&) noexcept;
-                  crd_module void  destroy_image(const Context&, Image&) noexcept;
 } // namespace crd

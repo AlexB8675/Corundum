@@ -57,12 +57,16 @@ namespace crd {
             type_compute,
             type_raytracing,
         } type;
+        const Context* context;
+        Renderer* renderer;
         VkPipeline handle;
         DescriptorLayoutBindings bindings;
         struct {
             VkPipelineLayout pipeline;
             DescriptorSetLayouts sets;
         } layout;
+
+        crd_module void destroy() noexcept;
     };
 
     struct GraphicsPipeline : Pipeline {
@@ -103,5 +107,4 @@ namespace crd {
     crd_nodiscard crd_module GraphicsPipeline   make_pipeline(const Context&, Renderer&, GraphicsPipeline::CreateInfo&&) noexcept;
     crd_nodiscard crd_module ComputePipeline    make_pipeline(const Context&, Renderer&, ComputePipeline::CreateInfo&&) noexcept;
     crd_nodiscard crd_module RayTracingPipeline make_pipeline(const Context&, Renderer&, RayTracingPipeline::CreateInfo&&) noexcept;
-                  crd_module void               destroy_pipeline(const Context&, Pipeline&) noexcept;
 } // namespace crd

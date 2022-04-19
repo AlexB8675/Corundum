@@ -15,6 +15,7 @@ namespace crd {
             VmaMemoryUsage usage;
             std::size_t capacity;
         };
+        const Context* context;
         VmaAllocation allocation;
         VmaMemoryUsage usage;
         VkBufferUsageFlags flags;
@@ -22,8 +23,9 @@ namespace crd {
         VkDeviceAddress address;
         VkBuffer handle;
         void* mapped;
+
+        crd_module void destroy() noexcept;
     };
 
     crd_nodiscard crd_module StaticBuffer make_static_buffer(const Context&, StaticBuffer::CreateInfo&&) noexcept;
-                  crd_module void         destroy_static_buffer(const Context&, StaticBuffer&) noexcept;
 } // namespace crd

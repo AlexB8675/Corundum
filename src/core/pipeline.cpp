@@ -47,7 +47,8 @@ namespace crd {
             spdlog::info("loading fragment shader: \"{}\"", info.fragment);
         }
         GraphicsPipeline pipeline;
-
+        pipeline.context = &context;
+        pipeline.renderer = &renderer;
         crd_assert(info.vertex, "vertex shader not present");
         VkPipelineShaderStageCreateInfo vertex_stage;
         vertex_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -549,6 +550,8 @@ namespace crd {
     crd_nodiscard crd_module ComputePipeline make_pipeline(const Context& context, Renderer& renderer, ComputePipeline::CreateInfo&& info) noexcept {
         crd_profile_scoped();
         ComputePipeline pipeline;
+        pipeline.context = &context;
+        pipeline.renderer = &renderer;
         spdlog::info("loading compute shader: \"{}\"", info.compute);
         const auto binary = import_spirv(info.compute);
         VkShaderModuleCreateInfo compute_module;
@@ -706,7 +709,8 @@ namespace crd {
 #if defined(crd_enable_raytracing)
         crd_profile_scoped();
         RayTracingPipeline pipeline;
-
+        pipeline.context = &context;
+        pipeline.renderer = &renderer;
         std::vector<VkRayTracingShaderGroupCreateInfoKHR> pipeline_groups;
         pipeline_groups.reserve(3);
         std::vector<VkPipelineShaderStageCreateInfo> pipeline_stages;
@@ -1085,9 +1089,9 @@ namespace crd {
 #endif
     }
 
-    crd_module void destroy_pipeline(const Context& context, Pipeline& pipeline) noexcept {
-        vkDestroyPipelineLayout(context.device, pipeline.layout.pipeline, nullptr);
-        vkDestroyPipeline(context.device, pipeline.handle, nullptr);
-        pipeline = {};
+    crd_module void Pipeline::destroy() noexcept {
+        vkDestroyPipelineLayout(context->device, layout.pipeline, nullptr);
+        vkDestroyPipeline(context->device, handle, nullptr);
+        *this = {};
     }
 } // namespace crd

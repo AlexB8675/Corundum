@@ -236,7 +236,7 @@ int main() {
         }
     });
     window.resize_callback = [&]() {
-        deferred_pass.resize(context, {
+        deferred_pass.resize({
             .size = { swapchain.width, swapchain.height },
             .framebuffer = 0,
             .attachments = { 0, 1, 2, 3, 4, 5 }
@@ -340,17 +340,14 @@ int main() {
         }
 
         crd::wait_fence(context, done);
-        crd::resize_buffer(context, model_buffer[index], crd::size_bytes(scene.transforms));
-        crd::resize_buffer(context, point_light_buffer[index], crd::size_bytes(lights));
-        crd::resize_buffer(context, light_color_buffer[index], crd::size_bytes(light_colors));
 
-        model_buffer[index].write(scene.transforms.data(), 0, crd::size_bytes(scene.transforms));
-        light_model_buffer[index].write(light_ts.data(), 0, crd::size_bytes(light_ts));
-        camera_buffer[index].write(glm::value_ptr(camera.projection), 0, sizeof(glm::mat4));
+        model_buffer[index].write(scene.transforms.data(), crd::size_bytes(scene.transforms));
+        light_model_buffer[index].write(light_ts.data(), crd::size_bytes(light_ts));
+        camera_buffer[index].write(glm::value_ptr(camera.projection), sizeof(glm::mat4));
         camera_buffer[index].write(glm::value_ptr(camera.view), sizeof(glm::mat4), sizeof(glm::mat4));
-        point_light_buffer[index].write(lights.data(), 0, crd::size_bytes(lights));
-        light_color_buffer[index].write(light_colors.data(), 0, crd::size_bytes(light_colors));
-        light_uniform_buffer[index].write(&camera.position, 0, sizeof camera.position);
+        point_light_buffer[index].write(lights.data(), crd::size_bytes(lights));
+        light_color_buffer[index].write(light_colors.data(), crd::size_bytes(light_colors));
+        light_uniform_buffer[index].write(&camera.position, sizeof camera.position);
 
         main_set[index]
             .bind(context, main_pipeline.bindings["Uniforms"], camera_buffer[index].info())
@@ -439,25 +436,25 @@ int main() {
         camera.update(window, delta_time);
     }
     context.graphics->wait_idle();
-    crd::destroy_descriptor_set(context, gbuffer_set);
-    crd::destroy_descriptor_set(context, light_data_set);
-    crd::destroy_descriptor_set(context, light_set);
-    crd::destroy_descriptor_set(context, main_set);
-    crd::destroy_buffer(context, light_uniform_buffer);
-    crd::destroy_buffer(context, light_color_buffer);
-    crd::destroy_buffer(context, directional_light_buffer);
-    crd::destroy_buffer(context, point_light_buffer);
-    crd::destroy_buffer(context, light_model_buffer);
-    crd::destroy_buffer(context, model_buffer);
-    crd::destroy_buffer(context, camera_buffer);
+    gbuffer_set.destroy();
+    light_data_set.destroy();
+    light_set.destroy();
+    main_set.destroy();
+    light_uniform_buffer.destroy();
+    light_color_buffer.destroy();
+    directional_light_buffer.destroy();
+    point_light_buffer.destroy();
+    light_model_buffer.destroy();
+    model_buffer.destroy();
+    camera_buffer.destroy();
     for (auto& each : models) {
         crd::destroy_static_model(context, *each);
     }
-    crd::destroy_static_texture(context, *black);
+    black->destroy();
     crd::destroy_pipeline(context, combine_pipeline);
     crd::destroy_pipeline(context, light_pipeline);
     crd::destroy_pipeline(context, main_pipeline);
-    crd::destroy_render_pass(context, deferred_pass);
+    deferred_pass.destroy();
     crd::destroy_swapchain(context, swapchain);
     crd::destroy_renderer(context, renderer);
     crd::destroy_context(context);

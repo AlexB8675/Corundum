@@ -34,6 +34,7 @@ namespace crd {
     crd_nodiscard crd_module RenderPass make_render_pass(const Context& context, RenderPass::CreateInfo&& info) noexcept {
         crd_profile_scoped();
         RenderPass render_pass;
+        render_pass.context = &context;
         std::vector<VkAttachmentDescription> attachments;
         attachments.reserve(info.attachments.size());
         for (const auto& attachment : info.attachments) {
@@ -167,22 +168,6 @@ namespace crd {
         return render_pass;
     }
 
-    crd_module void destroy_render_pass(const Context& context, RenderPass& render_pass) noexcept {
-        crd_profile_scoped();
-        for (auto& each : render_pass.attachments) {
-            if (each.owning) {
-                destroy_image(context, each.image);
-            }
-        }
-        for (const auto framebuffer : render_pass.framebuffers) {
-            vkDestroyFramebuffer(context.device, framebuffer.handle, nullptr);
-        }
-        if (render_pass.handle) {
-            vkDestroyRenderPass(context.device, render_pass.handle, nullptr);
-        }
-        render_pass = {};
-    }
-
     crd_nodiscard crd_module const Image& RenderPass::image(std::size_t index) const noexcept {
         crd_profile_scoped();
         return attachments[index].image;
@@ -202,7 +187,7 @@ namespace crd {
         return result;
     }
 
-    crd_module void RenderPass::resize(const Context& context, ResizeAttachments&& resize) noexcept {
+    crd_module void RenderPass::resize(ResizeAttachments&& resize) noexcept {
         crd_profile_scoped();
         auto& framebuffer = framebuffers[resize.framebuffer];
         crd_likely_if(framebuffer.extent == resize.size) {
@@ -217,7 +202,7 @@ namespace crd {
             crd_assert(current.owning, "resizing a handle to attachment");
             auto& old_image = current.image;
             layers = old_image.layers;
-            const auto new_image = make_image(context, {
+            const auto new_image = make_image(*context, {
                 .width   = resize.size.width,
                 .height  = resize.size.height,
                 .mips    = old_image.mips,
@@ -227,13 +212,13 @@ namespace crd {
                 .samples = old_image.samples,
                 .usage   = old_image.usage
             });
-            destroy_image(context, old_image);
+            old_image.destroy();
             image_references.emplace_back((old_image = new_image).view);
         }
         for (const auto* attachment : resize.references) {
             image_references.emplace_back(attachment->image.view);
         }
-        vkDestroyFramebuffer(context.device, framebuffer.handle, nullptr);
+        vkDestroyFramebuffer(context->device, framebuffer.handle, nullptr);
         framebuffer.extent = resize.size;
         VkFramebufferCreateInfo framebuffer_info;
         framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -245,6 +230,22 @@ namespace crd {
         framebuffer_info.width = framebuffer.extent.width;
         framebuffer_info.height = framebuffer.extent.height;
         framebuffer_info.layers = layers;
-        crd_vulkan_check(vkCreateFramebuffer(context.device, &framebuffer_info, nullptr, &framebuffer.handle));
+        crd_vulkan_check(vkCreateFramebuffer(context->device, &framebuffer_info, nullptr, &framebuffer.handle));
+    }
+
+    crd_module void RenderPass::destroy() noexcept {
+        crd_profile_scoped();
+        for (auto& each : attachments) {
+            if (each.owning) {
+                each.image.destroy();
+            }
+        }
+        for (const auto& framebuffer : framebuffers) {
+            vkDestroyFramebuffer(context->device, framebuffer.handle, nullptr);
+        }
+        if (handle) {
+            vkDestroyRenderPass(context->device, handle, nullptr);
+        }
+        *this = {};
     }
 } // namespace crd
