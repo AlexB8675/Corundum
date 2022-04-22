@@ -141,7 +141,7 @@ namespace crd {
             update.pImageInfo = nullptr;
             update.pBufferInfo = nullptr;
             update.pTexelBufferView = nullptr;
-            vkUpdateDescriptorSets(context.device, 1, &update, 0, nullptr);
+            vkUpdateDescriptorSets(context->device, 1, &update, 0, nullptr);
             if (found_binding) {
                 is_bound->descriptor = descriptor_hash;
             } else {
@@ -197,7 +197,7 @@ namespace crd {
 #if defined(crd_enable_raytracing)
     crd_module DescriptorSet<1>& DescriptorSet<1>::bind(const DescriptorBinding& binding, const AccelerationStructure& tlas) noexcept {
         crd_profile_scoped();
-        return bind(context, binding, 0, tlas);
+        return bind(binding, 0, tlas);
     }
 #endif
 

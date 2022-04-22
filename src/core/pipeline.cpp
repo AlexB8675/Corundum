@@ -37,8 +37,9 @@ namespace crd {
         return code;
     }
 
-    crd_nodiscard crd_module GraphicsPipeline make_pipeline(const Context& context, Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
+    crd_nodiscard crd_module GraphicsPipeline make_pipeline(Renderer& renderer, GraphicsPipeline::CreateInfo&& info) noexcept {
         crd_profile_scoped();
+        const auto* context = renderer.context;
         spdlog::info("loading vertex shader: \"{}\"", info.vertex);
         if (info.geometry) {
             spdlog::info("loading geometry shader: \"{}\"", info.geometry);
@@ -47,7 +48,7 @@ namespace crd {
             spdlog::info("loading fragment shader: \"{}\"", info.fragment);
         }
         GraphicsPipeline pipeline;
-        pipeline.context = &context;
+        pipeline.context = context;
         pipeline.renderer = &renderer;
         crd_assert(info.vertex, "vertex shader not present");
         VkPipelineShaderStageCreateInfo vertex_stage;
@@ -60,7 +61,7 @@ namespace crd {
 
         VkPipelineShaderStageCreateInfo geometry_stage;
         if (info.geometry) {
-            crd_assert(context.gpu.features.geometryShader, "geometry shader requested but not supported");
+            crd_assert(context->gpu.features.geometryShader, "geometry shader requested but not supported");
             geometry_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
             geometry_stage.pNext = nullptr;
             geometry_stage.flags = {};
@@ -98,7 +99,7 @@ namespace crd {
             module_create_info.flags = {};
             module_create_info.codeSize = size_bytes(binary);
             module_create_info.pCode = binary.data();
-            crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &vertex_stage.module));
+            crd_vulkan_check(vkCreateShaderModule(context->device, &module_create_info, nullptr, &vertex_stage.module));
 
             for (const auto& buffer : resources.uniform_buffers) {
                 const auto set = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
@@ -160,7 +161,7 @@ namespace crd {
             module_create_info.flags = {};
             module_create_info.codeSize = size_bytes(binary);
             module_create_info.pCode = binary.data();
-            crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &geometry_stage.module));
+            crd_vulkan_check(vkCreateShaderModule(context->device, &module_create_info, nullptr, &geometry_stage.module));
 
             for (const auto& buffer : resources.uniform_buffers) {
                 const auto set = compiler.get_decoration(buffer.id, spv::DecorationDescriptorSet);
@@ -223,7 +224,7 @@ namespace crd {
             module_create_info.flags = {};
             module_create_info.codeSize = size_bytes(binary);
             module_create_info.pCode = binary.data();
-            crd_vulkan_check(vkCreateShaderModule(context.device, &module_create_info, nullptr, &fragment_stage.module));
+            crd_vulkan_check(vkCreateShaderModule(context->device, &module_create_info, nullptr, &fragment_stage.module));
 
             VkPipelineColorBlendAttachmentState attachment;
             attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -312,8 +313,8 @@ namespace crd {
                 const auto& image_type = compiler.get_type(textures.type_id);
                 const bool is_array = !image_type.array.empty();
                 const bool is_dynamic = is_array && image_type.array[0] == 0;
-                const auto max_samplers = max_bound_samplers(context);
-                crd_assert(!is_dynamic || context.extensions.descriptor_indexing,
+                const auto max_samplers = max_bound_samplers(*context);
+                crd_assert(!is_dynamic || context->extensions.descriptor_indexing,
                            "shader uses descriptor indexing but GPU extension is not supported");
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[textures.name] = {
@@ -494,7 +495,7 @@ namespace crd {
                 layout_info.flags = {};
                 layout_info.bindingCount = bindings.size();
                 layout_info.pBindings = bindings.data();
-                crd_vulkan_check(vkCreateDescriptorSetLayout(context.device, &layout_info, nullptr, &layout));
+                crd_vulkan_check(vkCreateDescriptorSetLayout(context->device, &layout_info, nullptr, &layout));
             }
             set_layouts.push_back({ layout, max_bindings, dynamic });
             set_layout_handles.emplace_back(layout);
@@ -510,7 +511,7 @@ namespace crd {
         pipeline_layout_info.pSetLayouts = set_layout_handles.data();
         pipeline_layout_info.pushConstantRangeCount = push_constant_range.size != 0;
         pipeline_layout_info.pPushConstantRanges = &push_constant_range;
-        crd_vulkan_check(vkCreatePipelineLayout(context.device, &pipeline_layout_info, nullptr, &pipeline.layout.pipeline));
+        crd_vulkan_check(vkCreatePipelineLayout(context->device, &pipeline_layout_info, nullptr, &pipeline.layout.pipeline));
 
         std::vector<VkPipelineShaderStageCreateInfo> pipeline_stages;
         pipeline_stages.reserve(3);
@@ -539,18 +540,19 @@ namespace crd {
         pipeline_info.basePipelineHandle = nullptr;
         pipeline_info.basePipelineIndex = -1;
 
-        crd_vulkan_check(vkCreateGraphicsPipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
+        crd_vulkan_check(vkCreateGraphicsPipelines(context->device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
         for (const auto& stage : pipeline_stages) {
-            vkDestroyShaderModule(context.device, stage.module, nullptr);
+            vkDestroyShaderModule(context->device, stage.module, nullptr);
         }
         spdlog::info("pipeline created successfully");
         return pipeline;
     }
 
-    crd_nodiscard crd_module ComputePipeline make_pipeline(const Context& context, Renderer& renderer, ComputePipeline::CreateInfo&& info) noexcept {
+    crd_nodiscard crd_module ComputePipeline make_pipeline(Renderer& renderer, ComputePipeline::CreateInfo&& info) noexcept {
         crd_profile_scoped();
+        const auto* context = renderer.context;
         ComputePipeline pipeline;
-        pipeline.context = &context;
+        pipeline.context = context;
         pipeline.renderer = &renderer;
         spdlog::info("loading compute shader: \"{}\"", info.compute);
         const auto binary = import_spirv(info.compute);
@@ -568,7 +570,7 @@ namespace crd {
         compute_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
         compute_stage.pName = "main";
         compute_stage.pSpecializationInfo = nullptr;
-        crd_vulkan_check(vkCreateShaderModule(context.device, &compute_module, nullptr, &compute_stage.module));
+        crd_vulkan_check(vkCreateShaderModule(context->device, &compute_module, nullptr, &compute_stage.module));
 
         VkPushConstantRange push_constant_range;
         push_constant_range.stageFlags = {};
@@ -609,7 +611,7 @@ namespace crd {
                 const auto& image_type = compiler.get_type(textures.type_id);
                 const bool is_array = !image_type.array.empty();
                 const bool is_dynamic = is_array && image_type.array[0] == 0;
-                const auto max_samplers = max_bound_samplers(context);
+                const auto max_samplers = max_bound_samplers(*context);
                 pipeline_descriptor_layout[set].emplace_back(
                     descriptor_layout_bindings[textures.name] = {
                         .dynamic = is_dynamic,
@@ -665,14 +667,14 @@ namespace crd {
 
                 VkDescriptorSetLayoutCreateInfo layout_info;
                 layout_info.pNext = nullptr;
-                if (context.extensions.descriptor_indexing) {
+                if (context->extensions.descriptor_indexing) {
                     layout_info.pNext = &binding_flags;
                 }
                 layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
                 layout_info.flags = {};
                 layout_info.bindingCount = bindings.size();
                 layout_info.pBindings = bindings.data();
-                crd_vulkan_check(vkCreateDescriptorSetLayout(context.device, &layout_info, nullptr, &layout));
+                crd_vulkan_check(vkCreateDescriptorSetLayout(context->device, &layout_info, nullptr, &layout));
             }
             set_layouts.push_back({ layout, max_bindings, dynamic });
             set_layout_handles.emplace_back(layout);
@@ -688,7 +690,7 @@ namespace crd {
         pipeline_layout_info.pSetLayouts = set_layout_handles.data();
         pipeline_layout_info.pushConstantRangeCount = push_constant_range.size != 0;
         pipeline_layout_info.pPushConstantRanges = &push_constant_range;
-        crd_vulkan_check(vkCreatePipelineLayout(context.device, &pipeline_layout_info, nullptr, &pipeline.layout.pipeline));
+        crd_vulkan_check(vkCreatePipelineLayout(context->device, &pipeline_layout_info, nullptr, &pipeline.layout.pipeline));
 
         VkComputePipelineCreateInfo pipeline_info;
         pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -698,18 +700,19 @@ namespace crd {
         pipeline_info.layout = pipeline.layout.pipeline;
         pipeline_info.basePipelineHandle = nullptr;
         pipeline_info.basePipelineIndex = -1;
-        crd_vulkan_check(vkCreateComputePipelines(context.device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
-        vkDestroyShaderModule(context.device, compute_stage.module, nullptr);
+        crd_vulkan_check(vkCreateComputePipelines(context->device, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
+        vkDestroyShaderModule(context->device, compute_stage.module, nullptr);
         spdlog::info("pipeline created successfully");
         return pipeline;
     }
 
     // TODO: Add support for multiple shaders in one SBT
-    crd_nodiscard crd_module RayTracingPipeline make_pipeline(const Context& context, Renderer& renderer, RayTracingPipeline::CreateInfo&& info) noexcept {
+    crd_nodiscard crd_module RayTracingPipeline make_pipeline(Renderer& renderer, RayTracingPipeline::CreateInfo&& info) noexcept {
 #if defined(crd_enable_raytracing)
         crd_profile_scoped();
+        const auto* context = renderer.context;
         RayTracingPipeline pipeline;
-        pipeline.context = &context;
+        pipeline.context = context;
         pipeline.renderer = &renderer;
         std::vector<VkRayTracingShaderGroupCreateInfoKHR> pipeline_groups;
         pipeline_groups.reserve(3);
@@ -822,7 +825,7 @@ namespace crd {
                 const auto& image_type = compiler.get_type(textures.type_id);
                 const bool is_array = !image_type.array.empty();
                 const bool is_dynamic = is_array && image_type.array[0] == 0;
-                const auto max_samplers = max_bound_samplers(context);
+                const auto max_samplers = max_bound_samplers(*context);
                 auto& descriptor = pipeline_descriptor_layout[set];
                 const auto found =
                     std::find_if(descriptor.begin(), descriptor.end(), [binding](const auto& each) {
@@ -865,7 +868,7 @@ namespace crd {
             pipeline_stage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
             pipeline_stage.pName = "main";
             pipeline_stage.pSpecializationInfo = nullptr;
-            crd_vulkan_check(vkCreateShaderModule(context.device, &module_info, nullptr, &pipeline_stage.module));
+            crd_vulkan_check(vkCreateShaderModule(context->device, &module_info, nullptr, &pipeline_stage.module));
             pipeline_stages.emplace_back(pipeline_stage);
 
             VkRayTracingShaderGroupCreateInfoKHR pipeline_group;
@@ -899,7 +902,7 @@ namespace crd {
             pipeline_stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
             pipeline_stage.pName = "main";
             pipeline_stage.pSpecializationInfo = nullptr;
-            crd_vulkan_check(vkCreateShaderModule(context.device, &module_info, nullptr, &pipeline_stage.module));
+            crd_vulkan_check(vkCreateShaderModule(context->device, &module_info, nullptr, &pipeline_stage.module));
             pipeline_stages.emplace_back(pipeline_stage);
 
             VkRayTracingShaderGroupCreateInfoKHR pipeline_group;
@@ -933,7 +936,7 @@ namespace crd {
             pipeline_stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
             pipeline_stage.pName = "main";
             pipeline_stage.pSpecializationInfo = nullptr;
-            crd_vulkan_check(vkCreateShaderModule(context.device, &module_info, nullptr, &pipeline_stage.module));
+            crd_vulkan_check(vkCreateShaderModule(context->device, &module_info, nullptr, &pipeline_stage.module));
             pipeline_stages.emplace_back(pipeline_stage);
 
             VkRayTracingShaderGroupCreateInfoKHR pipeline_group;
@@ -990,14 +993,14 @@ namespace crd {
 
                 VkDescriptorSetLayoutCreateInfo layout_info;
                 layout_info.pNext = nullptr;
-                if (context.extensions.descriptor_indexing) {
+                if (context->extensions.descriptor_indexing) {
                     layout_info.pNext = &binding_flags;
                 }
                 layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
                 layout_info.flags = {};
                 layout_info.bindingCount = bindings.size();
                 layout_info.pBindings = bindings.data();
-                crd_vulkan_check(vkCreateDescriptorSetLayout(context.device, &layout_info, nullptr, &layout));
+                crd_vulkan_check(vkCreateDescriptorSetLayout(context->device, &layout_info, nullptr, &layout));
             }
             set_layouts.push_back({ layout, max_bindings, dynamic });
             set_layout_handles.emplace_back(layout);
@@ -1013,7 +1016,7 @@ namespace crd {
         pipeline_layout_info.pSetLayouts = set_layout_handles.data();
         pipeline_layout_info.pushConstantRangeCount = push_constant_range.size != 0;
         pipeline_layout_info.pPushConstantRanges = &push_constant_range;
-        crd_vulkan_check(vkCreatePipelineLayout(context.device, &pipeline_layout_info, nullptr, &pipeline.layout.pipeline));
+        crd_vulkan_check(vkCreatePipelineLayout(context->device, &pipeline_layout_info, nullptr, &pipeline.layout.pipeline));
 
         VkPipelineDynamicStateCreateInfo pipeline_dynamic_states;
         pipeline_dynamic_states.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -1030,22 +1033,22 @@ namespace crd {
         pipeline_info.pStages = pipeline_stages.data();
         pipeline_info.groupCount = (std::uint32_t)pipeline_groups.size();
         pipeline_info.pGroups = pipeline_groups.data();
-        pipeline_info.maxPipelineRayRecursionDepth = std::min(2u, context.gpu.raytracing_props.maxRayRecursionDepth);
+        pipeline_info.maxPipelineRayRecursionDepth = std::min(2u, context->gpu.raytracing_props.maxRayRecursionDepth);
         pipeline_info.pLibraryInfo = nullptr;
         pipeline_info.pLibraryInterface = nullptr;
         pipeline_info.pDynamicState = &pipeline_dynamic_states;
         pipeline_info.layout = pipeline.layout.pipeline;
         pipeline_info.basePipelineHandle = nullptr;
         pipeline_info.basePipelineIndex = 0;
-        crd_vulkan_check(vkCreateRayTracingPipelinesKHR(context.device, nullptr, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
+        crd_vulkan_check(vkCreateRayTracingPipelinesKHR(context->device, nullptr, nullptr, 1, &pipeline_info, nullptr, &pipeline.handle));
 
-        const auto& rt_props = context.gpu.raytracing_props;
+        const auto& rt_props = context->gpu.raytracing_props;
         const auto handle_size = rt_props.shaderGroupHandleSize;
         const auto handle_size_aligned = aligned_size(handle_size, rt_props.shaderGroupHandleAlignment);
 
         std::vector<std::uint8_t> s_table_storage(pipeline_groups.size() * handle_size_aligned);
         crd_vulkan_check(vkGetRayTracingShaderGroupHandlesKHR(
-            context.device,
+            context->device,
             pipeline.handle,
             0,
             pipeline_groups.size(),
@@ -1059,19 +1062,19 @@ namespace crd {
             result.size = handle_size_aligned;
             return result;
         };
-        pipeline.sbt.raygen.storage = crd::make_static_buffer(context, {
+        pipeline.sbt.raygen.storage = crd::make_static_buffer(*context, {
             .flags = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
             .usage = VMA_MEMORY_USAGE_CPU_ONLY,
             .capacity = handle_size
         });
         pipeline.sbt.raygen.region = make_strided_region(pipeline.sbt.raygen.storage);
-        pipeline.sbt.raymiss.storage = crd::make_static_buffer(context, {
+        pipeline.sbt.raymiss.storage = crd::make_static_buffer(*context, {
             .flags = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
             .usage = VMA_MEMORY_USAGE_CPU_ONLY,
             .capacity = handle_size
         });
         pipeline.sbt.raymiss.region = make_strided_region(pipeline.sbt.raymiss.storage);
-        pipeline.sbt.raychit.storage = crd::make_static_buffer(context, {
+        pipeline.sbt.raychit.storage = crd::make_static_buffer(*context, {
             .flags = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
             .usage = VMA_MEMORY_USAGE_CPU_ONLY,
             .capacity = handle_size

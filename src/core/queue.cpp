@@ -11,7 +11,7 @@
 namespace crd {
     crd_nodiscard crd_module Queue* make_queue(const Context& context, QueueFamily family) noexcept {
         crd_profile_scoped();
-        auto* queue = new Queue();
+        auto queue = new Queue();
         queue->family = family.family;
         VkCommandPoolCreateInfo command_pool_info;
         command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -96,6 +96,7 @@ namespace crd {
             case queue_type_graphics: queue = context.graphics; break;
             case queue_type_transfer: queue = context.transfer; break;
             case queue_type_compute:  queue = context.compute;  break;
+            default: crd_unreachable();
         }
         queue->submit({
             .commands = commands,

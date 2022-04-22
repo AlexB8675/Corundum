@@ -38,7 +38,7 @@ namespace crd {
         bool dynamic;
     };
 
-    using DescriptorSetLayouts     = std::vector<DescriptorSetLayout>;
+    using DescriptorSetLayouts = std::vector<DescriptorSetLayout>;
     using DescriptorLayoutBindings = std::unordered_map<std::string, DescriptorBinding>;
 
     struct ShaderBindingTable {
@@ -104,7 +104,7 @@ namespace crd {
         ShaderBindingTable sbt;
     };
 
-    crd_nodiscard crd_module GraphicsPipeline   make_pipeline(const Context&, Renderer&, GraphicsPipeline::CreateInfo&&) noexcept;
-    crd_nodiscard crd_module ComputePipeline    make_pipeline(const Context&, Renderer&, ComputePipeline::CreateInfo&&) noexcept;
-    crd_nodiscard crd_module RayTracingPipeline make_pipeline(const Context&, Renderer&, RayTracingPipeline::CreateInfo&&) noexcept;
+    crd_nodiscard crd_module GraphicsPipeline   make_pipeline(Renderer&, GraphicsPipeline::CreateInfo&&) noexcept;
+    crd_nodiscard crd_module ComputePipeline    make_pipeline(Renderer&, ComputePipeline::CreateInfo&&) noexcept;
+    crd_nodiscard crd_module RayTracingPipeline make_pipeline(Renderer&, RayTracingPipeline::CreateInfo&&) noexcept;
 } // namespace crd

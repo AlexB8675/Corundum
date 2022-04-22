@@ -309,18 +309,18 @@ int main() {
             { 0, 1 }
         } }
     });
-    auto shadow_pipeline = crd::make_pipeline(context, renderer, shadow_pipeline_info(shadow_pass));
-    auto depth_pipeline = crd::make_pipeline(context, renderer, depth_pipeline_info(depth_pass));
-    auto cull_pipeline = crd::make_pipeline(context, renderer, cull_pipeline_info());
-    auto light_pipeline = crd::make_pipeline(context, renderer, light_pipeline_info(final_pass));
-    auto final_pipeline = crd::make_pipeline(context, renderer, final_pipeline_info(final_pass));
-    auto black = crd::request_static_texture(context, renderer, "../data/textures/black.png", crd::texture_srgb);
+    auto shadow_pipeline = crd::make_pipeline(renderer, shadow_pipeline_info(shadow_pass));
+    auto depth_pipeline = crd::make_pipeline(renderer, depth_pipeline_info(depth_pass));
+    auto cull_pipeline = crd::make_pipeline(renderer, cull_pipeline_info());
+    auto light_pipeline = crd::make_pipeline(renderer, light_pipeline_info(final_pass));
+    auto final_pipeline = crd::make_pipeline(renderer, final_pipeline_info(final_pass));
+    auto black = crd::request_static_texture(renderer, "../data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
-    models.emplace_back(crd::request_static_model(context, renderer, "../data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, renderer, "../data/models/sponza/sponza.gltf"));
-    models.emplace_back(crd::request_static_model(context, renderer, "../data/models/dragon/dragon.obj"));
-    models.emplace_back(crd::request_static_model(context, renderer, "../data/models/suzanne/suzanne.obj"));
-    models.emplace_back(crd::request_static_model(context, renderer, "../data/models/plane/plane.obj"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/cube/cube.obj"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/sponza/sponza.gltf"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/dragon/dragon.obj"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/suzanne/suzanne.obj"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/plane/plane.obj"));
     /*auto draw_cmds = std::vector<Draw>{ {
         .model = &models[1],
         .transforms = { {

@@ -32,13 +32,17 @@ set(ASSIMP_BUILD_PLY_IMPORTER ON CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(ext/assimp)
 
-FetchContent_Declare(
-    tracy
-    GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-    GIT_TAG 9ba7171c3dd6f728268a820ee268a62c75f2dfb6
-    GIT_SHALLOW TRUE
-    GIT_PROGRESS TRUE)
-FetchContent_MakeAvailable(tracy)
+option(CORUNDUM_ENABLE_TRACY "" OFF)
+
+if (CORUNDUM_ENABLE_TRACY)
+    FetchContent_Declare(
+        tracy
+        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+        GIT_TAG 9ba7171c3dd6f728268a820ee268a62c75f2dfb6
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE)
+    FetchContent_MakeAvailable(tracy)
+endif()
 
 add_subdirectory(ext/spdlog)
 
@@ -106,10 +110,6 @@ add_library(corundum STATIC
 
 target_compile_definitions(corundum PUBLIC
     $<$<CONFIG:Debug>:crd_debug>
-    crd_enable_profiling
-    crd_extra_validation
-    #crd_enable_raytracing
-    crd_log_level=2
 
     $<$<BOOL:${WIN32}>:
         _CRT_SECURE_NO_WARNINGS
@@ -139,10 +139,10 @@ target_link_libraries(corundum PUBLIC
     glfw
     spdlog
     assimp
-    TracyClient
     Vulkan::Vulkan
     spirv-cross-glsl
-    $<$<BOOL:${UNIX}>:pthread>)
+    $<$<BOOL:${UNIX}>:pthread>
+    $<$<BOOL:${CORUNDUM_ENABLE_TRACY}>:TracyClient>)
 
 add_library(tests-common INTERFACE tests/common.hpp)
 

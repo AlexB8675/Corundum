@@ -68,13 +68,13 @@ int main() {
     auto context = crd::make_context();
     auto renderer = crd::make_renderer(context);
     auto swapchain = crd::make_swapchain(context, window);
-    auto black = crd::request_static_texture(context, "../data/textures/black.png", crd::texture_srgb);
+    auto black = crd::request_static_texture(renderer, "../data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
-    models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.gltf"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/plane/plane.obj"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/cube/cube.obj"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/sponza/sponza.gltf"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/dragon/dragon.obj"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/suzanne/suzanne.obj"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/plane/plane.obj"));
     auto draw_cmds = std::to_array<Draw>({ {
         .model = &models[0],
         .transforms = { {
@@ -125,7 +125,7 @@ int main() {
     double fps = 0;
     while (!window.is_closed()) {
         crd::poll_events();
-        auto [commands, image, index, wait, signal, done] = crd::acquire_frame(context, renderer, window, swapchain);
+        auto [commands, image, index, wait, signal, done] = renderer.acquire_frame(window, swapchain);
         const auto current_time = crd::current_time();
         const auto delta_time = current_time - last_time;
         last_time = current_time;
@@ -158,7 +158,7 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             })
             .end();
-        crd::present_frame(context, renderer, {
+        renderer.present_frame({
             .commands = commands,
             .window = window,
             .swapchain = swapchain,

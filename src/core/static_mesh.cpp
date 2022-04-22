@@ -16,7 +16,7 @@ namespace crd {
     crd_nodiscard crd_module Async<StaticMesh> request_static_mesh(const Context& context, StaticMesh::CreateInfo&& info) noexcept {
         crd_profile_scoped();
         using task_type = std::packaged_task<StaticMesh(ftl::TaskScheduler*)>;
-        auto* task = new task_type([&context, info = std::move(info)](ftl::TaskScheduler* scheduler) noexcept -> StaticMesh {
+        auto task = new task_type([&context, info = std::move(info)](ftl::TaskScheduler* scheduler) noexcept -> StaticMesh {
             crd_profile_scoped();
             const auto thread_index = scheduler->GetCurrentThreadIndex();
             const auto graphics_pool = context.graphics->transient[thread_index];
@@ -231,7 +231,7 @@ namespace crd {
                     })
                     .end();
                 immediate_submit(context, build_blas_commands, queue_type_graphics);
-                destroy_static_buffer(context, build_scratch_buffer);
+                build_scratch_buffer.destroy();
                 destroy_command_buffer(context, build_blas_commands);
             }
 #else
@@ -249,7 +249,7 @@ namespace crd {
         context.scheduler->AddTask({
             .Function = [](ftl::TaskScheduler* scheduler, void* data) {
                 crd_profile_scoped();
-                auto* task = static_cast<task_type*>(data);
+                auto task = static_cast<task_type*>(data);
                 (*task)(scheduler);
                 delete task;
             },

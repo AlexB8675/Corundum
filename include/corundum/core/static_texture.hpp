@@ -22,5 +22,5 @@ namespace crd {
         crd_nodiscard crd_module VkDescriptorImageInfo info() const noexcept;
                       crd_module void                  destroy() noexcept;
     };
-    crd_nodiscard crd_module Async<StaticTexture> request_static_texture(const Context&, Renderer&, std::string&&, TextureFormat) noexcept;
+    crd_nodiscard crd_module Async<StaticTexture> request_static_texture(Renderer&, std::string&&, TextureFormat) noexcept;
 } // namespace crd

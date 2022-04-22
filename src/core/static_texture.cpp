@@ -21,23 +21,24 @@
 #include <cmath>
 
 namespace crd {
-    crd_nodiscard crd_module Async<StaticTexture> request_static_texture(const Context& context, Renderer& renderer, std::string&& path, TextureFormat format) noexcept {
+    crd_nodiscard crd_module Async<StaticTexture> request_static_texture(Renderer& renderer, std::string&& path, TextureFormat format) noexcept {
         crd_profile_scoped();
         using task_type = std::packaged_task<StaticTexture(ftl::TaskScheduler*)>;
-        auto* task = new task_type([&context, &renderer, path = std::move(path), format](ftl::TaskScheduler* scheduler) noexcept -> StaticTexture {
+        const auto* context = renderer.context;
+        auto task = new task_type([context, &renderer, path = std::move(path), format](ftl::TaskScheduler* scheduler) noexcept -> StaticTexture {
             crd_profile_scoped();
             const auto thread_index = scheduler->GetCurrentThreadIndex();
-            const auto graphics_pool = context.graphics->transient[thread_index];
-            const auto transfer_pool = context.transfer->transient[thread_index];
+            const auto graphics_pool = context->graphics->transient[thread_index];
+            const auto transfer_pool = context->transfer->transient[thread_index];
             std::int32_t width, height, channels = 4;
             auto file = dtl::make_file_view(path.c_str());
-            auto* image_data = stbi_load_from_memory(static_cast<const std::uint8_t*>(file.data), file.size, &width, &height, &channels, STBI_rgb_alpha);
+            auto image_data = stbi_load_from_memory(static_cast<const std::uint8_t*>(file.data), file.size, &width, &height, &channels, STBI_rgb_alpha);
             if (!image_data) {
                 spdlog::info("error loading texture: {}", path);
             }
             spdlog::info("StaticTexture was asynchronously requested, expected bytes to transfer: {}", file.size);
             dtl::destroy_file_view(file);
-            auto image = make_image(context, {
+            auto image = make_image(*context, {
                 .width = (std::uint32_t)width,
                 .height = (std::uint32_t)height,
                 .mips = (std::uint32_t)std::floor(std::log2(std::max(width, height))) + 1,
@@ -49,7 +50,7 @@ namespace crd {
                          VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                          VK_IMAGE_USAGE_SAMPLED_BIT
             });
-            auto staging = make_static_buffer(context, {
+            auto staging = make_static_buffer(*context, {
                 .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 .usage = VMA_MEMORY_USAGE_CPU_ONLY,
                 .capacity = (std::size_t)width * height * 4
@@ -57,7 +58,7 @@ namespace crd {
             std::memcpy(staging.mapped, image_data, staging.capacity);
             stbi_image_free(image_data);
 
-            auto transfer_cmd = make_command_buffer(context, {
+            auto transfer_cmd = make_command_buffer(*context, {
                 .pool = transfer_pool,
                 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
             });
@@ -84,7 +85,7 @@ namespace crd {
                     .dest_access = {},
                     .old_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     .new_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-                }, *context.transfer, *context.graphics)
+                }, *context->transfer, *context->graphics)
                 .end();
 
             VkSemaphoreCreateInfo semaphore_info;
@@ -92,15 +93,15 @@ namespace crd {
             semaphore_info.pNext = nullptr;
             semaphore_info.flags = {};
             VkSemaphore transfer_done;
-            crd_vulkan_check(vkCreateSemaphore(context.device, &semaphore_info, nullptr, &transfer_done));
-            context.transfer->submit({
+            crd_vulkan_check(vkCreateSemaphore(context->device, &semaphore_info, nullptr, &transfer_done));
+            context->transfer->submit({
                 .commands = transfer_cmd,
                 .stages = {},
                 .waits = {},
                 .signals = { transfer_done },
                 .done = {}
             });
-            auto ownership_cmd = make_command_buffer(context, {
+            auto ownership_cmd = make_command_buffer(*context, {
                 .pool = graphics_pool,
                 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
             });
@@ -116,7 +117,7 @@ namespace crd {
                     .dest_access = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
                     .old_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     .new_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-                }, *context.transfer, *context.graphics);
+                }, *context->transfer, *context->graphics);
             for (std::uint32_t mip = 1; mip < image.mips; ++mip) {
                 ownership_cmd
                     .transition_layout({
@@ -194,20 +195,20 @@ namespace crd {
             done_fence_info.pNext = nullptr;
             done_fence_info.flags = {};
             VkFence request_done;
-            crd_vulkan_check(vkCreateFence(context.device, &done_fence_info, nullptr, &request_done));
-            context.graphics->submit({
+            crd_vulkan_check(vkCreateFence(context->device, &done_fence_info, nullptr, &request_done));
+            context->graphics->submit({
                 .commands = ownership_cmd,
                 .stages = { VK_PIPELINE_STAGE_TRANSFER_BIT },
                 .waits = { transfer_done },
                 .signals = {},
                 .done = request_done
             });
-            wait_fence(context, request_done);
-            vkDestroySemaphore(context.device, transfer_done, nullptr);
-            vkDestroyFence(context.device, request_done, nullptr);
+            wait_fence(*context, request_done);
+            vkDestroySemaphore(context->device, transfer_done, nullptr);
+            vkDestroyFence(context->device, request_done, nullptr);
             staging.destroy();
-            destroy_command_buffer(context, ownership_cmd);
-            destroy_command_buffer(context, transfer_cmd);
+            destroy_command_buffer(*context, ownership_cmd);
+            destroy_command_buffer(*context, transfer_cmd);
             return {
                 image, renderer.acquire_sampler({
                     .filter = VK_FILTER_LINEAR,
@@ -218,10 +219,10 @@ namespace crd {
             };
         });
         auto future = task->get_future();
-        context.scheduler->AddTask({
+        context->scheduler->AddTask({
             .Function = [](ftl::TaskScheduler* scheduler, void* data) {
                 crd_profile_scoped();
-                auto* task = static_cast<task_type*>(data);
+                auto task = static_cast<task_type*>(data);
                 (*task)(scheduler);
                 delete task;
             },

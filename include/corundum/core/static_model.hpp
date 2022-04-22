@@ -30,5 +30,5 @@ namespace crd {
         crd_module void destroy() noexcept;
     };
 
-    crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context&, Renderer&, std::string&&) noexcept;
+    crd_nodiscard crd_module Async<StaticModel> request_static_model(Renderer&, std::string&&) noexcept;
 } // namespace crd

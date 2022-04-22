@@ -1,6 +1,7 @@
 #include <corundum/core/static_texture.hpp>
 #include <corundum/core/static_model.hpp>
 #include <corundum/core/static_mesh.hpp>
+#include <corundum/core/renderer.hpp>
 #include <corundum/core/context.hpp>
 
 #include <corundum/detail/file_view.hpp>
@@ -127,7 +128,7 @@ namespace crd {
         const auto format = type == aiTextureType_DIFFUSE ? texture_srgb : texture_unorm;
         const auto [cached, miss] = cache.try_emplace(file_name);
         crd_unlikely_if(miss) {
-            cached->second = new Async<StaticTexture>(request_static_texture(context, renderer, std::move(file_name), format));
+            cached->second = new Async<StaticTexture>(request_static_texture(renderer, std::move(file_name), format));
         }
         return cached->second;
     }
@@ -136,7 +137,7 @@ namespace crd {
         crd_profile_scoped();
         std::vector<float> geometry;
         geometry.resize(mesh->mNumVertices * vertex_components);
-        auto* ptr = &geometry.front();
+        auto ptr = &geometry.front();
         for (std::size_t i = 0; i < mesh->mNumVertices; ++i) {
             ptr[0] = mesh->mVertices[i].x;
             ptr[1] = mesh->mVertices[i].y;
@@ -198,11 +199,12 @@ namespace crd {
         }
     }
 
-    crd_nodiscard crd_module Async<StaticModel> request_static_model(const Context& context, Renderer& renderer, std::string&& path) noexcept {
+    crd_nodiscard crd_module Async<StaticModel> request_static_model(Renderer& renderer, std::string&& path) noexcept {
         crd_profile_scoped();
         spdlog::info("loading model: \"{}\"", path);
         using task_type = std::packaged_task<StaticModel()>;
-        auto* task = new task_type([&context, &renderer, path = std::move(path)]() noexcept -> StaticModel {
+        const auto context = renderer.context;
+        auto task = new task_type([context, &renderer, path = std::move(path)]() noexcept -> StaticModel {
             crd_profile_scoped();
             Assimp::Importer importer;
             const auto post_process =
@@ -219,15 +221,15 @@ namespace crd {
             TextureCache cache;
             cache.reserve(128);
             StaticModel model;
-            process_node(context, renderer, scene, scene->mRootNode, model, cache, fs::path(path).parent_path());
+            process_node(*context, renderer, scene, scene->mRootNode, model, cache, fs::path(path).parent_path());
             spdlog::info("StaticModel \"{}\" was loaded successfully", path);
             return model;
         });
         auto future = task->get_future();
-        context.scheduler->AddTask({
+        context->scheduler->AddTask({
             .Function = +[](ftl::TaskScheduler*, void* data) {
                 crd_profile_scoped();
-                auto* task = static_cast<task_type*>(data);
+                auto task = static_cast<task_type*>(data);
                 (*task)();
                 delete task;
             },
@@ -250,7 +252,7 @@ namespace crd {
         if (empty != to_destroy.end()) {
             to_destroy.erase(empty);
         }
-        for (auto* each : to_destroy) {
+        for (auto each : to_destroy) {
             (*each)->destroy();
             delete each;
         }

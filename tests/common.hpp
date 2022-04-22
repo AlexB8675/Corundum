@@ -349,7 +349,7 @@ template <typename T>
 static inline void reload_pipelines(T& pipeline, typename T::CreateInfo&& info) noexcept {
     crd_profile_scoped();
     const auto* context = pipeline.context;
-    auto* renderer = pipeline.renderer;
+    auto renderer = pipeline.renderer;
     switch (pipeline.type) {
         case T::type_graphics:
         case T::type_raytracing: {
@@ -361,7 +361,7 @@ static inline void reload_pipelines(T& pipeline, typename T::CreateInfo&& info) 
         } break;
     }
     pipeline.destroy();
-    pipeline = crd::make_pipeline(*context, *renderer, std::move(info));
+    pipeline = crd::make_pipeline(*renderer, std::move(info));
 }
 
 #endif //CORUNDUM_TESTS_COMMON_HPP

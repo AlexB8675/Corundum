@@ -61,7 +61,7 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
                     as_instance.mask = 0xff;
                     as_instance.instanceShaderBindingTableRecordOffset = 0;
                     as_instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-                    as_instance.accelerationStructureReference = submesh.mesh->blas.address;
+                    as_instance.accelerationStructureReference = crd::device_address(context, submesh.mesh->blas);
                     for (const auto& transform : draw_cmd.transforms) {
                         auto result = glm::mat4(1.0f);
                         result = glm::translate(result, transform.position);
@@ -76,8 +76,8 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
                             emplace_descriptor(submesh.diffuse),
                             emplace_descriptor(submesh.normal),
                             emplace_descriptor(submesh.specular),
-                            submesh.mesh->geometry.address,
-                            submesh.mesh->indices.address
+                            crd::device_address(context, submesh.mesh->geometry),
+                            crd::device_address(context, submesh.mesh->indices),
                         });
                     }
                 }
@@ -93,13 +93,13 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
             .capacity = obj_addresses_capacity
         });
     } else {
-        crd::resize_buffer(context, object, obj_addresses_capacity);
+        object.resize(obj_addresses_capacity);
     }
-    object.write(object_addresses.data(), 0);
+    object.write(object_addresses.data());
 
     const auto instances_capacity = std::max(crd::size_bytes(instances), sizeof(VkAccelerationStructureInstanceKHR));
     crd_unlikely_if(tlas.instances.handle && tlas.instances.capacity < instances_capacity) {
-        crd::destroy_static_buffer(context, tlas.instances);
+        tlas.instances.destroy();
     }
     crd_unlikely_if(!tlas.instances.handle) {
         tlas.instances = crd::make_static_buffer(context, {
@@ -145,7 +145,7 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
             crd::vkDestroyAccelerationStructureKHR(context.device, tlas.handle, nullptr);
         }
         crd_likely_if(tlas.buffer.handle) {
-            crd::destroy_static_buffer(context, tlas.buffer);
+            tlas.buffer.destroy();
         }
         tlas.buffer = crd::make_static_buffer(context, {
             .flags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
@@ -166,7 +166,7 @@ static inline void make_scene(const crd::Context& context, VkDescriptorImageInfo
     scene.cache[index] = primitive_count;
 
     crd_likely_if(tlas.build.handle) {
-        crd::destroy_static_buffer(context, tlas.build);
+        tlas.build.destroy();
     }
     tlas.build = crd::make_static_buffer(context, {
         .flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -195,12 +195,12 @@ int main() {
     auto context = crd::make_context();
     auto renderer = crd::make_renderer(context);
     auto swapchain = crd::make_swapchain(context, window);
-    auto black = crd::request_static_texture(context, "../data/textures/black.png", crd::texture_srgb);
+    auto black = crd::request_static_texture(renderer, "../data/textures/black.png", crd::texture_srgb);
     std::vector<crd::Async<crd::StaticModel>> models;
-    models.emplace_back(crd::request_static_model(context, "../data/models/cube/cube.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/sponza/sponza.gltf"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/dragon/dragon.obj"));
-    models.emplace_back(crd::request_static_model(context, "../data/models/suzanne/suzanne.obj"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/cube/cube.obj"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/sponza/sponza.gltf"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/dragon/dragon.obj"));
+    models.emplace_back(crd::request_static_model(renderer, "../data/models/suzanne/suzanne.obj"));
     auto draw_cmds = std::to_array<Draw>({ {
         .model = &models[0],
         .transforms = { {
@@ -243,15 +243,15 @@ int main() {
     } });
 
     auto result = crd::make_image(context, {
-        .width   = window.width,
-        .height  = window.height,
-        .mips    = 1,
-        .layers  = 1,
-        .format  = VK_FORMAT_B8G8R8A8_UNORM,
-        .aspect  = VK_IMAGE_ASPECT_COLOR_BIT,
+        .width = window.width,
+        .height = window.height,
+        .mips = 1,
+        .layers = 1,
+        .format = VK_FORMAT_B8G8R8A8_UNORM,
+        .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
         .samples = VK_SAMPLE_COUNT_1_BIT,
-        .usage   = VK_IMAGE_USAGE_STORAGE_BIT |
-                   VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+        .usage = VK_IMAGE_USAGE_STORAGE_BIT |
+                 VK_IMAGE_USAGE_TRANSFER_SRC_BIT
     });
 
     // Transition
@@ -277,7 +277,7 @@ int main() {
         crd::immediate_submit(context, commands, crd::queue_type_graphics);
     }
 
-    auto main_pipeline = crd::make_pipeline(context, renderer, {
+    auto main_pipeline = crd::make_pipeline(renderer, {
         .raygen = "../data/shaders/test_raytracing/main.rgen.spv",
         .raymiss = "../data/shaders/test_raytracing/main.rmiss.spv",
         .raychit = "../data/shaders/test_raytracing/main.rchit.spv",
@@ -299,7 +299,7 @@ int main() {
     double fps = 0;
     while (!window.is_closed()) {
         crd::poll_events();
-        auto [commands, image, index, wait, signal, done] = crd::acquire_frame(context, renderer, window, swapchain);
+        auto [commands, image, index, wait, signal, done] = renderer.acquire_frame(window, swapchain);
         const auto current_time = crd::current_time();
         const auto delta_time = current_time - last_time;
         last_time = current_time;
@@ -307,8 +307,7 @@ int main() {
         ++frames;
         camera.update(window, delta_time);
         CameraUniform camera_data;
-        camera_data.projection = camera.projection;
-        camera_data.projection = glm::inverse(camera_data.projection);
+        camera_data.projection = glm::inverse(camera.projection);
         camera_data.view = glm::inverse(camera.view);
 
         crd::wait_fence(context, done);
@@ -318,11 +317,11 @@ int main() {
         make_scene(context, black->info(), scene, commands.begin(), draw_cmds, index);
 
         main_set[index]
-            .bind(context, main_pipeline.bindings["Camera"], camera_buffer[index].info())
-            .bind(context, main_pipeline.bindings["image"], result.info(VK_IMAGE_LAYOUT_GENERAL))
-            .bind(context, main_pipeline.bindings["tlas"], scene.tlas[index])
-            .bind(context, main_pipeline.bindings["Objects"], scene.objects[index].info())
-            .bind(context, main_pipeline.bindings["textures"], scene.descriptors);
+            .bind(main_pipeline.bindings["Camera"], camera_buffer[index].info())
+            .bind(main_pipeline.bindings["image"], result.info(VK_IMAGE_LAYOUT_GENERAL))
+            .bind(main_pipeline.bindings["tlas"], scene.tlas[index])
+            .bind(main_pipeline.bindings["Objects"], scene.objects[index].info())
+            .bind(main_pipeline.bindings["textures"], scene.descriptors);
 
         commands
             .bind_pipeline(main_pipeline)
@@ -374,7 +373,7 @@ int main() {
                 .new_layout = VK_IMAGE_LAYOUT_GENERAL
             })
             .end();
-        crd::present_frame(context, renderer, {
+        renderer.present_frame({
             .commands = commands,
             .window = window,
             .swapchain = swapchain,
@@ -386,5 +385,6 @@ int main() {
             frames = 0;
             fps = 0;
         }
+        crd_mark_frame();
     }
 }
