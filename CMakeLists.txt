@@ -46,7 +46,7 @@ endif()
 
 add_subdirectory(ext/spdlog)
 
-if(MSVC)
+if(MSVC AND NOT CUDA)
     target_compile_options(assimp PUBLIC /w /EHsc)
 endif()
 
@@ -110,6 +110,7 @@ add_library(corundum STATIC
 
 target_compile_definitions(corundum PUBLIC
     $<$<CONFIG:Debug>:crd_debug>
+    $<$<BOOL:${CORUNDUM_ENABLE_TRACY}>:crd_enable_profiling>
 
     $<$<BOOL:${WIN32}>:
         _CRT_SECURE_NO_WARNINGS

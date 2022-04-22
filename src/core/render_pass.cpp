@@ -1,7 +1,9 @@
 #include <corundum/core/render_pass.hpp>
 #include <corundum/core/context.hpp>
 
-#include <Tracy.hpp>
+#if defined(crd_enable_profiling)
+    #include <Tracy.hpp>
+#endif
 
 #include <spdlog/spdlog.h>
 

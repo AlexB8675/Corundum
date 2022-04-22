@@ -2,7 +2,9 @@
 
 #include <corundum/wm/window.hpp>
 
-#include <Tracy.hpp>
+#if defined(crd_enable_profiling)
+    #include <Tracy.hpp>
+#endif
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>

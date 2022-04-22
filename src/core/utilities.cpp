@@ -5,7 +5,9 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/buffer.hpp>
 
-#include <Tracy.hpp>
+#if defined(crd_enable_profiling)
+    #include <Tracy.hpp>
+#endif
 
 namespace crd {
     crd_nodiscard static inline VkDeviceAddress as_device_address(const Context& context, const AccelerationStructure& as) noexcept {

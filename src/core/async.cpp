@@ -4,7 +4,9 @@
 #include <corundum/core/static_mesh.hpp>
 #include <corundum/core/async.hpp>
 
-#include <Tracy.hpp>
+#if defined(crd_enable_profiling)
+    #include <Tracy.hpp>
+#endif
 
 #include <utility>
 #include <chrono>

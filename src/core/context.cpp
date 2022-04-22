@@ -1,7 +1,9 @@
 #include <corundum/core/dispatch.hpp>
 #include <corundum/core/context.hpp>
 
-#include <Tracy.hpp>
+#if defined(crd_enable_profiling)
+    #include <Tracy.hpp>
+#endif
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>

@@ -14,7 +14,9 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 
-#include <Tracy.hpp>
+#if defined(crd_enable_profiling)
+    #include <Tracy.hpp>
+#endif
 
 #include <spdlog/spdlog.h>
 

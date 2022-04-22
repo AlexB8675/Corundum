@@ -9,7 +9,9 @@
 
 #include <spdlog/spdlog.h>
 
-#include <Tracy.hpp>
+#if defined(crd_enable_profiling)
+    #include <Tracy.hpp>
+#endif
 
 namespace crd {
     template <>

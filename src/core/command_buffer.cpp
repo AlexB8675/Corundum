@@ -9,7 +9,9 @@
 #include <corundum/core/context.hpp>
 #include <corundum/core/clear.hpp>
 
-#include <Tracy.hpp>
+#if defined(crd_enable_profiling)
+    #include <Tracy.hpp>
+#endif
 
 #include <vector>
 
